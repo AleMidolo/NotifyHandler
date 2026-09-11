@@ -2,67 +2,47 @@
 
 Status: **Accepted baseline for Milestone 1**
 
-This document defines the runtime and component architecture for NotifyHandler. Detailed shared execution and bookmaker-adapter contracts are refined separately under `ARCH-002`.
+NotifyHandler is a local-first desktop application that transforms a reviewed surebet notification into two independently prepared bookmaker selections while keeping authentication, stake entry, review, and final bet submission manual.
 
-## 1. Architectural decision
+The runtime decision is recorded in `docs/adr/0001-local-desktop-playwright-runtime.md`. Shared execution contracts are now stabilized by ARCH-002.
 
-NotifyHandler is a **local-first desktop application** with:
+## 1. Runtime model
 
-- a desktop UI renderer for notification input, parsed preview, option choice, execution status, and manual handoff;
-- a trusted local core process for parsing/domain orchestration and state management;
-- a browser-automation worker boundary containing bookmaker adapters;
-- **Playwright controlling dedicated headed Chromium browser processes** for bookmaker navigation and outcome selection;
-- isolated browser/session state per bookmaker leg for the MVP.
+NotifyHandler uses:
 
-The initial implementation should use TypeScript/Node.js across the core and automation layers. An Electron-style desktop shell is the preferred packaging host because it provides a local desktop UI plus a Node-capable privileged process while allowing the bookmaker browser to remain a separate visible Chromium process.
+- a desktop renderer for notification input, parsed preview, recommended-option choice, execution status, recovery actions, and manual handoff;
+- a trusted local core/main process for domain integration, execution-plan construction, two-leg orchestration, state, and typed IPC;
+- a separate browser-automation worker containing the adapter registry, matching policy, navigation policy, and browser gateway;
+- Playwright controlling dedicated visible/headed Chromium processes for bookmaker navigation and selection preparation;
+- isolated, application-owned browser/session state per leg for the MVP.
 
-The desktop shell must not embed bookmaker pages in the application renderer. The user interacts with bookmaker pages only in the dedicated headed browser windows opened for execution.
+TypeScript/Node.js is the common implementation language. An Electron-style shell is the preferred desktop host. Bookmaker pages are never embedded in the renderer.
 
-## 2. Why this model
-
-The product requires both automation and a deliberate manual boundary. The selected model provides:
-
-- direct, normal browser interaction through Playwright;
-- a visible browser where the user can manually authenticate when required;
-- no need to control the user's everyday browser profile;
-- deterministic browser testing against local fixtures;
-- process/session isolation between the application UI and bookmaker pages;
-- a straightforward cancellation boundary because a leg browser process/session can be stopped without terminating the application;
-- local execution without a remote service holding bookmaker session state.
-
-Correctness and safe failure take priority over preserving an existing login session or maximizing automation speed.
-
-## 3. High-level component model
+## 2. Component model
 
 ```text
 +-------------------------------+
 | Desktop Renderer              |
-| - input                       |
-| - parsed preview              |
-| - option selection            |
-| - leg status / user actions   |
+| input / preview / option      |
+| per-leg status / user actions |
 +---------------+---------------+
                 | typed IPC
                 v
 +-------------------------------+
 | Local Core / Main Process     |
-| - input transport boundary    |
-| - parser + validation         |
-| - normalized domain model     |
-| - execution-plan builder      |
-| - two-leg orchestrator        |
-| - adapter registry            |
-| - sanitized diagnostics       |
+| parser/domain integration     |
+| plan builder                  |
+| two-leg orchestrator          |
+| sanitized diagnostics         |
 +---------------+---------------+
                 | typed worker protocol
                 v
 +-------------------------------+
 | Browser Automation Worker     |
-| - shared adapter contract     |
-| - bookmaker adapters          |
-| - matching policy helpers     |
-| - navigation/origin policy    |
-| - Playwright browser gateway  |
+| adapter registry              |
+| matching + origin policy      |
+| restricted browser gateway    |
+| selection activation gate     |
 +----------+--------------------+
            |
            +-----------------------------+
@@ -70,238 +50,259 @@ Correctness and safe failure take priority over preserving an existing login ses
 +----------------------+       +----------------------+
 | Headed Chromium A    |       | Headed Chromium B    |
 | isolated leg session |       | isolated leg session |
-| user can take control|       | user can take control|
 +----------------------+       +----------------------+
 ```
 
-Bookmaker-specific DOM rules exist only inside bookmaker adapters and their fixture/test code.
+Bookmaker-specific DOM knowledge exists only in bookmaker adapters and their fixtures/tests.
 
-## 4. Component responsibilities
+## 3. Normative contract map
 
-### 4.1 Desktop renderer
+Downstream implementation must use these shared contracts:
+
+- `specs/notification-format.md` — transport-neutral notification normalization;
+- `specs/selection-target.md` — immutable bookmaker-agnostic identity target for one leg;
+- `specs/execution-contract.md` — exact two-leg runtime model, states, transitions, attempts, evidence epochs, commands, and derived plan status;
+- `specs/bookmaker-adapter-contract.md` — core/worker/adapter interface and restricted browser/selection capability boundary;
+- `specs/matching-policy.md` — deterministic event/market/line/outcome evidence and odds policy;
+- `docs/error-model.md` — interruption, safe-failure, cancellation, and recovery taxonomy;
+- `docs/test-strategy.md` — unit, contract, browser integration, transaction-boundary, and release-gate tests;
+- `docs/safety-boundaries.md` — non-negotiable authentication/access/transaction boundaries.
+
+If implementation behavior conflicts with these contracts, implementation must change or an explicit architecture change/ADR must be accepted first.
+
+## 4. Renderer boundary
 
 The renderer is an unprivileged presentation surface. It may:
 
-- accept pasted notification text;
-- display parsed/normalized data;
-- let the user select a recommended pair;
-- display the exact two-leg plan before execution;
-- show independent leg states, evidence summaries, odds changes, failures, and recovery actions;
-- request start/resume/retry/reopen/cancel operations through typed IPC.
+- accept notification input;
+- display normalized parsing results;
+- let the user choose a recommended pair;
+- show the exact two immutable targets before execution;
+- display independent leg states, matching evidence summaries, odds changes, failures, and safe recovery actions;
+- request start, manual-auth resume, changed-odds continuation, retry, reopen, cancel, and plan restart through typed IPC.
 
 It must not:
 
 - import Playwright or bookmaker adapters;
-- access arbitrary filesystem or Node APIs;
-- receive credentials, cookies, authentication tokens, or raw browser storage;
-- contain bookmaker DOM selectors.
+- contain bookmaker DOM selectors;
+- access bookmaker credentials, cookies, tokens, raw storage, or browser profiles;
+- receive generic browser-control capabilities.
 
-Desktop-shell security features such as renderer context isolation and disabled Node integration are required.
+Renderer context isolation and disabled Node integration are required.
 
-### 4.2 Local core / main process
+## 5. Core/main-process boundary
 
-The core owns application behavior independent of bookmaker DOM structure:
+The core owns bookmaker-agnostic application behavior:
 
-- transport-neutral input handoff;
-- parser/domain validation;
-- conversion of the chosen recommendation into exactly two selection targets;
-- execution-plan creation;
-- independent per-leg orchestration and cancellation;
-- lifecycle/state persistence for the current application run;
-- adapter lookup by canonical bookmaker identifier;
-- sanitized diagnostics and error propagation.
+- transport-neutral parser/domain handoff;
+- validation and reviewed plan creation;
+- conversion of the chosen option into exactly two immutable `SelectionTarget` legs;
+- independent per-leg runtime state;
+- attempt/evidence-epoch freshness checks;
+- cancellation and safe recovery commands;
+- adapter lookup by canonical bookmaker id;
+- sanitized diagnostics/result propagation.
 
-The core communicates with automation through a typed protocol containing normalized targets and structured results. It does not pass credentials, stakes, or transaction commands.
+The core does not receive raw browser objects and never sends credentials, stake-entry commands, or transaction commands to the worker.
 
-### 4.3 Browser automation worker
+The overall plan status is derived from the two authoritative leg states; one leg can never overwrite the other.
 
-The automation worker is the only component allowed to import Playwright and bookmaker-specific adapters.
+## 6. Browser-automation worker boundary
 
-It owns:
+Only the automation worker may import Playwright and bookmaker adapter modules.
 
-- browser launch and teardown;
-- approved-origin/deep-link validation;
-- page readiness and redirect checks;
-- manual-login detection and pause/resume coordination;
-- bookmaker-specific event/market/line/outcome matching;
-- observed-odds capture;
-- safe selection activation only after required identity evidence passes;
-- structured evidence/result reporting.
+The worker owns:
 
-The worker protocol intentionally has no operation for credential entry, MFA/CAPTCHA handling, stake entry, bet submission, deposits, withdrawals, cash-out, or equivalent transaction actions.
+- browser launch/cleanup;
+- isolated leg sessions;
+- allowed-origin/deep-link/redirect validation;
+- page readiness;
+- manual-login interruption coordination;
+- adapter execution;
+- shared matching/evidence policy;
+- observed-odds capture/comparison;
+- final verified selection activation through the shared activation gate;
+- structured progress/result/error events.
 
-The implementation should enforce package/module boundaries so application/core code cannot reach Playwright directly and adapter code cannot bypass the shared browser/selection capability layer without an explicit architecture change.
+Adapters do not receive the Electron renderer, application privilege surface, credential stores, password manager access, or raw application filesystem authority.
 
-## 5. Browser and session model
+Adapters should receive a restricted bookmaker-page abstraction rather than raw Playwright `Browser`, `BrowserContext`, or `Page` objects as their public dependency.
 
-### 5.1 Headed browser
+## 7. Browser/session model
 
-Bookmaker execution uses a visible Chromium browser controlled by Playwright. Headed mode is required for the MVP because the user must be able to perform manual authentication and later take control of the prepared selection.
+Each leg receives a dedicated headed Chromium session/process with an ephemeral application-owned profile by default.
 
-### 5.2 Isolation
+The application must not attach to the user's normal Chrome/Edge profile through remote debugging.
 
-Each leg receives its own isolated browser session. The MVP preference is a dedicated browser process with an ephemeral application-owned user-data directory per leg/run.
+This provides:
 
-This prevents:
+- isolation between bookmakers/legs;
+- reduced exposure to unrelated tabs/cookies/extensions;
+- independent cancellation/cleanup;
+- clearer manual takeover;
+- deterministic fixture testing.
 
-- one bookmaker adapter from operating on another bookmaker's page;
-- leakage from unrelated tabs or the user's normal browser profile;
-- accidental reuse of stale matching evidence between legs.
+If both legs use the same bookmaker, they remain separate sessions in the MVP unless a later ADR approves safe session sharing.
 
-If both legs target the same bookmaker, they still remain separate executions unless a later ADR explicitly introduces a safe shared-session model.
+Persistent authenticated bookmaker profiles are deferred and require a separate Security review/ADR.
 
-### 5.3 Authentication
+## 8. Authentication boundary
 
-NotifyHandler never accepts credentials. When authentication is required:
+If a bookmaker requires authentication:
 
-1. the adapter returns `manual_login_required`;
-2. automation for that leg pauses;
+1. adapter/worker reports `AUTH_REQUIRED`;
+2. automated actions for that leg pause;
 3. the user authenticates directly in the visible bookmaker browser;
-4. the user requests resume from NotifyHandler;
-5. the adapter re-validates origin, page state, event, market, line, and outcome before any selection action.
+4. the user requests resume;
+5. the worker creates a fresh evidence epoch and re-runs origin, event, market, line, outcome, and odds validation.
 
-No credential-field introspection, password-manager access, automated OTP/MFA, or CAPTCHA handling is permitted.
+NotifyHandler never receives/types credentials, reads password-manager secrets, automates MFA/OTP/security questions, or solves/bypasses CAPTCHA.
 
-### 5.4 Session persistence
+## 9. Matching and confidence architecture
 
-For the MVP, browser profiles are **ephemeral by default** and are not a product persistence mechanism. Application restart invalidates active matching evidence and execution state.
+Selection authorization is predicate-based, not score-based.
 
-A future opt-in persistent bookmaker profile may be considered only after Security review and a separate ADR because it materially increases exposure of session cookies and authenticated state.
+Required identity dimensions are independently classified as:
 
-## 6. Data flow
+- `NOT_CHECKED`;
+- `MATCHED`;
+- `MISMATCHED`;
+- `AMBIGUOUS`;
+- `UNAVAILABLE`.
 
-1. An input transport produces raw notification text or structured input.
-2. The parser normalizes input into the bookmaker-agnostic domain model and retains safe provenance for diagnostics.
-3. The renderer displays the normalized preview; invalid/ambiguous input cannot proceed.
-4. The user chooses one recommended pair.
-5. Core resolves it into exactly two normalized selection targets and displays them before execution.
-6. The orchestrator starts two independent leg executions.
-7. For each leg, the automation worker validates the target URL/origin, opens a headed browser session, and applies the shared matching policy through the relevant bookmaker adapter.
-8. If login is required, that leg pauses for manual user interaction and later revalidates.
-9. Only after event, market, exact line, and outcome identity satisfy the contract may the adapter activate the requested selection.
-10. The worker reports observed odds, matching evidence, and a structured result to the core.
-11. The renderer shows each leg's state independently. `ready_for_user` means selection preparation only; stake entry, review, and final submission remain manual.
+Only `MATCHED` authorizes a required identity dimension.
 
-## 7. State and concurrency
+Fuzzy similarity may help discover candidates but cannot itself authorize selection. Approved aliases must be deterministic/version-controlled/tested. Exact numeric line matching uses decimal-safe semantics with no nearest-line tolerance.
 
-The application owns one execution-plan state containing two independent leg state machines. A leg failure must never overwrite or imply the state of the other.
+See `specs/matching-policy.md` for the normative rules.
 
-The architecture permits concurrent leg execution, but concurrency is an orchestration policy rather than an adapter behavior. Implementations may start sequentially initially if that reduces ambiguity during early development, provided the state model remains independently addressable.
+## 10. Odds policy
 
-Any retry, resume after login, redirect, refresh, reopened page, browser restart, or meaningful DOM state change must invalidate stale matching evidence and force required checks to run again.
+Expected odds from the notification and observed bookmaker odds are always distinct values.
 
-The detailed state/event/result contract is defined under `ARCH-002`.
+For the MVP:
 
-## 8. Transaction boundary by design
+- equal odds can proceed when identity is fully matched;
+- higher/lower changed odds produce `ODDS_CHANGED` **before selection activation**;
+- the user must explicitly acknowledge the exact observed value;
+- continuation invalidates prior evidence and fully revalidates the page/identity/odds;
+- if the value changes again, the application pauses again;
+- unavailable/unreadable odds fail safely and do not activate the selection.
 
-The system models **selection preparation**, not wagering.
+Odds never compensate for wrong/ambiguous event, market, line, or outcome identity.
 
-No public core, worker, or adapter interface may contain methods or messages equivalent to:
+## 11. State, attempts, and stale evidence
 
-- `setStake` / `enterStake` / `changeStake`;
-- `placeBet` / `submitBet` / `confirmBet` / `finalizeBet`;
-- credential/MFA/CAPTCHA entry;
-- deposit/withdraw/cash-out or other financial actions.
+The exact state graph is defined in `specs/execution-contract.md`.
 
-Stake values present in a notification are informational domain data only and are not forwarded as actionable browser instructions.
+Key architecture rules:
 
-The browser capability layer used by adapters must be narrowed around page inspection, permitted navigation, and activation of an already-verified selection candidate. Direct generic automation access outside that layer should be prevented by module/package boundaries and tested as a release gate.
+- two legs remain independently addressable;
+- every execution attempt has a unique attempt id;
+- matching evidence belongs to an evidence epoch;
+- manual login, redirect, refresh, reopen, browser replacement, changed-odds continuation, or meaningful page replacement invalidates stale positive evidence;
+- late events from obsolete attempts/epochs cannot mutate current state;
+- retry/reopen never skip matching stages;
+- cancellation prevents any later final selection activation for that attempt.
 
-## 9. Navigation and trust boundaries
+## 12. Selection activation boundary
+
+Adapters must not perform the final requested outcome click through an unrestricted public `click()` contract.
+
+The final candidate plus current evidence is submitted to a shared `SelectionActivationGate`. The gate permits activation only when:
+
+- current origin is approved;
+- event is matched;
+- market/context is matched;
+- required exact line is matched;
+- outcome is matched;
+- odds policy is satisfied for the current value;
+- evidence belongs to the current attempt/epoch;
+- cancellation has not occurred.
+
+After activation, the adapter must verify that the exact target selection is visibly selected before reporting `SELECTION_PREPARED`/`READY_FOR_USER`.
+
+## 13. Transaction boundary by design
+
+The system models selection preparation, not wagering.
+
+No public renderer/core/worker/adapter contract may contain operations equivalent to:
+
+- credential entry or MFA/CAPTCHA automation;
+- stake entry/change/calculation for bookmaker submission;
+- `placeBet`, `submitBet`, `confirmBet`, `finalizeBet`, or equivalent;
+- deposits, withdrawals, cash-out, or other financial actions;
+- access-control, anti-bot, rate-limit, or geo-restriction bypass.
+
+Stake recommendations may remain informational domain/presentation data but are not forwarded as browser actions.
+
+Adding a transaction capability is an architecture-breaking change and release blocker.
+
+## 14. Navigation and trust boundaries
 
 Notification content, deep links, and bookmaker page content are untrusted.
 
-Before browser navigation:
+Before accepting top-level navigation:
 
-- only `https` bookmaker origins explicitly registered for the selected adapter are allowed;
-- supplied deep links are parsed and validated, never executed as script/data/file URLs;
-- redirects across origins require allow-list validation and page-context revalidation;
-- adapters must not navigate to localhost, file paths, internal-network addresses, or unrelated domains based on notification-controlled data.
+- scheme must be `https`;
+- origin must be explicitly registered to the selected adapter;
+- unsafe schemes, localhost, loopback/link-local/private internal-network destinations, and unrelated domains are blocked when input-controlled;
+- cross-origin redirects require allow-list validation;
+- navigation/redirect invalidates stale matching evidence.
 
-The renderer must not render untrusted bookmaker HTML.
+The renderer never renders untrusted bookmaker HTML.
 
-## 10. Persistence and diagnostics
+## 15. Persistence and diagnostics
 
-MVP persistent application data should be minimal:
+MVP persistent application data should be minimal and non-sensitive.
 
-- non-sensitive user preferences;
-- supported-bookmaker configuration supplied by the application;
-- optional sanitized diagnostic records if enabled.
+Do not persist as application records:
 
-Do not persist:
+- credentials/MFA values;
+- cookies/raw browser storage;
+- authentication tokens/headers;
+- authenticated page dumps/screenshots by default;
+- positive matching evidence for reuse after restart.
 
-- credentials or MFA values;
-- cookies or raw browser storage as application records;
-- authentication headers/tokens;
-- complete browser snapshots containing sensitive account data;
-- stale positive matching evidence for reuse after restart.
+Diagnostics should prefer canonical ids, state transitions, error codes, sanitized candidate labels, expected/observed odds, timing, and redacted origin/path information.
 
-Diagnostic data should prefer normalized identifiers, state transitions, reason codes, expected/observed odds, and redacted/allow-listed URL origin information.
+## 16. Testability
 
-## 11. Testability strategy
+Routine CI must not require bookmaker credentials, live accounts, or transactions.
 
-Most automated tests must not require live bookmaker access.
+The normative test strategy is `docs/test-strategy.md` and includes:
 
-### Unit tests
+- pure state/matching/decimal/origin unit tests;
+- one reusable shared adapter contract suite;
+- deterministic sanitized local fixture pages;
+- browser integration tests for session lifecycle, redirects, cancellation, stale evidence, and selection-gate behavior;
+- application integration tests for independent two-leg status and action-required flows;
+- static/package-boundary tests proving stake/bet-submit/credential capabilities are absent.
 
-Run without a browser for:
+Live bookmaker checks, when permitted, remain manual/non-transactional verification and are not routine CI gates.
 
-- parser/domain normalization;
-- execution-plan construction;
-- state transitions;
-- matching-policy helpers;
-- odds comparison;
-- URL/origin validation;
-- structured error/result handling.
+## 17. Packaging implications
 
-### Adapter contract tests
+Downstream Release/DevOps work should provide:
 
-Each bookmaker adapter must run against deterministic sanitized HTML/app fixtures served locally. Contract cases include exact matches, wrong event, wrong market, neighboring line, wrong side, duplicate/ambiguous candidates, changed odds, login-required pages, redirects, and cancellation.
+- strict TypeScript/Node package boundaries;
+- desktop renderer/core packaging;
+- reproducibly pinned Playwright/Chromium runtime;
+- cleanup for orphaned browser/worker processes;
+- CI commands for unit and local browser fixture tests;
+- no required bookmaker secrets in CI.
 
-### Browser integration tests
+Exact package manager, Electron/Node/Playwright versions, bundler, installer/signing approach, and supported OS targets are DevOps decisions constrained by this architecture.
 
-Playwright runs against local fixture pages in CI, normally headless. A smaller headed smoke path may be used locally to verify user-handoff behavior.
+## 18. Architecture completion state
 
-Tests must assert that stake-entry and bet-submission capabilities are absent from the adapter/worker protocol.
+ARCH-001 and ARCH-002 establish the Milestone 1 runtime and shared contracts.
 
-### Live verification
+Downstream work may now proceed in parallel against the normative contract map, particularly:
 
-Live bookmaker checks, if permitted and needed, are manual/non-transactional verification activities and are not required for routine CI. They must never place a bet or require automated authentication.
-
-## 12. Packaging and development implications
-
-The chosen model implies these downstream requirements:
-
-- TypeScript/Node.js project scaffold with strict package/module boundaries;
-- desktop shell packaging for renderer + core;
-- Playwright runtime and a reproducibly managed Chromium dependency;
-- operating-system process cleanup for orphaned leg browsers/workers;
-- signed/distributable desktop packaging can be added after MVP behavior stabilizes;
-- CI must run parser/domain tests and local fixture browser tests without bookmaker credentials or external betting transactions.
-
-The exact build tooling, package manager, bundler, installer format, and supported operating systems are Release/DevOps decisions constrained by this architecture.
-
-## 13. Rejected alternatives
-
-The rationale is recorded formally in ADR-0001. In summary:
-
-- controlling the user's existing everyday Chrome/Edge profile through remote debugging was rejected because it exposes unrelated sessions/tabs and creates weak isolation;
-- a browser-extension-only architecture was rejected for the MVP because orchestration, fixture testing, permissions, packaging, and cross-bookmaker state management become more complex and browser-vendor-specific;
-- a remote/cloud automation service was rejected because authenticated bookmaker sessions and manual handoff should remain local;
-- embedding bookmaker sites in the desktop renderer/webview was rejected because of site compatibility, authentication, origin/security, and user-handoff concerns.
-
-## 14. Downstream architectural work
-
-`ARCH-002` must now stabilize:
-
-- execution-plan types;
-- exact per-leg state machine and allowed transitions;
-- bookmaker-adapter interface;
-- evidence/confidence model;
-- odds comparison policy;
-- cancellation/retry/resume semantics;
-- error taxonomy;
-- test-double/contract-test interface;
-- narrow browser/selection capability boundary.
-
-No downstream implementation should invent incompatible versions of these contracts before `ARCH-002` is accepted.
+- DOMAIN-001 — normalized domain/parser and `SelectionTarget` construction;
+- BOOK-001 — first bookmaker adapter against the shared adapter/matching contract;
+- APP-001/APP-002 — reviewed plan UX and two-leg orchestration;
+- QA-001 — shared contract/integration safety suite;
+- SEC-001 — threat model and browser/security hardening;
+- DEVOPS-001 — reproducible TypeScript/Electron/Playwright scaffold and CI.
