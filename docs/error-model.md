@@ -15,25 +15,33 @@ An interruption is expected workflow state, not a failure:
 
 ### Safe failure
 
-A safe failure means the system intentionally stopped without claiming the target was prepared.
+A safe failure means the system stopped without claiming the target is prepared.
 
 ```ts
+type ActivationDisposition =
+  | "NOT_ATTEMPTED"
+  | "ATTEMPTED_NOT_VERIFIED";
+
 type SafeFailure = Readonly<{
   code: FailureCode;
   stage: FailureStage;
   message: string;
   recoverability: Recoverability;
-  selectionActivated: false;
+  activation: ActivationDisposition;
   evidenceEpoch: number;
   diagnostic?: SanitizedDiagnostic;
 }>;
 ```
 
-`selectionActivated` is always `false` for `FAILED_SAFE`. If the final selection was clicked but post-click verification fails, use `SELECTION_VERIFICATION_FAILED` and do not report `READY_FOR_USER`; diagnostics must explicitly record that activation occurred so the UI can tell the user to inspect/clear the bookmaker state manually.
+For all failures before final selection activation, `activation` must be `NOT_ATTEMPTED`.
+
+If the final target control was activated but post-activation verification fails, return `SELECTION_VERIFICATION_FAILED` with `activation: "ATTEMPTED_NOT_VERIFIED"`. The system must not report `SELECTION_PREPARED` or `READY_FOR_USER`; the UI must explicitly tell the user to inspect the bookmaker state manually because a selection may be present.
+
+This distinction prevents both dangerous false success and the opposite false claim that no browser selection action occurred.
 
 ### Cancellation
 
-Cancellation is neither success nor safe failure. It records that the user/application requested execution stop. A cancelled attempt may not emit later selection activation.
+Cancellation is neither success nor safe failure. It records that the user/application requested execution stop. A cancelled attempt may not emit a later selection activation. If cancellation races with an already-started final activation, the worker must report the observed activation disposition rather than silently claiming nothing occurred.
 
 ## 2. Failure stages
 
@@ -136,6 +144,8 @@ Recoverability is a UI hint, not authorization to bypass validation.
 
 Every retry/reopen starts fresh matching evidence.
 
+`SELECTION_VERIFICATION_FAILED` with `ATTEMPTED_NOT_VERIFIED` should normally use `USER_REVIEW` before any automated retry, because the existing bookmaker state may already contain the intended or an uncertain selection.
+
 ## 5. Safe-failure invariants
 
 The following conditions must never be represented as success:
@@ -153,6 +163,8 @@ The following conditions must never be represented as success:
 
 No failure handler may compensate by choosing a different event, market, line, outcome, or bookmaker.
 
+All failures before final activation must prove `activation: "NOT_ATTEMPTED"` through the shared selection gate/activation recorder.
+
 ## 6. Authentication/challenge handling
 
 Manual authentication is `AUTH_REQUIRED` when normal login is possible for the user.
@@ -168,6 +180,7 @@ A `SanitizedDiagnostic` may contain:
 - bookmaker id;
 - target id;
 - stage and reason code;
+- activation disposition;
 - normalized candidate labels/ids where non-sensitive;
 - expected and observed odds;
 - safe origin and redacted path category;
@@ -190,9 +203,9 @@ At minimum show:
 
 - which leg failed;
 - which stage failed;
-- whether anything was selected;
+- whether final selection activation was not attempted or was attempted but could not be verified;
 - expected vs observed odds when relevant;
 - allowed recovery actions;
-- explicit warning to inspect bookmaker state after `SELECTION_VERIFICATION_FAILED` if activation occurred but verification did not succeed.
+- an explicit inspection warning after `ATTEMPTED_NOT_VERIFIED` before any retry/reopen.
 
 Never tell the user the pair is ready when either current leg is not `READY_FOR_USER`.
