@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --experimental-strip-types --test test/workflow.test.ts",
+    "test": "node --experimental-strip-types --test test/workflow.test.ts test/qa-integration.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
