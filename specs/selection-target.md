@@ -1,151 +1,188 @@
 # Selection target specification
 
-`SelectionTarget` is the normalized, bookmaker-agnostic instruction for one leg of a chosen surebet pair. It is produced by domain/application logic and consumed by a bookmaker adapter.
+Status: **Accepted architecture/domain contract for Milestone 1**
 
-The target describes **what must be selected**, not **how a bookmaker page is manipulated**.
+`SelectionTarget` is the immutable, bookmaker-agnostic instruction for one leg of a chosen surebet pair. It describes **what must be selected**, never how a bookmaker DOM is manipulated.
+
+Normative companion contracts:
+
+- `specs/execution-contract.md` — two-leg runtime/state semantics;
+- `specs/bookmaker-adapter-contract.md` — worker/adapter/browser capability boundary;
+- `specs/matching-policy.md` — identity evidence, odds, and activation rules;
+- `docs/error-model.md` — interruptions and safe failures.
 
 ## 1. Conceptual structure
 
-```text
-SelectionTarget
-  id: string
-  bookmaker: canonical bookmaker id
-  event:
-    participantA: string
-    participantB: string
-    competition?: string
-    scheduledAt?: normalized date-time
-    sourceDisplay: string
-  market:
-    family: normalized market family
-    context?: normalized subtype/context
-    line?: decimal
-    sourceLabel: string
-  outcome:
-    side: normalized outcome id
-    sourceLabel?: string
-  expectedOdds: decimal
-  deepLink?: validated-candidate URL
-  provenance:
-    notificationOptionId: string
-    sourceOfferId/reference: string
+```ts
+type SelectionTarget = Readonly<{
+  id: string;
+  bookmaker: BookmakerId;
+  event: Readonly<{
+    participantA: string;
+    participantB: string;
+    competition?: string;
+    scheduledAt?: string; // normalized ISO-8601 instant with source timezone resolved
+    sourceDisplay: string;
+  }>;
+  market: Readonly<{
+    family: MarketFamily;
+    context?: string;
+    line?: DecimalString;
+    sourceLabel: string;
+  }>;
+  outcome: Readonly<{
+    side: OutcomeId;
+    sourceLabel?: string;
+  }>;
+  expectedOdds: DecimalOddsString;
+  deepLink?: string; // untrusted navigation candidate until validated
+  provenance: Readonly<{
+    notificationOptionId: string;
+    sourceOfferId: string;
+  }>;
+}>;
 ```
 
-Implementation types may differ, but these semantics must remain representable.
+Decimal line and odds values use canonical decimal-safe strings/arbitrary-precision decimal semantics. Implementations must not rely on binary floating-point equality for identity.
 
 ## 2. Invariants
 
 A target is valid for execution only when:
-- `bookmaker` resolves to one supported adapter;
-- event identity contains sufficient information for the matching policy;
-- market semantics are explicit;
-- a required line/threshold is present for line-based markets;
+
+- `bookmaker` resolves to exactly one supported adapter;
+- both event participants are present after domain normalization;
+- market family/context semantics are explicit;
+- a line is present for every line-based market;
 - outcome/side is explicit;
-- expected odds are valid decimal odds;
-- provenance resolves back to the chosen notification option/offer;
-- any supplied deep link is treated as untrusted until navigation validation passes.
+- expected odds are valid positive decimal odds;
+- provenance resolves to the user-selected recommended option and source offer;
+- any supplied deep link remains untrusted until runtime origin/scheme validation.
 
-A recommended MVP option produces exactly two valid `SelectionTarget` values.
+One recommended MVP pair resolves to exactly two valid targets.
 
-## 3. Adapter contract expectations
+Targets are immutable after the execution summary is shown. A different event, bookmaker, market, line, side, or expected odds requires rebuilding/reviewing the plan; an adapter may never mutate a target to make a page candidate fit.
 
-Given a target, an adapter must independently establish evidence for:
+## 3. Target vs execution state
 
-1. supported/allowed bookmaker page or origin;
-2. target event identity;
-3. target market family/context;
-4. exact target line when applicable;
-5. exact target side/outcome;
-6. observed odds where available;
-7. page state sufficient to safely perform the selection click.
+`SelectionTarget` contains identity intent only. It does not contain:
 
-The adapter must not reinterpret the target into a different line, side, event, or market simply because the requested candidate cannot be found.
+- browser/session handles;
+- matching evidence;
+- observed odds;
+- current execution state;
+- retry counters;
+- credentials/MFA/CAPTCHA data;
+- actionable stake values;
+- any transaction command.
 
-## 4. Matching evidence
+Those runtime concerns belong to `ExecutionPlan`/leg runtime and adapter result contracts.
 
-Architecture should define a structured evidence/result model. It should be capable of distinguishing at least:
-- `not_checked`;
-- `matched`;
-- `not_matched`;
-- `ambiguous`;
-- `unavailable`.
+## 4. Adapter obligations
 
-Evidence should include safe, diagnosable details such as normalized text/identifiers observed for candidates, but must avoid sensitive session/authentication data.
+Given a target, the adapter must independently establish current-epoch evidence for:
 
-A selection is permitted only when all identity dimensions required by policy are positively matched. An `ambiguous`, `not_matched`, or required `unavailable` identity dimension must prevent the click.
+1. approved HTTPS origin;
+2. event identity;
+3. market family/context;
+4. exact line when required;
+5. exact outcome/side;
+6. displayed odds;
+7. page state sufficient to activate and verify the exact target selection.
 
-## 5. Event matching principles
+The adapter must not reinterpret a missing target into the nearest available event, market, line, side, or bookmaker.
 
-Participant names alone may not always be sufficient. Matching policy should use competition and scheduled date/time context where available and meaningful.
+## 5. Evidence semantics
 
-Adapters may implement bookmaker-specific normalization, aliases, ordering rules, or localized labels, but these rules must be deterministic/tested. Fuzzy similarity must never by itself authorize a click when multiple plausible candidates exist.
+Required identity dimensions use the shared statuses:
 
-## 6. Market/line matching principles
+- `NOT_CHECKED`;
+- `MATCHED`;
+- `MISMATCHED`;
+- `AMBIGUOUS`;
+- `UNAVAILABLE`.
 
-Market family and line are separate identity dimensions.
+Only `MATCHED` is authorizing for a required identity dimension. See `specs/matching-policy.md` for the deterministic event/market/line/outcome rules.
 
-For example, for `U/O CORNER 11.5` + `OVER`:
-- total-corners 11.5 is not equivalent to goals 11.5;
-- total-corners 11.5 is not equivalent to total-corners 10.5 or 12.5;
-- OVER is not equivalent to UNDER;
-- a neighboring DOM row is not evidence of the requested line.
+## 6. Event matching
 
-The adapter should parse/normalize displayed line values and compare them exactly according to the shared numeric policy.
+Participant identity is mandatory. Competition and scheduled time provide context according to the shared policy.
 
-## 7. Odds semantics
+Fuzzy similarity may discover candidates but cannot itself produce `MATCHED`. Approved aliases must be deterministic, version-controlled, and tested.
 
-`expectedOdds` comes from the notification and is immutable input evidence.
+When target context exists but the page exposes neither competition nor time, participant names alone are insufficient under the MVP policy.
 
-The adapter should return `observedOdds` when available and an explicit comparison result, conceptually:
-- equal within agreed decimal representation;
-- changed higher;
-- changed lower;
-- unavailable/unreadable.
+## 7. Market and line matching
 
-Odds comparison does not replace identity matching. An exact odds value on the wrong candidate is not evidence that the candidate is correct.
+Market family, optional context, and numeric line are separate identity dimensions.
 
-## 8. Result semantics
+For `U/O CORNER 11.5` + `OVER`:
 
-The shared adapter result should be able to express at least:
-- page opened/waiting;
-- manual login required;
-- event matched/not matched/ambiguous;
-- market matched/not matched/ambiguous;
-- line matched/not matched/ambiguous;
-- outcome matched/not matched/ambiguous;
-- observed odds and comparison;
-- selection prepared;
-- cancelled;
-- safe failure with reason code/evidence.
+- total corners is not total goals;
+- match total is not team total;
+- full match is not first half;
+- 11.5 is not 10.5, 11.0, 12.0, or 12.5;
+- `OVER` is not `UNDER`.
 
-A `selection prepared` result means only that the target outcome has been selected/clicked in the bookmaker UI. It must not imply that a stake was entered or a bet was submitted.
+No nearest-line or neighboring-DOM substitution is permitted.
 
-## 9. Capability exclusions
+## 8. Odds semantics
 
-The adapter interface must not expose capabilities for:
-- receiving or entering credentials;
-- handling MFA/OTP/CAPTCHA;
-- entering/changing stake amounts;
-- clicking submit/place/confirm bet actions;
+`expectedOdds` is immutable notification evidence. `observedOdds` is current page evidence and remains distinct.
+
+Shared comparison values are:
+
+- `EQUAL`;
+- `HIGHER`;
+- `LOWER`;
+- `UNAVAILABLE`.
+
+Under the MVP policy, changed odds produce `ODDS_CHANGED` before selection activation and require explicit acknowledgement plus complete revalidation. Unavailable/unreadable odds produce safe failure rather than a click.
+
+Odds identity never repairs wrong event/market/line/outcome evidence.
+
+## 9. Result semantics
+
+The shared automation result can produce:
+
+- `READY_FOR_USER`;
+- `AUTH_REQUIRED`;
+- `ODDS_CHANGED`;
+- `FAILED_SAFE`;
+- `CANCELLED`.
+
+`READY_FOR_USER` requires exact identity evidence, permitted odds state, final selection activation, and post-activation verification for this target.
+
+It never means a stake was entered or a bet was submitted.
+
+## 10. Capability exclusions
+
+No contract consuming `SelectionTarget` may expose capabilities for:
+
+- receiving/entering bookmaker credentials;
+- automating MFA/OTP/CAPTCHA;
+- entering/changing stakes;
+- submitting/confirming/finalizing a bet;
 - deposits/withdrawals/cash-out;
-- bypassing access controls, anti-bot, rate-limit, or geo restrictions.
+- bypassing access controls, anti-bot systems, rate limits, or geo restrictions.
 
-These are intentionally outside the product contract.
+## 11. Retry/revalidation
 
-## 10. Retry and revalidation
+Retry, reopen, manual-login resume, changed-odds continuation, redirect, refresh, browser replacement, or meaningful page-state change invalidates stale positive evidence as defined by `specs/execution-contract.md`.
 
-A retry, resume after manual login, redirect, page refresh, or significant page-state change must not blindly reuse stale matching evidence. Required identity checks must be performed again before selection when prior evidence may no longer be valid.
+A previous target match never authorizes a future click after its evidence epoch has expired.
 
-## 11. Test contract
+## 12. Test contract
 
-Shared adapter contract tests should exercise a fake/sanitized page model and assert that:
-- exact target can produce `selection prepared`;
-- wrong event never clicks;
-- wrong market never clicks;
-- neighboring line never clicks;
-- wrong side never clicks;
-- duplicate/ambiguous candidates never click;
-- changed odds remain visible as changed;
-- manual-login state does not invoke credential automation;
-- cancellation prevents further click attempts;
-- no adapter capability can enter stakes or submit a bet.
+Shared tests must prove that:
+
+- an exact target can become `READY_FOR_USER` only after verified selection;
+- wrong/similar event never activates;
+- wrong market never activates;
+- neighboring line never activates;
+- wrong side never activates;
+- duplicate/ambiguous candidates never activate;
+- changed odds pause before activation and remain visible;
+- stale odds acknowledgement does not authorize a new price;
+- manual login invokes no credential automation;
+- cancellation and stale evidence prevent activation;
+- no adapter/core capability can enter stakes or submit a bet.
