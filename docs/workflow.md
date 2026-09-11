@@ -1,37 +1,43 @@
 # End-to-end workflow
 
-## 1. Input and parsing
+## 1. Notification receipt and parsing
 
-1. User supplies notification text or structured data through an input transport.
+1. A notification transport supplies notification text or structured data.
 2. Transport passes raw content to the core parser without bookmaker-specific behavior.
-3. Parser returns either a normalized notification or explicit validation errors.
-4. Application displays the normalized result before execution is enabled.
+3. Parsing and validation start immediately.
+4. Parser returns either a normalized notification or explicit validation errors.
+5. A normalized interpretation may be displayed for observability, but it does not require user acknowledgement and does not gate execution.
 
-No browser action occurs before the parsed preview is accepted by the user.
+No browser action occurs until the notification and resulting targets satisfy the deterministic validation and navigation-safety contracts. There is no normal preview-approval step.
 
-## 2. Recommended option selection
+## 2. Automatic primary-option resolution
 
-1. Application lists the recommended paired options contained in the notification.
-2. User chooses one pair.
-3. Application resolves that pair into exactly two `SelectionTarget` legs.
-4. Application displays both targets in an execution summary.
+1. The parser/domain layer preserves recommended options in notification source order.
+2. The first recommended option is the primary option for the initial MVP contract.
+3. The application resolves that option into exactly two `SelectionTarget` legs automatically.
+4. The application does not ask the user which option to choose.
+5. If the primary option is malformed, ambiguous, same-bookmaker, unsupported, or cannot resolve to exactly two valid legs, processing fails safely before bookmaker navigation. The application does not silently substitute a later recommendation.
 
 Each leg contains the bookmaker, event identity/context, market, line, outcome, expected odds, and optional deep link.
 
-## 3. Pre-execution validation
+## 3. Automatic pre-execution validation and immediate start
 
-Execution starts only when:
+Execution starts automatically as soon as all of the following are true:
 - the notification is valid;
-- exactly one pair is chosen;
-- the pair resolves to exactly two valid legs;
+- the primary recommended option resolves deterministically to exactly two valid, distinct bookmaker legs;
 - both bookmakers have supported adapters;
-- targets contain sufficient identity information for the matching policy.
+- targets contain sufficient identity information for the matching policy;
+- supplied navigation targets pass origin/deep-link safety checks required before use.
 
-If any precondition fails, the workflow remains non-executable and explains why.
+There is no pre-execution confirmation button, no recommended-option selector, and no requirement that the user approve an execution summary.
+
+The application may display the normalized notification and exact two targets while execution is already starting.
+
+If any precondition fails, no bookmaker navigation occurs and the failure is surfaced explicitly.
 
 ## 4. Two-leg execution
 
-The orchestrator creates two independent leg executions. They may run concurrently or sequentially according to the architecture decision, but neither leg's state may overwrite or hide the other.
+The orchestrator creates two independent leg executions and should start both as soon as safely practical. They may run concurrently according to the architecture, but neither leg's state may overwrite or hide the other.
 
 Suggested leg lifecycle:
 
@@ -74,7 +80,7 @@ When the odds differ:
 - product policy must not silently rewrite the expected odds;
 - any continuation rule must be explicit in architecture/product configuration and must not weaken event/market/line/outcome matching.
 
-For the initial MVP, changed odds should be surfaced for user awareness even when the target identity is otherwise verified.
+The removal of the initial preview/option-selection steps does not itself change the shared odds-change continuation policy.
 
 ## 7. Manual login
 
@@ -85,6 +91,8 @@ When a bookmaker requires login:
 - execution may resume only after the user has completed authentication and the adapter can safely re-validate page context.
 
 After resume, event/market/line/outcome checks must be performed again if navigation/session changes may have invalidated prior evidence.
+
+Manual login is an interruption imposed by bookmaker authentication, not a normal pre-execution product confirmation step.
 
 ## 8. Manual handoff
 
@@ -106,12 +114,16 @@ If one leg succeeds and the other fails:
 - do not imply the surebet is ready;
 - show which leg is prepared and why the other failed;
 - provide only safe recovery actions (for example retry/reopen/cancel/restart);
-- never compensate by selecting a different market/outcome without a new explicit target.
+- never compensate by selecting a different market/outcome or a different recommended pair without a new notification/target.
 
 ## 10. Cancellation and recovery
 
 Cancellation should stop further automated actions as soon as practical. Retry/reopen flows must re-run required validation rather than assuming stale matching evidence remains valid.
 
+Recovery actions are available after automatic execution has started; they are not prerequisites for starting a normal valid notification.
+
 ## 11. Future input transports
 
 Telegram, HTTP/webhooks, clipboard monitoring, and other application integrations should terminate at a transport adapter that produces the same raw/structured input consumed by the core parser. They must not embed bookmaker execution logic.
+
+A transport that receives a valid notification should trigger the same automatic processing path without introducing a confirmation step.
