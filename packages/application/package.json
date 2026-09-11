@@ -1,0 +1,9 @@
+{
+  "name": "@notify-handler/application",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/workflow.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
