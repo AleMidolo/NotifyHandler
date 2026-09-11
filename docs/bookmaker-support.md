@@ -15,13 +15,28 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 
 | Bookmaker | Priority | Status | Notes |
 | --- | --- | --- | --- |
-| SISAL | 1 | Candidate | Proposed first adapter; confirm feasibility after architecture contract. |
-| BET365 | 2 | Candidate | Proposed second adapter/pair with SISAL; confirm feasibility and allowed interaction model. |
+| SISAL | 1 | Testable | BOOK-001 implements the restricted adapter logic and deterministic fixtures for `www.sisal.it`, pre-match football full-match total-corners exact-line OVER/UNDER targets. Real Playwright DOM mapping/live smoke validation remains required before `Supported`. |
+| BET365 | 2 | Candidate | Proposed second adapter/pair with SISAL; confirm feasibility and allowed interaction model after BOOK-001 review. |
 | LOTTOMATICA | 3 | Candidate | Add after first pair stabilizes. |
 | EPLAY24 | 4 | Candidate | Add after first pair stabilizes. |
 | ADMIRALBET | 5 | Candidate | Add after first pair stabilizes. |
 
 Priorities may change when technical feasibility, permitted access, notification prevalence, or regression complexity provides evidence for a better order.
+
+## SISAL testable scope and limitations
+
+The current SISAL adapter:
+
+- accepts only HTTPS top-level navigation on `https://www.sisal.it`;
+- rejects notification redirect/intermediary domains such as `bet-up.it` as direct trusted targets;
+- requires deterministic participant identity and the shared competition/time context policy;
+- independently matches market family/context, exact decimal line, and outcome side;
+- captures displayed decimal odds and interrupts on any valid price change;
+- delegates the final outcome activation to `SelectionActivationGate` and verifies selected state afterwards;
+- reports a visible authentication wall as `AUTH_REQUIRED` without reading or entering credentials;
+- fails safely on ambiguity, neighboring lines, wrong event/market/outcome, unavailable odds, blocked redirects, cancellation, and failed post-activation verification.
+
+The current implementation is intentionally fixture-backed. Real SISAL DOM locator/query mapping has not yet been validated against a live session and no live bookmaker interaction runs in CI. Promotion from **Testable** to **Supported** requires a permitted normal-browser mapping in the browser worker plus the shared adapter contract/security/release gates.
 
 ## Minimum adapter capabilities
 
