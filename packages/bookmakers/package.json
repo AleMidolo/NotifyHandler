@@ -1,0 +1,9 @@
+{
+  "name": "@notify-handler/bookmakers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/sisal.test.ts test/sisal-cancellation-race.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
