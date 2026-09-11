@@ -8,7 +8,8 @@ Deliverables:
 - product requirements, workflow, safety boundaries, notification and selection-target specs;
 - autonomous-agent coordination rules;
 - prioritized backlog and initial GitHub issues;
-- explicit transaction boundary: prepare selections only, never place bets.
+- explicit transaction boundary: prepare selections only, never place bets;
+- explicit automatic-start requirement: valid notification receipt proceeds directly to deterministic primary-pair resolution and two-leg startup without a user confirmation gate.
 
 Exit criteria:
 - foundational documents exist and agree on scope;
@@ -24,29 +25,33 @@ Deliverables:
 - bookmaker adapter interface and result/error model;
 - independent two-leg execution state machine;
 - browser/session isolation approach;
-- deterministic confidence/matching policy and odds-comparison policy;
+- deterministic matching policy and odds-comparison policy;
+- automatic primary-recommendation resolution and immediate-start semantics;
 - testability strategy using local/mock fixtures.
 
 Exit criteria:
 - downstream engineers can implement against explicit interfaces;
+- no architecture contract requires parsed-preview acknowledgement, recommended-pair selection, or a manual start command for a valid notification;
 - safety boundary is enforceable by design;
 - initial bookmaker integration can be tested without live betting actions.
 
 ## Milestone 2 — Notification/domain foundation
 
-**Goal:** transform a surebet notification into a deterministic, validated execution plan.
+**Goal:** transform a surebet notification into a deterministic, automatically executable two-leg plan.
 
 Deliverables:
 - normalized domain types;
 - parser for the documented notification format;
 - validation and explicit parse errors;
-- recommended paired-option extraction;
+- recommendation-order preservation;
+- deterministic primary recommendation resolution from the first recommendation in source order;
 - sanitized fixture corpus and unit tests;
-- conversion to two `SelectionTarget` legs.
+- conversion to two `SelectionTarget` legs without user pair selection.
 
 Exit criteria:
 - representative valid notifications parse deterministically;
-- malformed/ambiguous inputs fail explicitly;
+- the primary recommendation resolves automatically to exactly two distinct bookmaker legs;
+- malformed/ambiguous inputs fail explicitly before navigation;
 - no bookmaker DOM knowledge leaks into the parser.
 
 ## Milestone 3 — First end-to-end bookmaker preparation path
@@ -70,18 +75,21 @@ Exit criteria:
 
 ## Milestone 4 — Application orchestration and UX
 
-**Goal:** provide the user-facing workflow from pasted notification to manual handoff.
+**Goal:** provide the automatic user-facing workflow from notification receipt to manual handoff.
 
 Deliverables:
-- notification input and parsed preview;
-- recommended-option selector;
-- execution summary before browser actions;
+- notification intake that triggers processing automatically;
+- non-blocking parsed/normalized status display;
+- automatic primary-recommendation resolution;
+- immediate creation/start of the exact two-leg plan without preview acknowledgement or pair selection;
 - independent per-leg status display;
+- notification-to-browser-open latency instrumentation;
 - odds-changed, login-required, retry/reopen/cancel/restart states;
 - explicit ready-for-user handoff.
 
 Exit criteria:
-- the user can understand exactly what will be prepared before execution;
+- a valid notification starts both legs without asking the user to review, choose a pair, confirm, or press start;
+- both browser legs begin as soon as validation and safety checks permit;
 - one leg can fail without obscuring the state of the other;
 - every terminal state is explicit and actionable.
 
@@ -100,6 +108,7 @@ Deliverables:
 Exit criteria:
 - all release gates pass;
 - safety-boundary tests are automated;
+- automatic-start behavior is covered by integration tests;
 - installation and execution are reproducible.
 
 ## Post-MVP
@@ -109,7 +118,7 @@ Potential extensions after the MVP is stable:
 - Telegram ingestion;
 - HTTP/webhook ingestion;
 - clipboard/application integrations;
-- richer notification formats and provenance tracking;
+- richer notification formats and provenance tracking, including an explicit source-provided primary recommendation marker;
 - observability and diagnostics that preserve privacy.
 
-Transport integrations must remain decoupled from the core parser/domain model.
+Transport integrations must remain decoupled from the core parser/domain model and should feed the same automatic execution path.
