@@ -1,0 +1,25 @@
+{
+  "name": "notify-handler",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "npm@11.19.0",
+  "engines": {
+    "node": "24.21.x",
+    "npm": "11.19.x"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "check": "npm run build && npm run lint && npm run typecheck && npm test",
+    "browser:install": "npm exec --yes --package=playwright@1.63.0 -- playwright install chromium",
+    "browser:install:ci": "npm exec --yes --package=playwright@1.63.0 -- playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  }
+}

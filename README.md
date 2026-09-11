@@ -32,6 +32,18 @@ Selection authorization is predicate-based, not a fuzzy confidence score. Event,
 
 See `docs/architecture.md` and `docs/adr/0001-local-desktop-playwright-runtime.md` for the accepted runtime decision and tradeoffs.
 
+## Development
+
+The repository uses npm workspaces with a pinned Node/npm baseline and lockfile-driven installs. From a clean checkout:
+
+```bash
+nvm use
+npm ci
+npm run check
+```
+
+`npm run check` is the repository-wide build/lint/typecheck/unit-test entry point. Browser runtime bootstrap and release/packaging policy are documented in `docs/development.md`. Baseline CI uses local/mock tests and requires no bookmaker credentials or live betting transactions.
+
 ## Source of truth
 
 Repository documentation and specifications are authoritative. Start with:
@@ -42,6 +54,7 @@ Repository documentation and specifications are authoritative. Start with:
 - `docs/product-requirements.md` — product requirements and acceptance criteria;
 - `docs/architecture.md` — accepted runtime, component boundaries, trust boundaries, and normative contract map;
 - `docs/adr/0001-local-desktop-playwright-runtime.md` — deployment/runtime architecture decision record;
+- `docs/development.md` — reproducible local setup, CI, browser runtime, diagnostics, and release baseline;
 - `docs/workflow.md` — end-to-end user/application workflow;
 - `docs/safety-boundaries.md` — non-negotiable authentication, access, and transaction boundaries;
 - `docs/error-model.md` — interruptions, safe failures, activation disposition, and recovery semantics;
