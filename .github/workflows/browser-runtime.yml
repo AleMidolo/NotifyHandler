@@ -1,0 +1,45 @@
+name: Browser runtime
+
+on:
+  pull_request:
+    paths:
+      - package.json
+      - package-lock.json
+      - .nvmrc
+      - .npmrc
+      - .github/workflows/browser-runtime.yml
+      - packages/automation/**
+      - packages/desktop/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: browser-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chromium-bootstrap:
+    name: Pinned Chromium bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install repository dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install pinned Playwright Chromium runtime
+        run: npm run browser:install:ci
+
+      - name: Verify pinned Playwright version
+        run: npm exec --yes --package=playwright@1.63.0 -- playwright --version
