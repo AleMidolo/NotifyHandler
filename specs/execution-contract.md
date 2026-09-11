@@ -1,23 +1,55 @@
 # Execution plan and state contract
 
-Status: **Accepted architecture contract for Milestone 1**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-003**
 
-This specification defines the bookmaker-agnostic execution model used after a user has reviewed a parsed notification and chosen one recommended pair. It is normative for domain, application, automation, QA, and security implementations.
+This specification defines the bookmaker-agnostic execution model from receipt of a valid notification through automatic two-leg startup, execution-time interruptions, and manual handoff. It is normative for domain, application, automation, QA, and security implementations.
 
 ## 1. Core invariants
 
 An executable `ExecutionPlan`:
 
-- represents exactly one user-selected recommended pair;
+- represents the notification's deterministic **primary recommended option**; for the initial contract this is recommendation index `0` in preserved source order;
 - contains exactly two independently addressable legs;
 - contains one immutable `SelectionTarget` per leg;
+- targets two distinct canonical bookmakers;
+- has passed deterministic target validation, adapter-availability checks, and pre-navigation safety checks required before dispatch;
 - never contains an actionable stake instruction;
 - never contains credentials, MFA/CAPTCHA values, cookies, or authentication tokens;
 - never contains a command to submit, confirm, place, finalize, cash out, deposit, withdraw, or otherwise perform a financial transaction.
 
-A plan is not executable until the application has displayed both normalized targets to the user.
+A valid plan does **not** require user preview, recommended-option choice, execution-summary approval, or a manual start action. Displaying parsed/plan data is non-blocking observability.
 
-## 2. Conceptual TypeScript contract
+If the primary recommendation is invalid, ambiguous, same-bookmaker, unsupported, or cannot yield exactly two valid targets, execution fails before bookmaker navigation. The system must not silently use a later recommendation.
+
+## 2. Automatic primary-plan construction
+
+The domain/core boundary must preserve recommendation source order and expose deterministic primary resolution.
+
+Conceptually:
+
+```ts
+type PrimaryPlanResult =
+  | { kind: "READY"; plan: ExecutionPlan }
+  | { kind: "FAILED_SAFE"; failure: SafeFailure };
+```
+
+Equivalent implementation APIs are acceptable. The normal production ingestion path must behave as if it performs:
+
+```text
+receive notification
+  -> parse/validate
+  -> select recommendedOptions[0] as primary
+  -> resolve exactly two distinct SelectionTarget legs
+  -> validate adapter availability + navigation candidates
+  -> create immutable ExecutionPlan
+  -> automatically dispatch START for both legs
+```
+
+There is no UI-selected recommendation id in this path.
+
+An implementation may retain a lower-level API such as `buildExecutionPlan(notification, recommendedOptionId, createdAt)` for tests/tools, but production automatic execution must supply the primary recommendation id deterministically from the normalized notification rather than user input.
+
+## 3. Conceptual TypeScript contract
 
 Implementation names may differ only if semantics remain equivalent.
 
@@ -30,8 +62,9 @@ type EvidenceEpoch = number;
 type ExecutionPlan = Readonly<{
   id: ExecutionPlanId;
   notificationId: string;
-  recommendedOptionId: string;
-  createdAt: string; // ISO-8601 UTC
+  recommendedOptionId: string; // resolved primary option
+  recommendedOptionIndex: 0;   // initial notification contract
+  createdAt: string;            // ISO-8601 UTC
   legs: readonly [ExecutionLeg, ExecutionLeg];
 }>;
 
@@ -55,9 +88,28 @@ type LegRuntime = Readonly<{
 }>;
 ```
 
-The plan's overall status is **derived** from its two leg states. It is not a mutable source of truth that can overwrite either leg.
+The plan's overall status is derived from its two leg states. It is not a mutable source of truth that can overwrite either leg.
 
-## 3. Leg states
+`recommendedOptionIndex` need not be stored literally if the implementation can prove the id came from primary source-order resolution, but that provenance must remain diagnosable.
+
+## 4. Automatic-start trigger and preflight
+
+Automatic startup is triggered when all of the following are true:
+
+- parsing/normalization succeeded;
+- primary recommendation resolution succeeded without fallback;
+- the plan contains exactly two valid distinct-bookmaker targets;
+- each target's bookmaker resolves to a registered adapter;
+- each target has sufficient identity data for the matching contract;
+- each supplied/fallback navigation candidate passes non-browser preflight that can be performed before dispatch.
+
+After these conditions hold, the core must schedule both legs immediately. The preferred implementation dispatches both starts concurrently (for example `Promise.allSettled` or equivalent independent tasks) so one slow launch does not delay the other.
+
+Rendering, preview acknowledgement, recommendation selection, execution-summary acknowledgement, or a UI start event must not participate in this trigger.
+
+Preflight is defense-in-depth, not a replacement for worker validation. The worker still performs authoritative origin/deep-link/redirect checks immediately before navigation.
+
+## 5. Leg states
 
 ```ts
 type LegState =
@@ -79,23 +131,26 @@ type LegState =
   | "CANCELLED";
 ```
 
+`PENDING` is normally transient after a valid plan is created because automatic dispatch follows immediately.
+
 `MATCHING_LINE` is skipped only for a market family whose normalized target has no line/threshold by definition.
 
-`SELECTION_PREPARED` means the verified target selection was activated in the bookmaker UI. It does **not** mean a stake was entered or a bet was submitted.
+`SELECTION_PREPARED` means the verified target selection was activated in the bookmaker UI. It does not mean a stake was entered or a bet was submitted.
 
 `READY_FOR_USER` is the automation handoff boundary. Automated actions for that attempt stop there.
 
-## 4. Allowed transition graph
+## 6. Allowed transition graph
 
-Normal successful path:
+Normal automatically started path:
 
 ```text
-PENDING
+plan ready
+  -> PENDING
   -> OPENING
   -> WAITING_FOR_PAGE
   -> MATCHING_EVENT
   -> MATCHING_MARKET
-  -> MATCHING_LINE? 
+  -> MATCHING_LINE?
   -> MATCHING_OUTCOME
   -> VERIFYING_ODDS
   -> ACTIVATING_SELECTION
@@ -128,36 +183,23 @@ Safe failure/cancellation:
 - any non-terminal automated state may transition to `CANCELLED` when cancellation is requested;
 - cancellation must prevent any later selection activation for the cancelled attempt.
 
-## 5. Attempts, retry, reopen, and stale evidence
+## 7. Attempts, retry, reopen, restart, and stale evidence
 
-Matching evidence belongs to an **attempt** and an **evidence epoch**.
+Matching evidence belongs to an attempt and an evidence epoch.
 
-A new attempt is required after:
+A new attempt is required after retry from `FAILED_SAFE`, explicit reopen, browser process/session replacement, or recovery after an unrecoverable page error.
 
-- retry from `FAILED_SAFE`;
-- explicit reopen;
-- browser process/session replacement;
-- recovery after an unrecoverable page error.
-
-Within an attempt, increment `evidenceEpoch` and invalidate all prior positive evidence after any event that can make the page identity stale, including:
-
-- manual login completion;
-- cross-document navigation;
-- redirect;
-- page refresh;
-- material event/market DOM replacement;
-- recovery from browser disconnection;
-- continuation after `ODDS_CHANGED`.
+Within an attempt, increment `evidenceEpoch` and invalidate all prior positive evidence after any event that can make page identity stale, including manual login completion, cross-document navigation, redirect, page refresh, material event/market DOM replacement, browser-disconnection recovery, or continuation after `ODDS_CHANGED`.
 
 No positive evidence from an earlier epoch may authorize selection activation.
 
 `retry` and `reopen` are not permission to weaken matching. They run the same policy from the beginning.
 
-`restart` is a plan-level application action: construct a new runtime execution from the reviewed immutable targets. It does not reuse successful matching evidence from the previous runtime.
+`restart` is a plan-level recovery action that constructs a new runtime execution from the same immutable automatically resolved targets. It does not ask the user to re-select a recommendation and does not reuse matching evidence. A newly received/edited notification is a new input and must be parsed/resolved as a new plan.
 
-## 6. Commands accepted by orchestration
+## 8. Commands accepted by orchestration
 
-The application/core may conceptually issue only these execution lifecycle commands:
+At the worker lifecycle boundary, the core may conceptually issue:
 
 ```ts
 type LegCommand =
@@ -173,9 +215,13 @@ type LegCommand =
   | { type: "CANCEL"; legId: LegId };
 ```
 
+`START` is an **internal core-to-worker dispatch generated automatically by plan readiness**. The renderer/user does not issue `START` in the normal valid-notification path.
+
+The renderer may request only post-start/recovery commands exposed by product policy: manual-auth resume, changed-odds continuation, retry, reopen, cancel, and plan restart.
+
 There is intentionally no lifecycle command carrying stake, credential, MFA/CAPTCHA, or transaction-submit data.
 
-## 7. Structured progress events
+## 9. Structured progress events
 
 Automation reports append-only progress/events to the core. Conceptually:
 
@@ -194,31 +240,37 @@ type LegEvent = Readonly<{
 
 Events from an obsolete attempt or evidence epoch must never mutate the current leg state. This protects against late asynchronous browser callbacks after retry/cancel/reopen.
 
-## 8. Derived plan status
+## 10. Derived plan status
 
 A UI may derive summary labels such as:
 
-- `NOT_STARTED` — both legs pending;
-- `IN_PROGRESS` — at least one leg actively executing;
+- `STARTING` — plan is valid and one/both automatic start dispatches are pending;
+- `IN_PROGRESS` — at least one leg is actively executing;
 - `ACTION_REQUIRED` — at least one leg is `AUTH_REQUIRED` or `ODDS_CHANGED`;
 - `PARTIAL` — one leg is `READY_FOR_USER` and the other is failed/cancelled/action-required;
 - `READY_FOR_USER` — both legs are `READY_FOR_USER`;
 - `FAILED_SAFE` — neither leg is in progress/action-required and the plan is not fully ready;
 - `CANCELLED` — both legs cancelled.
 
+`NOT_STARTED` may exist internally before automatic dispatch, but it must not represent a normal user-awaiting-start state.
+
 These summaries never replace the two authoritative leg states.
 
-## 9. Concurrency semantics
+## 11. Concurrency semantics
 
-The two legs may execute concurrently or sequentially. The contract is identical in either mode.
+For a valid plan, both legs are scheduled as soon as safely practical. Concurrent startup is the default architectural intent because notification-to-browser-open latency is a product requirement.
 
 Required behavior:
 
-- each leg owns its own browser session, attempt id, cancellation signal, state, evidence, and error;
-- a failure, login pause, odds change, cancellation, or retry on one leg does not silently cancel or rewrite the other;
-- the application must not label the surebet pair fully prepared unless both legs are `READY_FOR_USER` for the currently reviewed plan.
+- preflight validates both targets before either is intentionally dispatched, so a known invalid/unsupported second leg cannot trigger navigation of only the first;
+- once dispatch begins, each leg owns its own browser session, attempt id, cancellation signal, state, evidence, and error;
+- runtime launch/failure on one leg does not silently cancel, rewrite, or block the other leg after dispatch;
+- a login pause, odds change, cancellation, or retry on one leg does not rewrite the other;
+- the application must not label the surebet pair fully prepared unless both legs are `READY_FOR_USER` for the current plan.
 
-## 10. Success invariant
+Sequential execution is allowed only as a documented implementation fallback where concurrency is technically unsafe; it must not be caused by renderer acknowledgement or pair-selection UX.
+
+## 12. Success invariant
 
 Transition to `ACTIVATING_SELECTION` is legal only when the current evidence epoch satisfies all of the following:
 
@@ -233,9 +285,11 @@ Transition to `ACTIVATING_SELECTION` is legal only when the current evidence epo
 
 Transition to `SELECTION_PREPARED` additionally requires post-activation verification that the intended selection is visibly selected in the bookmaker UI.
 
-## 11. Authentication boundary
+Automatic plan/start semantics never weaken these predicates.
 
-`AUTH_REQUIRED` is an interruption state, not an adapter failure.
+## 13. Authentication boundary
+
+`AUTH_REQUIRED` is an execution-time interruption state, not an adapter failure or initial startup gate.
 
 While in `AUTH_REQUIRED`:
 
@@ -247,8 +301,32 @@ While in `AUTH_REQUIRED`:
 
 Resume starts a new evidence epoch and re-runs page/event/market/line/outcome/odds validation.
 
-## 12. Transaction boundary
+## 14. Odds interruption boundary
+
+`ODDS_CHANGED` occurs only after automatic execution has started and the current target has been located sufficiently to read its price.
+
+The system surfaces expected and observed odds and requires the existing explicit acknowledgement policy before continuing. This does not create a general plan-confirmation step: it is bound to one concrete changed price on one active leg.
+
+Continuation starts fresh validation. Another changed value pauses again.
+
+## 15. Transaction boundary
 
 No execution-plan, command, state, or event type may represent stake entry or transaction submission.
 
-Stake recommendations parsed from a notification remain informational presentation/domain data and are deliberately excluded from `ExecutionLeg`, `SelectionTarget` automation commands, and bookmaker worker commands.
+Stake recommendations parsed from a notification remain informational domain/presentation data and are deliberately excluded from `ExecutionLeg`, `SelectionTarget` automation commands, and bookmaker worker commands.
+
+## 16. Automatic-start failure semantics
+
+Before worker dispatch, deterministic failures use structured plan/input failure codes and must cause **zero bookmaker navigations**. Examples include:
+
+- malformed/ambiguous notification;
+- missing primary recommendation;
+- primary recommendation resolves to other than two legs;
+- primary recommendation resolves both legs to the same bookmaker;
+- unsupported bookmaker adapter;
+- target invalid for its market;
+- deep-link/navigation candidate rejected by preflight.
+
+The system does not ask the user to repair the pair as part of automatic execution and does not try a later recommendation.
+
+After dispatch, worker/adapter failures follow `docs/error-model.md` and preserve independent leg state.

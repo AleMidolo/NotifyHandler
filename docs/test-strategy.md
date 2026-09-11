@@ -1,19 +1,53 @@
 # Test strategy
 
-Status: **Architecture baseline for Milestone 1**
+Status: **Architecture baseline for Milestone 1, amended by ARCH-003**
 
-The test strategy prioritizes deterministic wrong-selection prevention and transaction-boundary enforcement. Routine automated tests must not require bookmaker credentials, live accounts, or real betting transactions.
+The test strategy prioritizes deterministic wrong-selection prevention, automatic notification-to-browser startup correctness, and transaction-boundary enforcement. Routine automated tests must not require bookmaker credentials, live accounts, or real betting transactions.
 
-## 1. Test pyramid
+## 1. Critical end-to-end contract
+
+The highest-priority application regression is now:
+
+```text
+notification received
+  -> parse/validate
+  -> preserve recommendation source order
+  -> resolve recommendation[0] as primary
+  -> build exactly two distinct-bookmaker targets
+  -> validate adapter/navigation preflight
+  -> automatically dispatch both legs
+```
+
+The test must prove **zero pre-execution user actions** are required. Parsed preview rendering, target-summary rendering, pair selector state, or a start button must not gate dispatch.
+
+Required automatic-start cases:
+
+1. valid notification -> primary option index 0 is used automatically;
+2. valid notification -> exactly two worker `start` calls occur without user selection/confirmation/start input;
+3. both leg starts are scheduled independently/as concurrently as the test harness permits;
+4. preview/render callback delayed or absent -> startup still occurs;
+5. multiple recommendations -> only the first source-order recommendation is used;
+6. malformed/ambiguous primary recommendation with a valid later recommendation -> safe failure, zero worker starts, no fallback;
+7. same-bookmaker primary -> safe failure, zero worker starts;
+8. unsupported primary bookmaker -> safe failure before any navigation/start;
+9. unsafe/invalid navigation candidate detected in preflight -> safe failure, zero worker starts;
+10. new valid notification after a previous run -> creates a new plan/attempts and does not reuse stale recommendation choice/evidence.
+
+## 2. Test pyramid
 
 ### Pure unit tests
 
 Run without Electron or a browser for:
 
 - notification/domain normalization;
+- recommendation source-order preservation;
+- deterministic primary recommendation resolution;
+- no-fallback behavior;
 - selection-target validation;
-- execution-plan construction;
+- primary execution-plan construction;
+- two-distinct-bookmaker invariant;
 - leg state-machine transition guards;
+- automatic-start trigger predicates;
 - stale attempt/evidence rejection;
 - decimal line parsing/equality;
 - odds comparison;
@@ -54,6 +88,7 @@ Required cases:
 Use Playwright against local fixture servers/pages to verify:
 
 - worker/page lifecycle;
+- automatic start request opens the intended isolated browser session without a renderer start action;
 - headed/headless-compatible adapter behavior where applicable;
 - origin/redirect policy;
 - login interruption and resume state handling without real credentials;
@@ -66,42 +101,68 @@ CI normally runs browser fixtures headless. Headed local smoke tests validate ma
 
 ### Application integration tests
 
-Use fake adapters or worker test doubles to verify:
+Use fake adapters/worker test doubles to verify:
 
-- exactly two independent leg states;
+- notification receipt invokes parsing automatically;
+- the first source-order recommendation becomes the plan recommendation id without a user-selected id;
+- invalid primary recommendation cannot navigate or start and cannot fall through to a later option;
+- both valid legs are automatically dispatched once preflight succeeds;
+- renderer preview/summary is informational and not a synchronization prerequisite;
+- exactly two independent leg states exist;
 - partial success/failure remains visible;
 - one leg's retry/cancel/login pause does not rewrite the other;
-- user cannot execute invalid/ambiguous plan input;
 - `ODDS_CHANGED` displays expected and observed values;
 - only an acknowledgement of the exact observed value can continue;
 - app never reports full pair readiness unless both current legs are `READY_FOR_USER`;
 - renderer/core messages contain no credentials, cookies, stake command, or submit-bet command.
 
-## 2. Deterministic fixture rules
+Legacy APP-001 pair-selection/start behavior may be tested as optional tooling, but tests must not treat it as required for the production automatic path.
+
+## 3. Automatic-start harness requirements
+
+The application test harness should expose:
+
+- a notification-receipt entry point;
+- deterministic parser/domain fixture input;
+- a fake adapter registry with explicit supported/unsupported bookmakers;
+- navigation-preflight stubs;
+- worker start spies per leg;
+- renderer observer spies that can intentionally block/delay to prove they are non-gating;
+- deterministic clock/timestamps where needed.
+
+Core assertions:
+
+- worker start count is exactly zero for preflight-invalid input;
+- worker start count is exactly two for a valid plan;
+- started targets correspond exactly to primary recommendation index 0;
+- no renderer/user event is necessary between notification receipt and the first worker start;
+- a valid later recommendation cannot rescue an invalid primary;
+- source order is not sorted/re-ranked by ROI, bookmaker name, odds, or display order;
+- after dispatch, each leg's state and failures are independent.
+
+## 4. Deterministic fixture rules
 
 Fixture content must be sanitized and synthetic or otherwise safe to store in the repository.
 
-Fixtures should model the minimum page behaviors needed to exercise adapter logic:
+Notification fixtures must include:
 
-- event lists/cards;
-- market containers;
-- line labels;
-- outcome controls;
-- displayed odds;
-- login-required state;
-- selected-state representation;
-- allowed and blocked redirects.
+- multiple valid recommendations in deliberate source order;
+- first-invalid/later-valid recommendation;
+- same-bookmaker primary;
+- unsupported-bookmaker primary;
+- deep-link/navigation-preflight rejection;
+- valid primary with informational suggested stakes that never enter execution commands.
 
-Do not store real credentials, authenticated account HTML, cookies, access tokens, or personal data in fixtures.
+Browser fixtures should model the minimum page behaviors needed to exercise adapter logic: event lists/cards, market containers, line labels, outcome controls, displayed odds, login-required state, selected-state representation, and allowed/blocked redirects.
 
-Fixtures should deliberately include near-miss cases rather than only happy paths.
+Do not store real credentials, authenticated account HTML, cookies, access tokens, or personal data in fixtures. Fixtures should deliberately include near-miss cases rather than only happy paths.
 
-## 3. Contract-test adapter harness
+## 5. Contract-test adapter harness
 
 The QA implementation should provide one reusable harness that supplies:
 
 - immutable `SelectionTarget`;
-- fresh browser/session per case unless the case explicitly tests lifecycle;
+- fresh browser/session per case unless lifecycle is under test;
 - controlled fixture URL/origin registration;
 - event recorder for states/evidence;
 - selection activation spy/gate;
@@ -116,7 +177,7 @@ Core assertions include:
 - no activation occurs after cancellation or from stale evidence;
 - success requires post-activation selected-state verification.
 
-## 4. Transaction-boundary tests
+## 6. Transaction-boundary tests
 
 Release-gate tests must demonstrate that public application/core/worker/adapter contracts do not expose:
 
@@ -132,25 +193,29 @@ Static/package-boundary tests should also ensure:
 - renderer cannot import Playwright;
 - core/application code cannot import bookmaker DOM modules;
 - adapters receive restricted browser capabilities rather than unrestricted application privileges;
-- selection activation goes through the shared activation gate.
+- selection activation goes through the shared activation gate;
+- production notification handling does not depend on renderer-selected `recommendedOptionId` or a renderer-issued `START`.
 
-## 5. Security/privacy tests
+## 7. Security/privacy tests
 
 Tests should verify:
 
 - unsafe URL schemes are rejected;
 - unsupported origins and cross-origin redirects are rejected;
 - private/internal network navigation is rejected when input-controlled;
+- preflight-invalid primary targets create zero browser navigation attempts;
 - diagnostics redact/omit cookies, tokens, authorization headers, and credential values;
 - ephemeral browser profile directories are isolated and cleaned according to runtime policy;
 - one leg cannot address the other leg's browser/session handles.
 
-## 6. State-machine tests
+## 8. State-machine tests
 
 Generate or enumerate allowed transitions from `specs/execution-contract.md` and reject all others.
 
 Specific regressions:
 
+- valid plan creation automatically schedules both `PENDING -> OPENING` paths without a user start transition;
+- `PENDING` cannot remain indefinitely waiting for renderer approval in the normal valid path;
 - `AUTH_REQUIRED` cannot jump directly to activation;
 - `ODDS_CHANGED` cannot jump directly to activation;
 - resume/continue creates fresh evidence;
@@ -159,7 +224,19 @@ Specific regressions:
 - stale async events cannot move a newer attempt backwards/forwards;
 - cancellation prevents later activation.
 
-## 7. Live verification policy
+## 9. Latency tests and diagnostics
+
+Latency optimization must never bypass validation. Tests should make these timestamps available using a deterministic clock where possible:
+
+- notification received;
+- parse/primary-plan ready;
+- each worker start dispatched;
+- each browser open requested;
+- first page ready.
+
+Regression tests should fail on accidental synchronous renderer waits in the path from plan-ready to worker-start. Hard production latency thresholds may be introduced later once runtime baselines exist.
+
+## 10. Live verification policy
 
 Live bookmaker verification is not part of routine CI and must not be required for merge confidence.
 
@@ -174,10 +251,15 @@ If a bookmaker integration needs manual live verification and automated access i
 
 A bookmaker that cannot be exercised safely/permittedly remains unsupported rather than receiving bypass logic.
 
-## 8. Merge/release gates
+## 11. Merge/release gates
 
-A change affecting matching, adapter behavior, browser capability, or orchestration is not ready when any of the following is true:
+A change affecting ingestion, primary resolution, matching, adapter behavior, browser capability, or orchestration is not ready when any of the following is true:
 
+- a valid notification requires preview acknowledgement, pair selection, execution confirmation, or a manual start action;
+- primary source order is not preserved;
+- an invalid primary can silently fall through to a later recommendation;
+- preflight-invalid input can start/navigate either bookmaker leg;
+- a valid primary does not dispatch exactly two legs;
 - required shared contract tests fail;
 - a near-match fixture can activate a selection;
 - ambiguity can be represented as success;
