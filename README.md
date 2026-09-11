@@ -24,6 +24,12 @@ The MVP focuses on deterministic notification parsing, a transport-independent d
 
 Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRALBET. Support is added incrementally through the shared adapter contract.
 
+## Architecture baseline
+
+The accepted MVP runtime is a local-first desktop application with a TypeScript/Node.js core and a browser-automation worker using Playwright-controlled headed Chromium. Bookmaker sessions are isolated from the application UI and from the user's everyday browser profile; manual login and final transaction actions remain user-controlled.
+
+See `docs/architecture.md` and `docs/adr/0001-local-desktop-playwright-runtime.md` for the accepted runtime decision and tradeoffs.
+
 ## Source of truth
 
 Repository documentation and specifications are authoritative. Start with:
@@ -32,6 +38,8 @@ Repository documentation and specifications are authoritative. Start with:
 - `roadmap.md` — milestones and sequencing;
 - `backlog.md` — prioritized work;
 - `docs/product-requirements.md` — product requirements and acceptance criteria;
+- `docs/architecture.md` — accepted runtime, component, process, browser/session, and testability architecture;
+- `docs/adr/0001-local-desktop-playwright-runtime.md` — deployment/runtime architecture decision record;
 - `docs/workflow.md` — end-to-end user/application workflow;
 - `docs/safety-boundaries.md` — non-negotiable safety and transaction boundaries;
 - `docs/bookmaker-support.md` — bookmaker rollout and support status;
