@@ -61,6 +61,8 @@ SurebetNotification
     metadata?: additional source data
 ```
 
+The order of `recommendedOptions[]` is semantically significant for automatic execution and must preserve source order.
+
 Exact implementation types are owned by architecture/domain work, but equivalent semantics must be preserved.
 
 ## 3. Required fields for executable MVP input
@@ -71,9 +73,12 @@ A notification is executable only if it can unambiguously yield:
 - outcome sides offered;
 - canonical bookmaker for each selected offer;
 - expected odds for each selected offer;
-- one chosen recommended option that resolves to exactly two legs.
+- at least one recommended option;
+- a primary recommended option, defined for the initial MVP as the first recommendation in source order, that resolves to exactly two distinct bookmaker legs.
 
 Competition, date/time, line, and deep links are conditionally required based on market/adapter matching needs. For line-based markets such as U/O CORNER 11.5, the line is mandatory.
+
+The application does not ask the user to choose a recommendation. If the primary recommendation cannot be resolved deterministically, the notification is non-executable and must fail safely before bookmaker navigation.
 
 ## 4. Parsing rules
 
@@ -113,10 +118,16 @@ Unknown bookmaker names may be preserved as unsupported input, but they must not
 ### 4.7 Deep links
 Deep links are untrusted input. Parsing may extract them, but URL allowlisting/origin validation occurs before navigation according to security/adapter policy.
 
-### 4.8 Recommended options
+### 4.8 Recommended options and automatic primary selection
 A recommended option must reference exactly two offers/outcomes for MVP execution. Suggested stake values, if present, are informational only; NotifyHandler never enters or submits stakes.
 
 References must resolve deterministically. If a recommendation can refer to multiple offers or no offer, the option is invalid/ambiguous.
+
+Parser/domain processing must preserve recommendation source order exactly. For the initial MVP, the first recommended option is the primary option used for automatic execution. No user selection step exists in the normal flow.
+
+The primary option must resolve to two distinct canonical bookmakers. If the first recommendation is malformed, ambiguous, same-bookmaker, or otherwise non-executable, processing fails safely. A later recommendation must not be silently substituted because that would change the source-selected strategy without explicit protocol support.
+
+Future notification versions may add an explicit primary/preferred recommendation marker. If introduced, that must be versioned and specified rather than inferred.
 
 ## 5. Market normalization
 
@@ -145,7 +156,8 @@ Examples include:
 - missing line for a line-based market;
 - invalid expected odds;
 - recommendation references unknown offer;
-- recommendation resolves to other than two legs;
+- primary recommendation resolves to other than two legs;
+- primary recommendation resolves both legs to the same bookmaker;
 - conflicting duplicate fields;
 - multiple plausible interpretations of a required field.
 
@@ -153,7 +165,7 @@ Errors should identify the field/section and preserve enough sanitized source co
 
 ## 7. Determinism requirements
 
-Given the same input and parser version/configuration, normalization must produce the same output/error. Runtime page state, bookmaker DOM, and live odds must not influence notification parsing.
+Given the same input and parser version/configuration, normalization and primary-recommendation resolution must produce the same output/error. Runtime page state, bookmaker DOM, and live odds must not influence notification parsing.
 
 ## 8. Fixture requirements
 
@@ -163,9 +175,12 @@ The domain implementation should include sanitized fixtures covering:
 - whitespace variations;
 - all initial bookmaker names;
 - multiple offers per outcome;
-- multiple recommended pairs;
+- multiple recommended pairs with source order preserved;
+- automatic use of the first recommended pair;
+- invalid first recommendation with a valid later recommendation, proving no silent fallback occurs;
 - malformed/missing fields;
 - ambiguous recommendations;
+- same-bookmaker primary recommendation;
 - comma/dot odds cases if locale support is implemented;
 - unsupported market and bookmaker cases.
 
