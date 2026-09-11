@@ -1,0 +1,9 @@
+{
+  "name": "@notify-handler/domain",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/domain.test.ts test/same-bookmaker.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}
