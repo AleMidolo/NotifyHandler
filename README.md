@@ -1,26 +1,27 @@
 # NotifyHandler
 
-NotifyHandler prepares the two bookmaker selections described by a surebet notification while keeping authentication, stake entry, review, and final bet submission under manual user control.
+NotifyHandler receives a surebet notification and automatically prepares the two bookmaker selections as quickly as safely possible while keeping authentication, stake entry, review, and final bet submission under manual user control.
 
 ## Product goal
 
 Given a structured or textual surebet notification, NotifyHandler should:
 
 1. parse the event, competition, date/time, market, outcomes, bookmaker offers, expected odds, deep links, and recommended paired options;
-2. show the normalized interpretation to the user before any browser action;
-3. let the user choose one recommended paired option;
-4. open the two bookmaker pages independently;
-5. locate and verify the requested event, market, exact line, and outcome for each leg;
-6. compare displayed odds with the expected odds from the notification;
-7. activate the requested selection only when every required identity dimension is positively matched under the shared deterministic policy;
-8. stop safely rather than guess when evidence is mismatched, ambiguous, unavailable, or stale;
-9. hand control to the user with the prepared selections.
+2. deterministically resolve the notification's primary recommended paired option into exactly two bookmaker legs without asking the user to review, confirm, or choose it;
+3. immediately start the two legs and open the two bookmaker pages independently as soon as parsing, validation, adapter availability, and navigation-safety checks permit;
+4. locate and verify the requested event, market, exact line, and outcome for each leg;
+5. compare displayed odds with the expected odds from the notification;
+6. activate the requested selection only when every required identity dimension is positively matched under the shared deterministic policy;
+7. stop safely rather than guess when evidence is mismatched, ambiguous, unavailable, or stale;
+8. hand control to the user with the prepared selections.
+
+The normal path has no pre-execution confirmation screen and no user-driven recommended-option selector. For the initial notification contract, the first recommended option in source order is the primary option. If that option cannot deterministically resolve to exactly two valid, distinct, supported bookmaker legs, execution fails safely before bookmaker navigation rather than asking the user or silently substituting another option.
 
 NotifyHandler must never enter credentials, automate MFA/CAPTCHA, enter stakes, or submit bets.
 
 ## MVP scope
 
-The MVP focuses on deterministic notification parsing, a transport-independent domain model, explicit execution planning, two-leg state tracking, bookmaker adapters, safe browser selection, odds-change reporting, and manual-user handoff.
+The MVP focuses on deterministic notification parsing, automatic primary-option resolution, a transport-independent domain model, immediate execution planning, two-leg state tracking, bookmaker adapters, safe browser selection, odds-change reporting, and manual-user handoff.
 
 Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRALBET. Support is added incrementally through the shared adapter contract.
 
@@ -30,7 +31,9 @@ The accepted MVP runtime is a local-first desktop application with a TypeScript/
 
 Selection authorization is predicate-based, not a fuzzy confidence score. Event, market/context, exact numeric line, outcome, current origin, odds state, attempt freshness, and cancellation state are independently gated.
 
-See `docs/architecture.md` and `docs/adr/0001-local-desktop-playwright-runtime.md` for the accepted runtime decision and tradeoffs.
+The architecture must not introduce a pre-execution user-review or pair-selection gate. Product input should flow from validated notification to automatic primary-option resolution and immediate two-leg startup.
+
+See `docs/architecture.md` and `docs/adr/0001-local-desktop-playwright-runtime.md` for the accepted runtime decision and tradeoffs. Product interaction requirements in `docs/product-requirements.md` and `docs/workflow.md` are authoritative where older architecture wording still refers to manual preview/option choice.
 
 ## Development
 
@@ -68,4 +71,4 @@ Repository documentation and specifications are authoritative. Start with:
 
 ## Development principle
 
-Correctness is more important than clicking something. When event, market, line, side, origin, odds state, or freshness requirements are not satisfied, the system must fail or pause safely instead of selecting a candidate.
+Correctness is more important than clicking something. Automatic startup removes unnecessary user delay, but never weakens validation. When event, market, line, side, origin, odds state, or freshness requirements are not satisfied, the system must fail or pause safely instead of selecting a candidate.
