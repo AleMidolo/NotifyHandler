@@ -31,9 +31,9 @@ The accepted MVP runtime is a local-first desktop application with a TypeScript/
 
 Selection authorization is predicate-based, not a fuzzy confidence score. Event, market/context, exact numeric line, outcome, current origin, odds state, attempt freshness, and cancellation state are independently gated.
 
-The architecture must not introduce a pre-execution user-review or pair-selection gate. Product input should flow from validated notification to automatic primary-option resolution and immediate two-leg startup.
+The architecture has no pre-execution user-review, pair-selection, confirmation, or renderer-driven start gate. Valid input flows from deterministic parsing to primary-option resolution, shared preflight, and automatic two-leg startup. Preview/target rendering is non-blocking observability.
 
-See `docs/architecture.md` and `docs/adr/0001-local-desktop-playwright-runtime.md` for the accepted runtime decision and tradeoffs. Product interaction requirements in `docs/product-requirements.md` and `docs/workflow.md` are authoritative where older architecture wording still refers to manual preview/option choice.
+See `docs/architecture.md`, `docs/adr/0001-local-desktop-playwright-runtime.md`, and `docs/adr/0002-automatic-primary-option-startup.md` for the accepted runtime and automatic-start decisions.
 
 ## Development
 
@@ -55,17 +55,18 @@ Repository documentation and specifications are authoritative. Start with:
 - `roadmap.md` — milestones and sequencing;
 - `backlog.md` — prioritized work;
 - `docs/product-requirements.md` — product requirements and acceptance criteria;
-- `docs/architecture.md` — accepted runtime, component boundaries, trust boundaries, and normative contract map;
+- `docs/architecture.md` — accepted runtime, component boundaries, automatic-start boundary, trust boundaries, and normative contract map;
 - `docs/adr/0001-local-desktop-playwright-runtime.md` — deployment/runtime architecture decision record;
+- `docs/adr/0002-automatic-primary-option-startup.md` — deterministic primary recommendation and automatic two-leg startup decision;
 - `docs/development.md` — reproducible local setup, CI, browser runtime, diagnostics, and release baseline;
 - `docs/workflow.md` — end-to-end user/application workflow;
 - `docs/safety-boundaries.md` — non-negotiable authentication, access, and transaction boundaries;
 - `docs/error-model.md` — interruptions, safe failures, activation disposition, and recovery semantics;
-- `docs/test-strategy.md` — shared unit/contract/browser/security/release test strategy;
+- `docs/test-strategy.md` — automatic-start, unit/contract/browser/security/release test strategy;
 - `docs/bookmaker-support.md` — bookmaker rollout and support status;
-- `specs/notification-format.md` — input/normalization contract;
+- `specs/notification-format.md` — input/normalization and primary-recommendation contract;
 - `specs/selection-target.md` — immutable target for one bookmaker leg;
-- `specs/execution-contract.md` — exact two-leg state machine, attempts, evidence epochs, and commands;
+- `specs/execution-contract.md` — automatic start trigger, exact two-leg state machine, attempts, evidence epochs, and commands;
 - `specs/bookmaker-adapter-contract.md` — worker/adapter interface and restricted browser/selection capability boundary;
 - `specs/matching-policy.md` — deterministic matching evidence, exact-line rules, and odds-change policy.
 
