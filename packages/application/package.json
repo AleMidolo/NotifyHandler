@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --experimental-transform-types --test test/workflow.test.ts test/qa-integration.test.ts test/auto-orchestration.test.ts",
+    "test": "node --experimental-transform-types --test test/workflow.test.ts test/qa-integration.test.ts test/auto-orchestration.test.ts test/qa-launch-isolation.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
