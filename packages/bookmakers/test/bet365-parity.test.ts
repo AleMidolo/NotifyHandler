@@ -86,7 +86,11 @@ class FixturePage implements BookmakerPagePort {
 
 class FixtureGate implements SelectionActivationGate {
   calls = 0;
-  constructor(private readonly page: FixturePage) {}
+  private readonly page: FixturePage;
+
+  constructor(page: FixturePage) {
+    this.page = page;
+  }
 
   async activate(request: {
     target: SelectionTarget;
