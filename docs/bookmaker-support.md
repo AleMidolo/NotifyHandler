@@ -15,13 +15,32 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 
 | Bookmaker | Priority | Status | Notes |
 | --- | --- | --- | --- |
-| SISAL | 1 | Testable | BOOK-001 implements the restricted adapter logic and deterministic fixtures for `www.sisal.it`, pre-match football full-match total-corners exact-line OVER/UNDER targets. Real Playwright DOM mapping/live smoke validation remains required before `Supported`. |
-| BET365 | 2 | Testable | BOOK-003 / #28 implements the restricted adapter logic and deterministic fixtures for `www.bet365.it`, pre-match football full-match total-corners exact-line OVER/UNDER targets. Real Playwright DOM mapping/live smoke validation remains required before `Supported`. |
+| SISAL | 1 | Testable | BOOK-001 implements the restricted adapter logic. BOOK-005 adds a real isolated Playwright/Chromium worker exercised against controlled synthetic SISAL fixture pages. Live `www.sisal.it` DOM mapping/smoke validation remains required before `Supported`. |
+| BET365 | 2 | Testable | BOOK-003 implements the restricted adapter logic. BOOK-005 adds a real isolated Playwright/Chromium worker exercised against controlled synthetic BET365 fixture pages. Live `www.bet365.it` DOM mapping/smoke validation remains required before `Supported`. |
 | LOTTOMATICA | 3 | Candidate | Add after first pair stabilizes. |
 | EPLAY24 | 4 | Candidate | Add after first pair stabilizes. |
 | ADMIRALBET | 5 | Candidate | Add after first pair stabilizes. |
 
 Priorities may change when technical feasibility, permitted access, notification prevalence, or regression complexity provides evidence for a better order.
+
+## Browser worker testable scope
+
+BOOK-005 adds the first concrete Playwright-backed worker implementation of the restricted `BookmakerPagePort` and `SelectionActivationGate` runtime boundary.
+
+The worker:
+
+- owns Playwright and does not expose raw `Browser`, `BrowserContext`, `Page`, locators, cookies, storage, or arbitrary evaluation to application/core/bookmaker adapter code;
+- launches a dedicated Chromium process and ephemeral context for each bookmaker leg, with production launch defaulting to a visible headed browser;
+- keeps the approved production origins fixed to `https://www.sisal.it` and `https://www.bet365.it`;
+- rejects malformed, non-HTTPS, credential-bearing, unapproved, loopback/private/internal navigation and revalidates top-level navigation/redirects independently of adapter checks;
+- maps bookmaker-neutral semantic read queries to worker-owned selectors;
+- invalidates element references after navigation/DOM replacement and checks that elements remain connected before interaction;
+- exposes final outcome activation only through the evidence/odds-bound selection gate;
+- provides an explicit test-only fixture launcher that intercepts exact approved HTTPS bookmaker URLs in memory and blocks every unconfigured request, so CI does not contact live bookmaker infrastructure;
+- carries cancellation into navigation/wait operations and closes an in-flight page when necessary to stop the operation;
+- has no credential/MFA/CAPTCHA, stake, funding, cash-out, wager confirmation/submission, anti-bot, geo, rate-limit, or access-control bypass operation.
+
+CI installs the pinned Chromium runtime and executes the Playwright fixture suite. The synthetic `data-nh-*` role attributes used by those fixtures are worker test harness conventions only; they are **not** statements about the live SISAL or BET365 DOM.
 
 ## SISAL testable scope and limitations
 
@@ -36,7 +55,7 @@ The current SISAL adapter:
 - reports a visible authentication wall as `AUTH_REQUIRED` without reading or entering credentials;
 - fails safely on ambiguity, neighboring lines, wrong event/market/outcome, unavailable odds, blocked redirects, cancellation, and failed post-activation verification.
 
-The current implementation is intentionally fixture-backed. Real SISAL DOM locator/query mapping has not yet been validated against a live session and no live bookmaker interaction runs in CI. Promotion from **Testable** to **Supported** requires a permitted normal-browser mapping in the browser worker plus the shared adapter contract/security/release gates.
+The adapter is now exercised through the real Playwright worker against controlled local/in-memory browser fixtures. Real SISAL DOM locator/query mapping has not yet been validated against a live session and no live bookmaker interaction runs in CI. Promotion from **Testable** to **Supported** still requires a permitted normal-browser live-site mapping plus the shared adapter contract/security/release gates.
 
 ## BET365 testable scope and limitations
 
@@ -52,7 +71,7 @@ The current BET365 adapter:
 - preserves `ATTEMPTED_NOT_VERIFIED`/manual-review semantics when cancellation races an activation already in flight;
 - fails safely on ambiguous/wrong event, market, line, or outcome, unavailable/invalid odds, blocked redirects, cancellation, and failed post-activation verification.
 
-The BET365 implementation is also intentionally fixture-backed. The semantic fixture attributes are internal test-harness data and are **not** assertions about the live BET365 DOM. Promotion from **Testable** to **Supported** requires a permitted normal-browser Playwright mapping for the Italian public site plus the shared adapter contract/security/release gates. No protected/private API reverse engineering is part of this integration.
+The BET365 adapter is also exercised through the real Playwright worker against controlled browser fixtures. The semantic fixture attributes are internal test-harness data and are **not** assertions about the live BET365 DOM. Promotion from **Testable** to **Supported** still requires a permitted normal-browser mapping for the Italian public site plus the shared adapter contract/security/release gates. No protected/private API reverse engineering is part of this integration.
 
 ## Minimum adapter capabilities
 
