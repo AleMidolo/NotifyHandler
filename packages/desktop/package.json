@@ -1,0 +1,10 @@
+{
+  "name": "@notify-handler/desktop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-transform-types --test test/composition.test.ts",
+    "test:browser": "node --experimental-transform-types --test test/browser-e2e.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

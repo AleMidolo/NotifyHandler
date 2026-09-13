@@ -8,6 +8,7 @@ on:
       - .nvmrc
       - .npmrc
       - .github/workflows/browser-runtime.yml
+      - packages/application/**
       - packages/automation/**
       - packages/bookmakers/**
       - packages/desktop/**
@@ -45,5 +46,7 @@ jobs:
       - name: Verify pinned Playwright version
         run: npm exec --yes --package=playwright@1.63.0 -- playwright --version
 
-      - name: Run deterministic Chromium fixture suite
-        run: npm run test:browser --workspace @notify-handler/automation
+      - name: Run deterministic Chromium fixture suites
+        run: |
+          npm run test:browser --workspace @notify-handler/automation
+          npm run test:browser --workspace @notify-handler/desktop
