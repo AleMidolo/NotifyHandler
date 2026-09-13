@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>NotifyHandler</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Local execution console</p>
+        <h1>NotifyHandler</h1>
+      </div>
+      <div class="status-pill">Status: <strong id="status-value">AWAITING_NOTIFICATION</strong></div>
+    </header>
+
+    <section class="panel intake">
+      <div>
+        <h2>Notification intake</h2>
+        <p class="muted">Submitting input delivers it directly to the automatic parser and two-leg execution path. There is no pair-selection, confirmation, or Start step.</p>
+      </div>
+      <form id="notification-form">
+        <label for="notification-input">Surebet notification</label>
+        <textarea id="notification-input" rows="9" spellcheck="false" placeholder="Paste a structured surebet notification here…"></textarea>
+        <button class="action primary" type="submit">Deliver notification</button>
+      </form>
+      <p id="error-box" class="error-box" hidden></p>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <h2>Execution</h2>
+        <div id="metrics-box" class="metrics"></div>
+      </div>
+      <div id="plan-box" class="plan-grid"></div>
+      <div id="plan-recovery" class="actions plan-actions"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Bookmaker legs</h2>
+      <div id="legs-box" class="legs-grid"></div>
+    </section>
+
+    <footer>
+      NotifyHandler prepares selections only. Authentication, stake entry, review, and final bet submission stay manual in the separate bookmaker windows.
+    </footer>
+  </main>
+  <script type="module" src="./renderer.js"></script>
+</body>
+</html>
