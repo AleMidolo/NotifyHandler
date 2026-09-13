@@ -1,6 +1,7 @@
 import { chromium } from "playwright-core";
 import type {
   BookmakerPagePort,
+  SafeLocation,
   SelectionActivationGate,
 } from "../../bookmakers/src/contracts.ts";
 import { domMappingFor, type WorkerBookmaker } from "./dom-mapping.ts";
@@ -11,6 +12,11 @@ import { createSelectionGate } from "./selection-gate.ts";
 const ORIGINS: Readonly<Record<WorkerBookmaker, readonly string[]>> = Object.freeze({
   sisal: Object.freeze(["https://www.sisal.it"]),
   bet365: Object.freeze(["https://www.bet365.it"]),
+});
+
+const REVOKED_LOCATION: SafeLocation = Object.freeze({
+  href: "about:blank",
+  origin: "notifyhandler://revoked-attempt",
 });
 
 let nextSessionId = 0;
@@ -36,6 +42,54 @@ export interface LaunchBookmakerLegSessionOptions {
 
 interface InternalLaunchOptions extends LaunchBookmakerLegSessionOptions {
   readonly fixtureDocuments?: FixtureDocuments;
+}
+
+function createAttemptBrowser(
+  browser: BookmakerPagePort,
+  isCurrentAttempt: () => boolean,
+): BookmakerPagePort {
+  return {
+    async openAllowed(url) {
+      if (!isCurrentAttempt()) return { ok: false };
+      const result = await browser.openAllowed(url);
+      return isCurrentAttempt() ? result : { ok: false };
+    },
+    async currentLocation() {
+      if (!isCurrentAttempt()) return REVOKED_LOCATION;
+      const location = await browser.currentLocation();
+      return isCurrentAttempt() ? location : REVOKED_LOCATION;
+    },
+    async waitForPageReady(options) {
+      if (!isCurrentAttempt()) return { ready: false };
+      const result = await browser.waitForPageReady(options);
+      return isCurrentAttempt() ? result : { ready: false };
+    },
+    async query(query) {
+      if (!isCurrentAttempt()) return [];
+      const result = await browser.query(query);
+      return isCurrentAttempt() ? result : [];
+    },
+    async readText(ref) {
+      if (!isCurrentAttempt()) return "";
+      const result = await browser.readText(ref);
+      return isCurrentAttempt() ? result : "";
+    },
+    async readAttribute(ref, name) {
+      if (!isCurrentAttempt()) return null;
+      const result = await browser.readAttribute(ref, name);
+      return isCurrentAttempt() ? result : null;
+    },
+    async isVisible(ref) {
+      if (!isCurrentAttempt()) return false;
+      const result = await browser.isVisible(ref);
+      return isCurrentAttempt() ? result : false;
+    },
+    async activateNavigationControl(action) {
+      if (!isCurrentAttempt()) return { ok: false };
+      const result = await browser.activateNavigationControl(action);
+      return isCurrentAttempt() ? result : { ok: false };
+    },
+  };
 }
 
 export async function launchSession(options: InternalLaunchOptions): Promise<BookmakerLegSession> {
@@ -64,13 +118,20 @@ export async function launchSession(options: InternalLaunchOptions): Promise<Boo
 
   const sessionId = `browser-session-${++nextSessionId}`;
   let closed = false;
+  let attemptGeneration = 0;
+  let activeAttemptGeneration = 0;
   let detachAbort: (() => void) | undefined;
+
+  const revokeCurrentAttempt = (): void => {
+    activeAttemptGeneration = ++attemptGeneration;
+    detachAbort?.();
+    detachAbort = undefined;
+  };
 
   const close = async (): Promise<void> => {
     if (closed) return;
+    revokeCurrentAttempt();
     closed = true;
-    detachAbort?.();
-    detachAbort = undefined;
     await context.close().catch(() => undefined);
     await browser.close().catch(() => undefined);
   };
@@ -84,9 +145,17 @@ export async function launchSession(options: InternalLaunchOptions): Promise<Boo
 
       detachAbort?.();
       detachAbort = undefined;
+      const generation = ++attemptGeneration;
+      activeAttemptGeneration = generation;
       runtime.beginAttempt();
+
+      const isCurrentAttempt = (): boolean =>
+        !closed && activeAttemptGeneration === generation && !(signal?.aborted ?? false);
+
       if (signal !== undefined) {
-        const onAbort = (): void => runtime.cancelInFlight();
+        const onAbort = (): void => {
+          if (activeAttemptGeneration === generation) runtime.cancelInFlight();
+        };
         if (signal.aborted) onAbort();
         else {
           signal.addEventListener("abort", onAbort, { once: true });
@@ -94,12 +163,14 @@ export async function launchSession(options: InternalLaunchOptions): Promise<Boo
         }
       }
 
+      const attemptBrowser = createAttemptBrowser(runtime.port, isCurrentAttempt);
       return {
-        browser: runtime.port,
-        selectionGate: createSelectionGate(runtime, options.bookmaker, evidenceEpoch),
+        browser: attemptBrowser,
+        selectionGate: createSelectionGate(runtime, options.bookmaker, evidenceEpoch, isCurrentAttempt),
       };
     },
     async cancel(): Promise<void> {
+      revokeCurrentAttempt();
       runtime.cancelInFlight();
       await close();
     },
