@@ -5,6 +5,7 @@ import type {
   AdapterTerminalResult,
   SelectionActivationGate,
 } from "./contracts.ts";
+import { withValidatedFinalLocation } from "./navigation.ts";
 import { SisalAdapter as SisalAdapterBase } from "./sisal-core.ts";
 
 function cancellationDuringActivation(
@@ -35,11 +36,12 @@ function cancellationDuringActivation(
 }
 
 /**
- * Cancellation-safe SISAL adapter facade.
+ * Cancellation- and redirect-safe SISAL adapter facade.
  *
  * The underlying implementation performs all deterministic matching and activation.
- * This facade guards the activation gate so an abort raised while the final activation
- * is in flight can never escape as READY_FOR_USER.
+ * This facade validates the full final browser location before the core can inspect
+ * authentication or matching evidence, and guards the activation gate so an abort
+ * raised while the final activation is in flight can never escape as READY_FOR_USER.
  */
 export class SisalAdapter extends SisalAdapterBase {
   override async prepare(
@@ -60,7 +62,13 @@ export class SisalAdapter extends SisalAdapterBase {
       },
     };
 
-    const result = await super.prepare({ ...ctx, selectionGate: guardedGate }, target, observer, signal);
+    const guardedBrowser = withValidatedFinalLocation(ctx.browser, this.supportedOrigins);
+    const result = await super.prepare(
+      { ...ctx, browser: guardedBrowser, selectionGate: guardedGate },
+      target,
+      observer,
+      signal,
+    );
 
     if (activationRacedCancellation || (signal.aborted && result.kind === "READY_FOR_USER")) {
       return cancellationDuringActivation(ctx, result);
