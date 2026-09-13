@@ -25,11 +25,13 @@ interface NodeState {
 class RedirectFixturePage implements BookmakerPagePort {
   queries = 0;
   opened = 0;
+  readonly location: { href: string; origin: string };
+  readonly nodes: NodeState[];
 
-  constructor(
-    readonly location: { href: string; origin: string },
-    readonly nodes: NodeState[],
-  ) {}
+  constructor(location: { href: string; origin: string }, nodes: NodeState[]) {
+    this.location = location;
+    this.nodes = nodes;
+  }
 
   async openAllowed() {
     this.opened += 1;
@@ -81,7 +83,11 @@ class RedirectFixturePage implements BookmakerPagePort {
 
 class FixtureGate implements SelectionActivationGate {
   calls = 0;
-  constructor(private readonly page: RedirectFixturePage) {}
+  private readonly page: RedirectFixturePage;
+
+  constructor(page: RedirectFixturePage) {
+    this.page = page;
+  }
 
   async activate(request: {
     target: SelectionTarget;
@@ -182,8 +188,9 @@ const cases = [
 
 for (const item of cases) {
   test(`${item.bookmaker}: same-origin credential-bearing final redirect is blocked before matching`, async () => {
+    const credentialHref = item.origin.replace("https://", "https://user:secret@");
     const { result, page, gate } = await run(item.adapter, item.bookmaker, item.entry, {
-      href: `${item.origin.replace("https://", "https://user:secret@")} /fixture`.replace(" ", ""),
+      href: `${credentialHref}/fixture`,
       origin: item.origin,
     });
     assert.equal(result.kind, "FAILED_SAFE");
