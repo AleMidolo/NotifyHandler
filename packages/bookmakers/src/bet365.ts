@@ -6,6 +6,7 @@ import type {
   SelectionActivationGate,
 } from "./contracts.ts";
 import { Bet365Adapter as Bet365AdapterBase } from "./bet365-core.ts";
+import { withValidatedFinalLocation } from "./navigation.ts";
 
 function cancellationDuringActivation(
   ctx: AdapterExecutionContext,
@@ -35,11 +36,12 @@ function cancellationDuringActivation(
 }
 
 /**
- * Cancellation-safe BET365 adapter facade.
+ * Cancellation- and redirect-safe BET365 adapter facade.
  *
  * The underlying implementation performs deterministic matching and activation.
- * This facade guards the activation gate so an abort raised while final activation
- * is in flight can never escape as READY_FOR_USER.
+ * This facade validates the full final browser location before the core can inspect
+ * authentication or matching evidence, and guards the activation gate so an abort
+ * raised while final activation is in flight can never escape as READY_FOR_USER.
  */
 export class Bet365Adapter extends Bet365AdapterBase {
   override async prepare(
@@ -60,7 +62,13 @@ export class Bet365Adapter extends Bet365AdapterBase {
       },
     };
 
-    const result = await super.prepare({ ...ctx, selectionGate: guardedGate }, target, observer, signal);
+    const guardedBrowser = withValidatedFinalLocation(ctx.browser, this.supportedOrigins);
+    const result = await super.prepare(
+      { ...ctx, browser: guardedBrowser, selectionGate: guardedGate },
+      target,
+      observer,
+      signal,
+    );
 
     if (activationRacedCancellation || (signal.aborted && result.kind === "READY_FOR_USER")) {
       return cancellationDuringActivation(ctx, result);
