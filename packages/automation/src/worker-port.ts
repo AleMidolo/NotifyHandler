@@ -133,6 +133,17 @@ interface LegSlot {
   attemptId?: string;
 }
 
+interface RunOptions {
+  readonly replaceSession: boolean;
+  readonly openingState: boolean;
+  readonly acknowledgedObservedOdds?: string;
+  readonly requireExistingSession?: boolean;
+}
+
+function attemptKey(request: Pick<WorkerExecutionRequest, "legId" | "attemptId">): string {
+  return `${request.legId}\u0000${request.attemptId}`;
+}
+
 function asWorkerBookmaker(bookmaker: BookmakerId): WorkerBookmaker | null {
   if (bookmaker === "sisal" || bookmaker === "bet365") return bookmaker;
   return null;
@@ -185,7 +196,10 @@ function safeDeepLink(target: SelectionTarget, bookmaker: WorkerBookmaker): bool
   if (target.deepLink === undefined) return true;
   try {
     const url = new URL(target.deepLink);
-    return url.protocol === "https:" && supportedOriginsFor(bookmaker).includes(url.origin);
+    return url.protocol === "https:"
+      && url.username === ""
+      && url.password === ""
+      && supportedOriginsFor(bookmaker).includes(url.origin);
   } catch {
     return false;
   }
@@ -252,6 +266,7 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
   private readonly headless: boolean;
   private readonly navigationTimeoutMs: number | undefined;
   private readonly slots = new Map<string, LegSlot>();
+  private readonly cancelledAttempts = new Set<string>();
 
   constructor(options: BookmakerAutomationWorkerOptions = {}) {
     this.launcher = options.sessionLauncher ?? launchBookmakerLegSession;
@@ -260,22 +275,23 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
   }
 
   start(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent> {
-    return this.run(request, { replaceSession: true, openingState: true });
+    return this.beginRun(request, { replaceSession: true, openingState: true });
   }
   resumeAfterManualAuth(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent> {
-    return this.run(request, { replaceSession: false, openingState: false, requireExistingSession: true });
+    return this.beginRun(request, { replaceSession: false, openingState: false, requireExistingSession: true });
   }
   continueWithObservedOdds(request: WorkerContinueOddsRequest): AsyncIterable<WorkerPortEvent> {
-    return this.run(request, { replaceSession: false, openingState: false, acknowledgedObservedOdds: request.acknowledgedObservedOdds, requireExistingSession: true });
+    return this.beginRun(request, { replaceSession: false, openingState: false, acknowledgedObservedOdds: request.acknowledgedObservedOdds, requireExistingSession: true });
   }
   retry(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent> {
-    return this.run(request, { replaceSession: false, openingState: true });
+    return this.beginRun(request, { replaceSession: false, openingState: true });
   }
   reopen(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent> {
-    return this.run(request, { replaceSession: true, openingState: true });
+    return this.beginRun(request, { replaceSession: true, openingState: true });
   }
 
   async cancel(request: WorkerCancelRequest): Promise<void> {
+    this.cancelledAttempts.add(attemptKey(request));
     const slot = this.slots.get(request.legId);
     if (slot === undefined || slot.attemptId !== request.attemptId) return;
     slot.controller?.abort();
@@ -286,17 +302,30 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
   async closeAll(): Promise<void> {
     const slots = [...this.slots.values()];
     this.slots.clear();
+    this.cancelledAttempts.clear();
     await Promise.allSettled(slots.map(async (slot) => {
       slot.controller?.abort();
       await slot.session.close();
     }));
   }
 
+  private beginRun(request: WorkerExecutionRequest, options: RunOptions): AsyncIterable<WorkerPortEvent> {
+    this.cancelledAttempts.delete(attemptKey(request));
+    return this.run(request, options);
+  }
+
   private async *run(
     request: WorkerExecutionRequest,
-    options: Readonly<{ replaceSession: boolean; openingState: boolean; acknowledgedObservedOdds?: string; requireExistingSession?: boolean }>,
+    options: RunOptions,
   ): AsyncIterable<WorkerPortEvent> {
+    const key = attemptKey(request);
     if (options.openingState) yield workerEvent(request, "OPENING");
+    if (this.cancelledAttempts.has(key)) {
+      this.cancelledAttempts.delete(key);
+      yield workerEvent(request, "CANCELLED");
+      return;
+    }
+
     const bookmaker = asWorkerBookmaker(request.target.bookmaker);
     if (bookmaker === null) {
       yield workerEvent(request, "FAILED_SAFE", { failure: { code: "UNSUPPORTED_BOOKMAKER", stage: "PLAN", message: `No automation worker is registered for ${request.target.bookmaker}.`, recoverability: "NONE", activation: "NOT_ATTEMPTED", evidenceEpoch: request.evidenceEpoch } });
@@ -307,10 +336,33 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
     try {
       slot = await this.sessionFor(request.legId, bookmaker, options.replaceSession, !(options.requireExistingSession ?? false));
     } catch (error) {
+      if (this.cancelledAttempts.has(key)) {
+        this.cancelledAttempts.delete(key);
+        yield workerEvent(request, "CANCELLED");
+        return;
+      }
       yield workerEvent(request, "FAILED_SAFE", { failure: runtimeFailure(request, error, "BROWSER_LAUNCH_FAILED") });
       return;
     }
+
+    if (this.cancelledAttempts.has(key)) {
+      this.cancelledAttempts.delete(key);
+      slot.controller?.abort();
+      await slot.session.cancel().catch(() => undefined);
+      if (this.slots.get(request.legId) === slot) this.slots.delete(request.legId);
+      yield workerEvent(request, "CANCELLED");
+      return;
+    }
+
     if (options.openingState) yield workerEvent(request, "WAITING_FOR_PAGE");
+    if (this.cancelledAttempts.has(key)) {
+      this.cancelledAttempts.delete(key);
+      slot.controller?.abort();
+      await slot.session.cancel().catch(() => undefined);
+      if (this.slots.get(request.legId) === slot) this.slots.delete(request.legId);
+      yield workerEvent(request, "CANCELLED");
+      return;
+    }
 
     slot.controller?.abort();
     const controller = new AbortController();
@@ -330,7 +382,8 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
       };
       result = await adapterFor(bookmaker).prepare(context, request.target, {}, controller.signal);
     } catch (error) {
-      if (controller.signal.aborted) {
+      if (controller.signal.aborted || this.cancelledAttempts.has(key)) {
+        this.cancelledAttempts.delete(key);
         yield workerEvent(request, "CANCELLED");
         return;
       }
@@ -338,7 +391,16 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
       return;
     }
 
-    if (this.slots.get(request.legId) !== slot || slot.attemptId !== request.attemptId) return;
+    if (this.slots.get(request.legId) !== slot || slot.attemptId !== request.attemptId) {
+      this.cancelledAttempts.delete(key);
+      return;
+    }
+    if (this.cancelledAttempts.has(key)) {
+      this.cancelledAttempts.delete(key);
+      yield workerEvent(request, "CANCELLED");
+      return;
+    }
+    this.cancelledAttempts.delete(key);
     for (const event of terminalEvents(request, result)) yield event;
   }
 
