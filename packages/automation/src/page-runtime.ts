@@ -109,6 +109,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   beginAttempt(): void {
     if (this.page.isClosed() || this.crashed) throw new Error("Browser page is not available for a new attempt.");
+    this.invalidateReferences();
     this.cancelled = false;
   }
 
