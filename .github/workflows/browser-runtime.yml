@@ -9,6 +9,7 @@ on:
       - .npmrc
       - .github/workflows/browser-runtime.yml
       - packages/automation/**
+      - packages/bookmakers/**
       - packages/desktop/**
   workflow_dispatch:
 
@@ -21,7 +22,7 @@ concurrency:
 
 jobs:
   chromium-bootstrap:
-    name: Pinned Chromium bootstrap
+    name: Pinned Chromium browser fixtures
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -43,3 +44,6 @@ jobs:
 
       - name: Verify pinned Playwright version
         run: npm exec --yes --package=playwright@1.63.0 -- playwright --version
+
+      - name: Run deterministic Chromium fixture suite
+        run: npm run test:browser --workspace @notify-handler/automation
