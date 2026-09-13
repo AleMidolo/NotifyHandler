@@ -98,8 +98,13 @@ export class SisalAdapter implements BookmakerAdapter {
     } catch {
       return failure(ctx, "UNSAFE_OR_UNSUPPORTED_URL", "NAVIGATION", "SISAL navigation URL is malformed.", "RESTART_PLAN");
     }
-    if (parsed.protocol !== "https:" || !this.supportedOrigins.includes(parsed.origin as (typeof this.supportedOrigins)[number])) {
-      return failure(ctx, "UNSAFE_OR_UNSUPPORTED_URL", "NAVIGATION", "SISAL navigation URL is outside the approved HTTPS origin.", "RESTART_PLAN");
+    if (
+      parsed.protocol !== "https:" ||
+      parsed.username !== "" ||
+      parsed.password !== "" ||
+      !this.supportedOrigins.includes(parsed.origin as (typeof this.supportedOrigins)[number])
+    ) {
+      return failure(ctx, "UNSAFE_OR_UNSUPPORTED_URL", "NAVIGATION", "SISAL navigation URL must use the approved HTTPS origin without embedded credentials.", "RESTART_PLAN");
     }
     if (!(await ctx.browser.openAllowed(parsed.href)).ok) {
       return failure(ctx, "UNSAFE_OR_UNSUPPORTED_URL", "NAVIGATION", "Browser worker rejected SISAL navigation.", "REOPEN");
