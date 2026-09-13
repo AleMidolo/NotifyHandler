@@ -1,0 +1,13 @@
+{
+  "name": "@notify-handler/automation",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/navigation-policy.test.ts test/capability-boundary.test.ts",
+    "test:browser": "node --experimental-strip-types --test test/browser-integration.test.ts test/attempt-revocation.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "playwright-core": "1.63.0"
+  }
+}
