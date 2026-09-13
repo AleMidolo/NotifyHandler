@@ -98,11 +98,20 @@ export interface ElementRef {
   readonly id: string;
 }
 
-export type SisalReadQuery =
+/**
+ * Bookmaker-neutral semantic read queries. Concrete Playwright workers map each
+ * bookmaker's permitted DOM into these semantic candidates without exposing raw
+ * locators or browser objects to adapters.
+ */
+export type BookmakerReadQuery =
   | { readonly kind: "auth-wall" }
   | { readonly kind: "event-candidate" }
   | { readonly kind: "market-candidate"; readonly within: ElementRef }
   | { readonly kind: "outcome-candidate"; readonly within: ElementRef };
+
+/** @deprecated Use `BookmakerReadQuery`. Kept for source compatibility with SISAL tests/workers. */
+export type SisalReadQuery = BookmakerReadQuery;
+export type Bet365ReadQuery = BookmakerReadQuery;
 
 export interface NavigationResult {
   readonly ok: boolean;
@@ -121,7 +130,7 @@ export interface BookmakerPagePort {
   openAllowed(url: string): Promise<NavigationResult>;
   currentLocation(): Promise<SafeLocation>;
   waitForPageReady(options?: { readonly timeoutMs?: number }): Promise<PageReadyResult>;
-  query(query: SisalReadQuery): Promise<readonly ElementRef[]>;
+  query(query: BookmakerReadQuery): Promise<readonly ElementRef[]>;
   readText(ref: ElementRef): Promise<string>;
   readAttribute(ref: ElementRef, name: string): Promise<string | null>;
   isVisible(ref: ElementRef): Promise<boolean>;
