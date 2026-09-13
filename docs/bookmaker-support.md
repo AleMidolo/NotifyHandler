@@ -16,7 +16,7 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 | Bookmaker | Priority | Status | Notes |
 | --- | --- | --- | --- |
 | SISAL | 1 | Testable | BOOK-001 implements the restricted adapter logic and deterministic fixtures for `www.sisal.it`, pre-match football full-match total-corners exact-line OVER/UNDER targets. Real Playwright DOM mapping/live smoke validation remains required before `Supported`. |
-| BET365 | 2 | Candidate | Proposed second adapter/pair with SISAL; confirm feasibility and allowed interaction model after BOOK-001 review. |
+| BET365 | 2 | Testable | BOOK-003 / #28 implements the restricted adapter logic and deterministic fixtures for `www.bet365.it`, pre-match football full-match total-corners exact-line OVER/UNDER targets. Real Playwright DOM mapping/live smoke validation remains required before `Supported`. |
 | LOTTOMATICA | 3 | Candidate | Add after first pair stabilizes. |
 | EPLAY24 | 4 | Candidate | Add after first pair stabilizes. |
 | ADMIRALBET | 5 | Candidate | Add after first pair stabilizes. |
@@ -28,7 +28,7 @@ Priorities may change when technical feasibility, permitted access, notification
 The current SISAL adapter:
 
 - accepts only HTTPS top-level navigation on `https://www.sisal.it`;
-- rejects notification redirect/intermediary domains such as `bet-up.it` as direct trusted targets;
+- rejects credential-bearing URLs and notification redirect/intermediary domains such as `bet-up.it` as direct trusted targets;
 - requires deterministic participant identity and the shared competition/time context policy;
 - independently matches market family/context, exact decimal line, and outcome side;
 - captures displayed decimal odds and interrupts on any valid price change;
@@ -37,6 +37,22 @@ The current SISAL adapter:
 - fails safely on ambiguity, neighboring lines, wrong event/market/outcome, unavailable odds, blocked redirects, cancellation, and failed post-activation verification.
 
 The current implementation is intentionally fixture-backed. Real SISAL DOM locator/query mapping has not yet been validated against a live session and no live bookmaker interaction runs in CI. Promotion from **Testable** to **Supported** requires a permitted normal-browser mapping in the browser worker plus the shared adapter contract/security/release gates.
+
+## BET365 testable scope and limitations
+
+The current BET365 adapter:
+
+- accepts only HTTPS top-level navigation on `https://www.bet365.it`;
+- rejects credential-bearing URLs, notification intermediary domains, and unrelated redirect origins before matching or activation;
+- requires deterministic participant identity and the same shared competition/time context policy used by SISAL;
+- independently matches market family/context, exact decimal line, and outcome side;
+- captures displayed decimal odds and interrupts on any valid price change;
+- delegates final outcome activation to `SelectionActivationGate` and requires deterministic selected-state verification afterwards;
+- reports visible authentication requirements as `AUTH_REQUIRED` without reading or entering credentials;
+- preserves `ATTEMPTED_NOT_VERIFIED`/manual-review semantics when cancellation races an activation already in flight;
+- fails safely on ambiguous/wrong event, market, line, or outcome, unavailable/invalid odds, blocked redirects, cancellation, and failed post-activation verification.
+
+The BET365 implementation is also intentionally fixture-backed. The semantic fixture attributes are internal test-harness data and are **not** assertions about the live BET365 DOM. Promotion from **Testable** to **Supported** requires a permitted normal-browser Playwright mapping for the Italian public site plus the shared adapter contract/security/release gates. No protected/private API reverse engineering is part of this integration.
 
 ## Minimum adapter capabilities
 
