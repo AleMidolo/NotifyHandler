@@ -41,8 +41,11 @@ function delay(ms: number): Promise<void> {
 
 class FixtureRouter {
   private readonly indices = new Map<string, number>();
+  private readonly documents: FixtureDocuments;
 
-  constructor(private readonly documents: FixtureDocuments) {}
+  constructor(documents: FixtureDocuments) {
+    this.documents = documents;
+  }
 
   next(url: string): FixtureResponse | undefined {
     const document = this.documents[url];
@@ -67,6 +70,10 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   readonly port: BookmakerPagePort = this;
   private readonly refs = new Map<string, RegisteredElement>();
   private readonly fixtureRouter: FixtureRouter | undefined;
+  private readonly page: Page;
+  private readonly policy: NavigationPolicy;
+  private readonly mapping: SemanticDomMapping;
+  private readonly navigationTimeoutMs: number;
   private generation = 0;
   private nextRef = 0;
   private blockingOperation = false;
@@ -75,12 +82,16 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   private lastSafeLocation: SafeLocation | undefined;
 
   constructor(
-    private readonly page: Page,
-    private readonly policy: NavigationPolicy,
-    private readonly mapping: SemanticDomMapping,
+    page: Page,
+    policy: NavigationPolicy,
+    mapping: SemanticDomMapping,
     fixtureDocuments: FixtureDocuments | undefined,
-    private readonly navigationTimeoutMs: number,
+    navigationTimeoutMs: number,
   ) {
+    this.page = page;
+    this.policy = policy;
+    this.mapping = mapping;
+    this.navigationTimeoutMs = navigationTimeoutMs;
     this.fixtureRouter = fixtureDocuments === undefined ? undefined : new FixtureRouter(fixtureDocuments);
   }
 
