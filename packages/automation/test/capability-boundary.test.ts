@@ -14,8 +14,12 @@ async function collectTypescriptFiles(directoryUrl: URL): Promise<URL[]> {
   return files;
 }
 
-test("production automation public API exposes session capabilities but no raw Playwright object", async () => {
-  assert.deepEqual(Object.keys(publicApi).sort(), ["launchBookmakerLegSession"]);
+test("production automation public API exposes only capability-scoped lifecycle entry points", async () => {
+  assert.deepEqual(Object.keys(publicApi).sort(), [
+    "createBookmakerAutomationWorker",
+    "createWorkerExecutionPreflight",
+    "launchBookmakerLegSession",
+  ]);
   const indexSource = await readFile(new URL("../src/index.ts", import.meta.url), "utf8");
   for (const forbidden of ["BrowserContext", "Locator", "Page", "playwright-core", "credential", "stake", "submitBet", "placeBet"]) {
     assert.equal(indexSource.includes(forbidden), false, `public index leaked forbidden capability token: ${forbidden}`);

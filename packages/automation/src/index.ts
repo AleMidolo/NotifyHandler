@@ -1,7 +1,5 @@
 export {
   launchBookmakerLegSession,
-  supportedOriginsFor,
-  WORKER_ORIGINS,
   type AttemptCapabilities,
   type BookmakerLegSession,
   type LaunchBookmakerLegSessionOptions,
@@ -9,7 +7,7 @@ export {
 export {
   createBookmakerAutomationWorker,
   createWorkerExecutionPreflight,
-  PlaywrightBookmakerAutomationWorker,
+  type PlaywrightBookmakerAutomationWorker,
   type BookmakerAutomationWorkerOptions,
   type BookmakerWorkerPort,
   type SessionLauncher,
