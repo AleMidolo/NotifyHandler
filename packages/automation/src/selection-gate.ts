@@ -21,9 +21,11 @@ export function createSelectionGate(
   runtime: WorkerPageRuntime,
   bookmaker: WorkerBookmaker,
   evidenceEpoch: number,
+  isCurrentAttempt: () => boolean,
 ): SelectionActivationGate {
   return {
     async activate(request): Promise<SelectionActivationResult> {
+      if (!isCurrentAttempt()) return { kind: "REJECTED", reasonCode: "ATTEMPT_SUPERSEDED" };
       if (request.target.bookmaker !== bookmaker) return { kind: "REJECTED", reasonCode: "BOOKMAKER_MISMATCH" };
       if (request.evidence.evidenceEpoch !== evidenceEpoch) return { kind: "REJECTED", reasonCode: "STALE_EVIDENCE_EPOCH" };
       if (!allRequiredEvidenceMatched(request)) return { kind: "REJECTED", reasonCode: "INCOMPLETE_MATCH_EVIDENCE" };
@@ -46,9 +48,14 @@ export function createSelectionGate(
       ) {
         return { kind: "REJECTED", reasonCode: "ODDS_CHANGE_NOT_ACKNOWLEDGED" };
       }
+      if (!isCurrentAttempt()) return { kind: "REJECTED", reasonCode: "ATTEMPT_SUPERSEDED" };
       if (!runtime.isCurrentLocationAllowed()) return { kind: "REJECTED", reasonCode: "CURRENT_LOCATION_NOT_ALLOWED" };
+      if (!isCurrentAttempt()) return { kind: "REJECTED", reasonCode: "ATTEMPT_SUPERSEDED" };
 
       const activated = await runtime.activateSelection(request.candidate);
+      if (!isCurrentAttempt()) {
+        return { kind: "FAILED", reasonCode: "ATTEMPT_SUPERSEDED_DURING_ACTIVATION" };
+      }
       return activated
         ? { kind: "ACTIVATED", selection: { candidate: request.candidate } }
         : { kind: "FAILED", reasonCode: "SELECTION_NOT_ACTIVATED" };
