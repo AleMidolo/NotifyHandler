@@ -134,7 +134,7 @@ test("cancel during OPENING prevents a pending session launch from becoming usab
     if (next.done) break;
   }
 
-  assert.equal(launched, 1);
+  assert.equal(launched, 0);
   assert.equal(activated, false);
   await worker.closeAll();
 });
