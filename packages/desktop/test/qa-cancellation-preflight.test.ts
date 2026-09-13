@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ExecutionPlan, SelectionTarget } from "../../domain/src/index.ts";
 import {
-  PlaywrightBookmakerAutomationWorker,
+  createBookmakerAutomationWorker,
   createWorkerExecutionPreflight,
   type BookmakerLegSession,
   type LaunchBookmakerLegSessionOptions,
@@ -85,7 +85,7 @@ test("cancel during OPENING prevents a pending session launch from becoming usab
               return [];
             },
             async readText() { return ""; },
-            async readAttribute(ref, name) {
+            async readAttribute(_ref, name) {
               const values: Record<string, string> = {
                 "data-event-participant-a": "Real Madrid",
                 "data-event-participant-b": "Rayo Vallecano",
@@ -116,7 +116,7 @@ test("cancel during OPENING prevents a pending session launch from becoming usab
     };
   };
 
-  const worker = new PlaywrightBookmakerAutomationWorker({ sessionLauncher: launcher });
+  const worker = createBookmakerAutomationWorker({ sessionLauncher: launcher });
   const request = {
     legId: "leg-sisal",
     attemptId: "attempt-1",
