@@ -215,8 +215,7 @@ export class AutomaticExecutionOrchestrator {
 
     const legs = runtimePair(built.value);
     this.setState({ inputText, notificationId: parsed.value.id, plan: built.value, status: "STARTING", parseErrors: [], preflightFailure: null, legs });
-    this.activeTasks = built.value.legs.map((leg) =>
-      this.consume(generation, leg.id, this.automation.start(this.requestFor(leg.id))));
+    this.activeTasks = this.startTasks(generation, built.value);
     return this.state;
   }
 
@@ -292,8 +291,32 @@ export class AutomaticExecutionOrchestrator {
       runtime(plan, 1, (old?.[1].attemptNumber ?? 0) + 1),
     ];
     this.setState({ ...this.state, status: "STARTING", preflightFailure: null, parseErrors: [], legs });
-    this.activeTasks = plan.legs.map((leg) => this.consume(generation, leg.id, this.automation.start(this.requestFor(leg.id))));
+    this.activeTasks = this.startTasks(generation, plan);
     return this.state;
+  }
+
+  private startTasks(generation: number, plan: ExecutionPlan): Promise<void>[] {
+    return plan.legs.map((leg) => this.launchStart(generation, leg.id));
+  }
+
+  private launchStart(generation: number, legId: string): Promise<void> {
+    try {
+      return this.consume(generation, legId, this.automation.start(this.requestFor(legId)));
+    } catch (error) {
+      this.failRuntime(generation, legId, error);
+      return Promise.resolve();
+    }
+  }
+
+  private failRuntime(generation: number, legId: string, error: unknown): void {
+    if (generation !== this.generation) return;
+    const current = this.findLeg(legId);
+    if (current.state === "CANCELLED" || current.state === "READY_FOR_USER") return;
+    this.replaceLeg({ ...current, state: "FAILED_SAFE", failure: {
+      code: "BROWSER_LAUNCH_FAILED", stage: "BROWSER_RUNTIME",
+      message: error instanceof Error ? error.message : "Unknown automation runtime error.",
+      recoverability: "REOPEN", activation: "NOT_ATTEMPTED", evidenceEpoch: current.evidenceEpoch,
+    } });
   }
 
   private async checkPreflight(plan: ExecutionPlan): Promise<PreflightResult> {
@@ -334,14 +357,7 @@ export class AutomaticExecutionOrchestrator {
         } });
       }
     } catch (error) {
-      if (generation !== this.generation) return;
-      const current = this.findLeg(legId);
-      if (current.state === "CANCELLED" || current.state === "READY_FOR_USER") return;
-      this.replaceLeg({ ...current, state: "FAILED_SAFE", failure: {
-        code: "BROWSER_LAUNCH_FAILED", stage: "BROWSER_RUNTIME",
-        message: error instanceof Error ? error.message : "Unknown automation runtime error.",
-        recoverability: "REOPEN", activation: "NOT_ATTEMPTED", evidenceEpoch: current.evidenceEpoch,
-      } });
+      this.failRuntime(generation, legId, error);
     }
   }
 
