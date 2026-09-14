@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain } from "electron";
+import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createProductionDesktopController, DesktopControllerError } from "./controller.ts";
@@ -108,6 +109,8 @@ async function createWindow() {
       mainWindow.webContents.send(DESKTOP_IPC_CHANNELS.SNAPSHOT_CHANGED, controller.getSnapshot());
       mainWindow.show();
       if (smokeTest) {
+        const sentinel = process.env.NOTIFYHANDLER_SMOKE_SENTINEL;
+        if (sentinel) writeFileSync(sentinel, "ready\n", { encoding: "utf8", flag: "w" });
         console.log("NotifyHandler desktop shell smoke ready");
         setImmediate(() => app.quit());
       }

@@ -1,9 +1,10 @@
 {
   "name": "@notify-handler/desktop",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npm exec --yes --package=electron@44.3.0 -- electron --experimental-transform-types src/electron-main.mjs",
+    "dev": "electron --experimental-transform-types src/electron-main.mjs",
     "test": "node --experimental-transform-types --test test/composition.test.ts test/desktop-shell.test.ts",
     "test:browser": "node --experimental-transform-types --test test/browser-e2e.test.ts test/qa-cancellation-preflight.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

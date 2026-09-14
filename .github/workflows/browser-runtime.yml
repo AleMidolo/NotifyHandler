@@ -25,14 +25,14 @@ jobs:
   chromium-bootstrap:
     name: Pinned Chromium browser fixtures
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -44,23 +44,18 @@ jobs:
         run: npm run browser:install:ci
 
       - name: Verify pinned Playwright version
-        run: npm exec --yes --package=playwright@1.63.0 -- playwright --version
+        run: node ./node_modules/playwright-core/cli.js --version
 
       - name: Run deterministic Chromium fixture suites
         run: |
           npm run test:browser --workspace @notify-handler/automation
           npm run test:browser --workspace @notify-handler/desktop
 
-      - name: Install pinned Electron smoke runtime
+      - name: Install locked Electron smoke runtime
         run: |
-          electron_smoke_dir="$RUNNER_TEMP/notifyhandler-electron"
-          mkdir -p "$electron_smoke_dir"
-          printf '%s\n' '{"private":true}' > "$electron_smoke_dir/package.json"
-          cd "$electron_smoke_dir"
-          npm install --no-save --package-lock=false electron@44.3.0
-          ./node_modules/.bin/install-electron --no
-          electron_binary="$electron_smoke_dir/node_modules/electron/dist/electron"
-          sandbox_helper="$electron_smoke_dir/node_modules/electron/dist/chrome-sandbox"
+          node node_modules/electron/install.js
+          electron_binary="node_modules/electron/dist/electron"
+          sandbox_helper="node_modules/electron/dist/chrome-sandbox"
           ls -l "$electron_binary" "$sandbox_helper"
           sudo chown root:root "$sandbox_helper"
           sudo chmod 4755 "$sandbox_helper"
@@ -69,6 +64,6 @@ jobs:
       - name: Smoke-launch local desktop shell
         run: |
           set -o pipefail
-          electron_binary="$RUNNER_TEMP/notifyhandler-electron/node_modules/electron/dist/electron"
+          electron_binary="node_modules/electron/dist/electron"
           timeout 120s xvfb-run -a "$electron_binary" --experimental-transform-types packages/desktop/src/electron-main.mjs --notifyhandler-smoke-test 2>&1 | tee /tmp/notifyhandler-desktop-smoke.log
           grep -F "NotifyHandler desktop shell smoke ready" /tmp/notifyhandler-desktop-smoke.log

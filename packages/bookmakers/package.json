@@ -1,5 +1,6 @@
 {
   "name": "@notify-handler/bookmakers",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
