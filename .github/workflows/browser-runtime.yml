@@ -53,10 +53,13 @@ jobs:
 
       - name: Install pinned Electron smoke runtime
         run: |
-          mkdir -p "$RUNNER_TEMP/notifyhandler-electron"
-          npm install --prefix "$RUNNER_TEMP/notifyhandler-electron" --no-save --package-lock=false electron@44.3.0
-          electron_binary="$RUNNER_TEMP/notifyhandler-electron/node_modules/electron/dist/electron"
-          sandbox_helper="$RUNNER_TEMP/notifyhandler-electron/node_modules/electron/dist/chrome-sandbox"
+          electron_smoke_dir="$RUNNER_TEMP/notifyhandler-electron"
+          mkdir -p "$electron_smoke_dir"
+          printf '%s\n' '{"private":true}' > "$electron_smoke_dir/package.json"
+          cd "$electron_smoke_dir"
+          npm install --no-save --package-lock=false electron@44.3.0
+          electron_binary="$electron_smoke_dir/node_modules/electron/dist/electron"
+          sandbox_helper="$electron_smoke_dir/node_modules/electron/dist/chrome-sandbox"
           ls -l "$electron_binary" "$sandbox_helper"
           sudo chown root:root "$sandbox_helper"
           sudo chmod 4755 "$sandbox_helper"
