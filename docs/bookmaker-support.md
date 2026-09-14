@@ -15,7 +15,7 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 
 | Bookmaker | Priority | Status | Notes |
 | --- | --- | --- | --- |
-| SISAL | 1 | Testable | BOOK-001 implements the restricted adapter logic. BOOK-005 adds a real isolated Playwright/Chromium worker exercised against controlled synthetic SISAL fixture pages. Live `www.sisal.it` DOM mapping/smoke validation remains required before `Supported`. |
+| SISAL | 1 | Blocked (live); Testable (fixtures) | BOOK-007 confirms the public SISAL football/corner product remains reachable, but current live event/market/line/outcome/odds DOM evidence was not available at selector level in the controlled validation surface. No unverified selector was promoted. The deterministic BOOK-001/BOOK-005 fixture-backed path remains Testable. See `docs/live-validation/sisal-book-007.md`. |
 | BET365 | 2 | Testable | BOOK-003 implements the restricted adapter logic. BOOK-005 adds a real isolated Playwright/Chromium worker exercised against controlled synthetic BET365 fixture pages. Live `www.bet365.it` DOM mapping/smoke validation remains required before `Supported`. |
 | LOTTOMATICA | 3 | Candidate | Add after first pair stabilizes. |
 | EPLAY24 | 4 | Candidate | Add after first pair stabilizes. |
@@ -42,7 +42,7 @@ The worker:
 
 CI installs the pinned Chromium runtime and executes the Playwright fixture suite. The synthetic `data-nh-*` role attributes used by those fixtures are worker test harness conventions only; they are **not** statements about the live SISAL or BET365 DOM.
 
-## SISAL testable scope and limitations
+## SISAL fixture-backed scope and live blocker
 
 The current SISAL adapter:
 
@@ -55,7 +55,11 @@ The current SISAL adapter:
 - reports a visible authentication wall as `AUTH_REQUIRED` without reading or entering credentials;
 - fails safely on ambiguity, neighboring lines, wrong event/market/outcome, unavailable odds, blocked redirects, cancellation, and failed post-activation verification.
 
-The adapter is now exercised through the real Playwright worker against controlled local/in-memory browser fixtures. Real SISAL DOM locator/query mapping has not yet been validated against a live session and no live bookmaker interaction runs in CI. Promotion from **Testable** to **Supported** still requires a permitted normal-browser live-site mapping plus the shared adapter contract/security/release gates.
+The adapter remains **Testable** through the real Playwright worker against controlled local/in-memory browser fixtures.
+
+BOOK-007 attempted the live promotion using only normal public SISAL pages. The approved football origin and Sisal's public documentation for corner products are reachable, but the controlled validation surface did not expose enough current dynamic DOM evidence to establish deterministic live selectors for the event, required competition/time context, full-match total-corners market identity, exact line, side, displayed odds, and post-selection selected state. Approximate text matching, old/third-party selectors, protected/private APIs, or access-control bypass are not acceptable substitutes.
+
+Therefore the **live pre-match football total-corners scope is Blocked** until a controlled permitted headed-browser run can produce sanitized selector-level evidence for every required identity dimension. `packages/automation` includes a non-CI read-only `live:probe:sisal` command to collect public structural candidates without clicks, authentication, cookies/storage reads, screenshots/traces, stake entry, or wager submission. See `docs/live-validation/sisal-book-007.md`.
 
 ## BET365 testable scope and limitations
 
