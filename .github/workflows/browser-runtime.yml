@@ -51,16 +51,21 @@ jobs:
           npm run test:browser --workspace @notify-handler/automation
           npm run test:browser --workspace @notify-handler/desktop
 
-      - name: Prepare pinned Electron sandbox helper
+      - name: Install pinned Electron smoke runtime
         run: |
-          electron_cli="$(npm exec --yes --package=electron@44.3.0 -- sh -c 'readlink -f "$(command -v electron)"' | tail -n 1)"
-          sandbox_helper="$(dirname "$electron_cli")/dist/chrome-sandbox"
+          mkdir -p "$RUNNER_TEMP/notifyhandler-electron"
+          npm install --prefix "$RUNNER_TEMP/notifyhandler-electron" --no-save --package-lock=false electron@44.3.0
+          electron_binary="$RUNNER_TEMP/notifyhandler-electron/node_modules/electron/dist/electron"
+          sandbox_helper="$RUNNER_TEMP/notifyhandler-electron/node_modules/electron/dist/chrome-sandbox"
+          test -x "$electron_binary"
           test -f "$sandbox_helper"
           sudo chown root:root "$sandbox_helper"
           sudo chmod 4755 "$sandbox_helper"
+          test "$(stat -c '%U:%G %a' "$sandbox_helper")" = "root:root 4755"
 
       - name: Smoke-launch local desktop shell
         run: |
           set -o pipefail
-          timeout 120s xvfb-run -a npm run dev --workspace @notify-handler/desktop -- --notifyhandler-smoke-test 2>&1 | tee /tmp/notifyhandler-desktop-smoke.log
+          electron_binary="$RUNNER_TEMP/notifyhandler-electron/node_modules/electron/dist/electron"
+          timeout 120s xvfb-run -a "$electron_binary" --experimental-transform-types packages/desktop/src/electron-main.mjs --notifyhandler-smoke-test 2>&1 | tee /tmp/notifyhandler-desktop-smoke.log
           grep -F "NotifyHandler desktop shell smoke ready" /tmp/notifyhandler-desktop-smoke.log
