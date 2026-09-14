@@ -25,6 +25,19 @@ The MVP focuses on deterministic notification parsing, automatic primary-option 
 
 Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRALBET. Support is added incrementally through the shared adapter contract.
 
+## Current status
+
+As of 2026-09-14, Milestones 0–5 are complete for the **local unsigned Windows x64 preview** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified preview packaging with SBOM/checksums/provenance.
+
+This is not yet a production release. SISAL and BET365 are currently `Testable`, not live `Supported`; their real public-site mapping still requires the narrow permitted validation described in `docs/bookmaker-support.md`. Production Windows distribution also requires signing. The current roadmap is therefore:
+
+1. live-support qualification for SISAL (#43);
+2. live-support qualification for BET365 (#44);
+3. QA certification of the combined initial pair (#45);
+4. signed Windows production release candidate (#46).
+
+Unsigned preview artifacts must never be represented as production-ready, and a bookmaker must never be called `Supported` merely because synthetic fixture tests pass.
+
 ## Architecture baseline
 
 The accepted MVP runtime is a local-first desktop application with a TypeScript/Node.js core and a browser-automation worker using Playwright-controlled headed Chromium. Bookmaker sessions are isolated from the application UI and from the user's everyday browser profile; manual login and final transaction actions remain user-controlled.
@@ -52,18 +65,19 @@ npm run check
 Repository documentation and specifications are authoritative. Start with:
 
 - `AGENTS.md` — autonomous team roles and coordination rules;
-- `roadmap.md` — milestones and sequencing;
+- `roadmap.md` — milestone status and sequencing;
 - `backlog.md` — prioritized work;
-- `docs/product-requirements.md` — product requirements and acceptance criteria;
+- `docs/product-requirements.md` — product requirements, maturity, and acceptance criteria;
 - `docs/architecture.md` — accepted runtime, component boundaries, automatic-start boundary, trust boundaries, and normative contract map;
 - `docs/adr/0001-local-desktop-playwright-runtime.md` — deployment/runtime architecture decision record;
 - `docs/adr/0002-automatic-primary-option-startup.md` — deterministic primary recommendation and automatic two-leg startup decision;
 - `docs/development.md` — reproducible local setup, CI, browser runtime, diagnostics, and release baseline;
+- `docs/release.md` — preview/production artifact policy, signing gates, checksums/SBOM/provenance, and rollback;
 - `docs/workflow.md` — end-to-end user/application workflow;
 - `docs/safety-boundaries.md` — non-negotiable authentication, access, and transaction boundaries;
 - `docs/error-model.md` — interruptions, safe failures, activation disposition, and recovery semantics;
 - `docs/test-strategy.md` — automatic-start, unit/contract/browser/security/release test strategy;
-- `docs/bookmaker-support.md` — bookmaker rollout and support status;
+- `docs/bookmaker-support.md` — bookmaker rollout, live-support gates, and current support status;
 - `specs/notification-format.md` — input/normalization and primary-recommendation contract;
 - `specs/selection-target.md` — immutable target for one bookmaker leg;
 - `specs/execution-contract.md` — automatic start trigger, exact two-leg state machine, attempts, evidence epochs, and commands;
