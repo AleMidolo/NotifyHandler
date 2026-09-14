@@ -50,3 +50,25 @@ jobs:
         run: |
           npm run test:browser --workspace @notify-handler/automation
           npm run test:browser --workspace @notify-handler/desktop
+
+      - name: Install pinned Electron smoke runtime
+        run: |
+          electron_smoke_dir="$RUNNER_TEMP/notifyhandler-electron"
+          mkdir -p "$electron_smoke_dir"
+          printf '%s\n' '{"private":true}' > "$electron_smoke_dir/package.json"
+          cd "$electron_smoke_dir"
+          npm install --no-save --package-lock=false electron@44.3.0
+          ./node_modules/.bin/install-electron --no
+          electron_binary="$electron_smoke_dir/node_modules/electron/dist/electron"
+          sandbox_helper="$electron_smoke_dir/node_modules/electron/dist/chrome-sandbox"
+          ls -l "$electron_binary" "$sandbox_helper"
+          sudo chown root:root "$sandbox_helper"
+          sudo chmod 4755 "$sandbox_helper"
+          ls -l "$sandbox_helper"
+
+      - name: Smoke-launch local desktop shell
+        run: |
+          set -o pipefail
+          electron_binary="$RUNNER_TEMP/notifyhandler-electron/node_modules/electron/dist/electron"
+          timeout 120s xvfb-run -a "$electron_binary" --experimental-transform-types packages/desktop/src/electron-main.mjs --notifyhandler-smoke-test 2>&1 | tee /tmp/notifyhandler-desktop-smoke.log
+          grep -F "NotifyHandler desktop shell smoke ready" /tmp/notifyhandler-desktop-smoke.log
