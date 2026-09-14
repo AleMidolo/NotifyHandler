@@ -12,6 +12,7 @@ import {
 const here = dirname(fileURLToPath(import.meta.url));
 const rendererFile = join(here, "../renderer/index.html");
 const rendererUrl = pathToFileURL(rendererFile).href;
+const smokeTest = process.argv.includes("--notifyhandler-smoke-test");
 
 let mainWindow = null;
 let controller = null;
@@ -106,6 +107,10 @@ async function createWindow() {
     if (mainWindow !== null && controller !== null && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(DESKTOP_IPC_CHANNELS.SNAPSHOT_CHANGED, controller.getSnapshot());
       mainWindow.show();
+      if (smokeTest) {
+        console.log("NotifyHandler desktop shell smoke ready");
+        setImmediate(() => app.quit());
+      }
     }
   });
 
