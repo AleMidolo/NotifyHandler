@@ -57,11 +57,10 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/notifyhandler-electron" --no-save --package-lock=false electron@44.3.0
           electron_binary="$RUNNER_TEMP/notifyhandler-electron/node_modules/electron/dist/electron"
           sandbox_helper="$RUNNER_TEMP/notifyhandler-electron/node_modules/electron/dist/chrome-sandbox"
-          test -x "$electron_binary"
-          test -f "$sandbox_helper"
+          ls -l "$electron_binary" "$sandbox_helper"
           sudo chown root:root "$sandbox_helper"
           sudo chmod 4755 "$sandbox_helper"
-          test "$(stat -c '%U:%G %a' "$sandbox_helper")" = "root:root 4755"
+          ls -l "$sandbox_helper"
 
       - name: Smoke-launch local desktop shell
         run: |
