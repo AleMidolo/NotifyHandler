@@ -17,10 +17,15 @@
     "test": "npm run test --workspaces --if-present",
     "check": "npm run build && npm run lint && npm run typecheck && npm test",
     "desktop:dev": "npm run dev --workspace @notify-handler/desktop",
-    "browser:install": "npm exec --yes --package=playwright@1.63.0 -- playwright install chromium",
-    "browser:install:ci": "npm exec --yes --package=playwright@1.63.0 -- playwright install --with-deps chromium"
+    "browser:install": "node ./node_modules/playwright-core/cli.js install chromium",
+    "browser:install:ci": "node ./node_modules/playwright-core/cli.js install --with-deps chromium",
+    "release:bundle": "node scripts/build-desktop-release.mjs",
+    "release:verify": "node scripts/verify-desktop-release.mjs",
+    "release:sbom": "npm sbom --sbom-format cyclonedx > dist/release/notifyhandler-sbom.cdx.json"
   },
   "devDependencies": {
+    "electron": "44.3.0",
+    "esbuild": "0.28.2",
     "typescript": "6.0.3"
   }
 }
