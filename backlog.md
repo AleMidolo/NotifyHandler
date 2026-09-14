@@ -1,93 +1,91 @@
 # NotifyHandler backlog
 
-Priority levels: **P0** blocks multiple downstream agents or protects correctness/safety; **P1** is required for the MVP; **P2** is post-MVP or incremental expansion.
+Priority levels: **P0** blocks the current product milestone or protects correctness/safety; **P1** is required for the next planned release milestone; **P2** is later expansion.
 
-## Product change — automatic notification execution
+## Current product status
 
-The original MVP flow required a parsed preview, user recommended-pair choice, and execution confirmation before browser actions. That requirement is superseded.
+The automatic local desktop MVP is **complete for the unsigned Windows x64 preview channel** as of 2026-09-14:
 
-The current authoritative product behavior is:
-- receiving a valid notification triggers processing automatically;
-- the first recommended option in notification source order is the primary option for the initial contract;
-- the primary option is resolved automatically into exactly two distinct bookmaker legs;
-- the application must not ask the user to review, choose a pair, confirm the plan, or press start before opening the bookmaker pages;
-- once deterministic parsing/target/adapter/navigation-safety checks pass, both legs should start as soon as safely practical;
-- if the primary option is invalid/ambiguous/unsupported, fail safely before navigation rather than asking or silently choosing another recommendation;
-- previews and target summaries may remain visible as non-blocking observability.
+- deterministic notification parsing and automatic first-recommendation resolution are implemented;
+- both legs start automatically after shared preflight, with no review/choice/start gate;
+- SISAL and BET365 adapters run through the isolated Playwright worker and deterministic Chromium fixtures;
+- the desktop shell exposes independent leg status/recovery and preserves the manual transaction boundary;
+- CI, browser E2E, security regressions, packaging verification, SBOM/checksums/provenance, and packaged-app smoke are green;
+- an unsigned portable Windows x64 preview artifact can be produced reproducibly.
+
+This does **not** mean the product is production-release ready. SISAL and BET365 remain fixture-backed `Testable`, not live `Supported`, and Windows production distribution still requires signing. See `docs/bookmaker-support.md` and `docs/release.md`.
 
 ## Ready now
 
-### P0 — ARCH-003 / #22: Reconcile execution contracts with automatic notification startup
-Owner: Software Architect
-
-Update architecture and normative execution contracts that still assume the user reviewed the parsed notification, selected a recommendation, or explicitly started execution.
-
-Acceptance criteria:
-- no normal pre-execution user gate remains in architecture/contracts;
-- deterministic primary-option resolution has an explicit owner/boundary;
-- execution begins automatically once required safety checks pass;
-- matching, origin, freshness, cancellation, login, odds, and transaction-boundary invariants remain intact;
-- automated test expectations include notification-to-auto-start behavior.
-
-### P0 — BOOK-002 / #17: Prevent cancellation race from reporting READY_FOR_USER
+### P0 — BOOK-007 / #43: Validate live SISAL mapping for the MVP scope
 Owner: Bookmaker Automation Engineer
+Milestone: 6 — Initial live bookmaker readiness
 
-Resolve the current selection-activation cancellation race and preserve activation uncertainty correctly.
+Validate and implement the permitted normal-browser SISAL mapping for the narrow pre-match football total-corners scope already covered by the domain/adapter contracts.
 
-### P0 — APP-002 / #21: Automatic two-leg orchestration and manual handoff
-Owner: Application Engineer
-Depends on: #22 and usable adapter/test doubles
+Acceptance summary:
+- preserve exact event/market/line/outcome/odds gates and approved-origin policy;
+- use only normal permitted browser interaction; never bypass authentication/CAPTCHA/anti-bot/rate/geo/access controls or protected APIs;
+- add sanitized deterministic regressions for live-DOM structures learned during mapping;
+- document a controlled non-CI live smoke procedure with no stake entry or wager submission;
+- promote the documented narrow scope to `Supported` only if every support gate passes; otherwise mark/document the blocker.
 
-Implement the automatic flow from received valid notification to both bookmaker legs, removing/bypassing the old APP-001 preview/selector/start gate.
+## Next in Milestone 6
 
-Acceptance criteria:
-- parser/validation starts on notification receipt;
-- first recommendation is resolved automatically;
-- invalid primary recommendation stops before navigation with no fallback;
-- both legs start automatically as soon as validation permits;
-- preview/target rendering does not block startup;
-- two legs retain independent state;
-- login-required, odds-changed, retry/reopen/cancel/restart, partial failure, and ready-for-user behavior remains explicit;
-- orchestration never enters credentials, MFA/CAPTCHA values, stakes, or bet submissions.
+### P1 — BOOK-008 / #44: Validate live BET365 mapping for the MVP scope
+Owner: Bookmaker Automation Engineer
+Depends on: #43 patterns/infrastructure where reusable
 
-### P1 — QA-001 / #6: Contract and integration safety suite
+Apply the same permitted live-mapping and support gates to BET365 Italy. The final result must be an evidence-backed narrow `Supported` scope or an explicit `Blocked` result; matching/safety rules must not be weakened to force success.
+
+### P1 — QA-002 / #45: Certify the initial SISAL + BET365 live-supported pair
 Owner: QA / Integration Engineer
-Depends on: #22, APP-002, domain implementation, adapter/test doubles
+Depends on: #43 and #44 completing as `Supported`
 
-Add deterministic regressions for automatic primary-option resolution and notification-to-browser startup alongside wrong-event/market/line/outcome, odds mismatch, login pause, partial failure, cancellation, and transaction-boundary tests.
+Qualify the real two-bookmaker path end-to-end while preserving automatic startup, deterministic matching, independent leg state, auth/odds/cancellation behavior, privacy, and the manual stake/submission boundary.
 
-### P1 — DEVOPS-001 / #8: Reproducible development and CI baseline
+## After Milestone 6
+
+### P1 — DEVOPS-003 / #46: Prepare signed Windows production release candidate
 Owner: Release / DevOps Engineer
+Milestone: 7 — Production release readiness
+Depends on: #45 passing and the initial pair remaining `Supported`
 
-Complete/merge any remaining CI and reproducible-runtime work after current stacked changes are reconciled.
+Extend the proven unsigned preview pipeline with a controlled Authenticode signing path, exact-tag production gates, signature verification, production release metadata, and rollback validation. Lack of an approved signing identity remains a release blocker rather than a reason to publish unsigned production artifacts.
 
-## Completed foundations
+## Completed through local-preview MVP
 
-The following foundational work has already been completed but may require targeted updates because of the automatic-start product change:
-- ARCH-001 / #1 — deployment/runtime architecture;
-- ARCH-002 / #2 — shared execution/adapter contracts;
-- DOMAIN-001 / #3 — normalized surebet domain model and deterministic parser;
-- APP-001 / #5 — parsed-preview/recommended-option UI (its gating behavior is now superseded and must be bypassed/removed by APP-002);
-- security baseline and other merged implementation work as represented by repository issues/commits.
+The following work is complete/merged and must not be treated as ready backlog work:
 
-Closed work remains historical evidence; current product docs and #22 override obsolete interaction assumptions.
+- ARCH-001 / #1 — local desktop/Playwright deployment architecture;
+- ARCH-002 / #2 — shared execution, matching, adapter, error, and test contracts;
+- ARCH-003 / #22 — automatic primary-option startup contract;
+- DOMAIN-001 / #3 and DOMAIN-002 / #11 — deterministic parser/domain model and two-bookmaker invariant;
+- BOOK-001 / #4 and BOOK-002 / #17 — SISAL testable adapter and cancellation-race safety;
+- BOOK-003 / #28 plus follow-up hardening — BET365 testable adapter;
+- BOOK-005 / #33 plus BOOK-006 / #35 — isolated Playwright worker and attempt revocation;
+- APP-001 / #5 — legacy/non-blocking preview helper;
+- APP-002 / #21, APP-003 / #36, APP-004 / #38 — automatic orchestration, real worker composition, desktop shell and recovery UI;
+- QA-001 / #6 — deterministic integration/transaction-boundary regression coverage;
+- SEC-001 / #7 — threat model and security hardening;
+- DEVOPS-001 / #8 — reproducible workspace/CI baseline;
+- DEVOPS-002 / #40 — reproducible unsigned Windows x64 preview packaging.
 
-## Later / expansion
+Closed issues/PRs are historical evidence. Current product docs, support status, and open milestone issues are authoritative.
 
-### P1 — Second supported bookmaker path
+## Later expansion
+
+After the initial live-supported pair and production-release path are stable:
+
+### P2 — Additional bookmaker adapters
 Owner: Bookmaker Automation Engineer
 
-After the current adapter safety blocker is resolved, complete the second compatible bookmaker adapter required for the first real two-leg pair.
+Evaluate LOTTOMATICA, EPLAY24, ADMIRALBET, then other approved bookmakers incrementally. Do not fan out before the first pair's live-support maintenance model is understood.
 
-### P2 — BOOK-003+: Additional bookmaker adapters
-Owner: Bookmaker Automation Engineer
-
-Add LOTTOMATICA, EPLAY24, ADMIRALBET, then additional bookmakers only after shared contracts and regression suites are stable.
-
-### P2 — INPUT-001: Additional notification transports
+### P2 — Additional notification transports
 Owner: Application Engineer / Notification & Domain Engineer
 
-Add Telegram, HTTP/webhook, clipboard monitoring, or other ingestion adapters without coupling transport code to parsing/domain logic. Every transport should feed the same automatic processing/start path.
+Add Telegram, HTTP/webhook, clipboard monitoring, or other ingestion adapters without coupling transport code to parsing/domain logic. Every transport must feed the existing deterministic automatic-start path.
 
 ## Product constraints applying to every backlog item
 
@@ -97,6 +95,8 @@ Add Telegram, HTTP/webhook, clipboard monitoring, or other ingestion adapters wi
 - Never guess event, market, line, side, outcome, or recommendation identity.
 - Never silently substitute a later recommended pair when the primary recommendation is invalid.
 - Never automate bookmaker credentials, MFA, CAPTCHA, stakes, or bet submission.
-- Do not bypass access controls, anti-bot measures, rate limits, or geo restrictions.
+- Do not bypass authentication, anti-bot measures, access controls, rate limits, or geo restrictions.
+- Do not rely on protected/private bookmaker APIs.
 - Keep expected and observed odds distinct and surface changes explicitly.
+- Unsigned Windows preview artifacts are not production releases.
 - Repository docs/specs override stale chat context and superseded closed-issue assumptions.

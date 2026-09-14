@@ -1,124 +1,135 @@
 # NotifyHandler roadmap
 
-## Milestone 0 — Product and safety baseline
+## Milestone status summary
+
+- **Milestones 0–5: complete for the local-preview MVP.** The repository can build, test, package, and smoke-test an unsigned Windows x64 desktop preview with deterministic synthetic browser coverage.
+- **Production readiness is not complete.** SISAL and BET365 are still `Testable`, not live `Supported`, and Windows production signing is not yet implemented.
+- **Current milestone: Milestone 6 — Initial live bookmaker readiness.**
+- **Next release milestone: Milestone 7 — Signed Windows production release readiness.**
+
+## Milestone 0 — Product and safety baseline — COMPLETE
 
 **Goal:** establish the repository as the authoritative source of truth.
 
-Deliverables:
+Delivered:
 - product requirements, workflow, safety boundaries, notification and selection-target specs;
 - autonomous-agent coordination rules;
-- prioritized backlog and initial GitHub issues;
+- prioritized backlog and GitHub issues;
 - explicit transaction boundary: prepare selections only, never place bets;
-- explicit automatic-start requirement: valid notification receipt proceeds directly to deterministic primary-pair resolution and two-leg startup without a user confirmation gate.
+- automatic-start requirement: valid notification receipt proceeds directly to deterministic primary-pair resolution and two-leg startup without a user confirmation gate.
 
-Exit criteria:
-- foundational documents exist and agree on scope;
-- first architecture task is actionable without further product clarification.
+## Milestone 1 — Architecture and shared contracts — COMPLETE
 
-## Milestone 1 — Architecture and shared contracts
+**Goal:** choose the deployment/runtime model and define stable shared contracts.
 
-**Goal:** choose the deployment/runtime model and define stable contracts before feature implementation fans out.
-
-Deliverables:
-- architecture document and ADR for the deployment model;
+Delivered:
+- local-first desktop/Electron-style architecture and ADRs;
 - parser/domain/execution-plan interfaces;
-- bookmaker adapter interface and result/error model;
+- bookmaker adapter and restricted browser capability contracts;
 - independent two-leg execution state machine;
-- browser/session isolation approach;
-- deterministic matching policy and odds-comparison policy;
+- browser/session isolation;
+- deterministic matching and odds policy;
 - automatic primary-recommendation resolution and immediate-start semantics;
-- testability strategy using local/mock fixtures.
+- local/mock test strategy.
 
-Exit criteria:
-- downstream engineers can implement against explicit interfaces;
-- no architecture contract requires parsed-preview acknowledgement, recommended-pair selection, or a manual start command for a valid notification;
-- safety boundary is enforceable by design;
-- initial bookmaker integration can be tested without live betting actions.
-
-## Milestone 2 — Notification/domain foundation
+## Milestone 2 — Notification/domain foundation — COMPLETE
 
 **Goal:** transform a surebet notification into a deterministic, automatically executable two-leg plan.
 
-Deliverables:
-- normalized domain types;
-- parser for the documented notification format;
-- validation and explicit parse errors;
-- recommendation-order preservation;
-- deterministic primary recommendation resolution from the first recommendation in source order;
-- sanitized fixture corpus and unit tests;
-- conversion to two `SelectionTarget` legs without user pair selection.
+Delivered:
+- normalized domain types and parser;
+- validation/structured errors;
+- recommendation-order preservation and deterministic first-recommendation resolution;
+- two-bookmaker invariant and exactly two immutable targets;
+- sanitized fixtures and unit tests.
 
-Exit criteria:
-- representative valid notifications parse deterministically;
-- the primary recommendation resolves automatically to exactly two distinct bookmaker legs;
-- malformed/ambiguous inputs fail explicitly before navigation;
-- no bookmaker DOM knowledge leaks into the parser.
+## Milestone 3 — Fixture-backed two-bookmaker preparation path — COMPLETE
 
-## Milestone 3 — First end-to-end bookmaker preparation path
+**Goal:** prove safe selection preparation for the initial SISAL + BET365 pair in a controlled deterministic browser environment.
 
-**Goal:** prove safe outcome preparation for one supported bookmaker pair.
-
-Deliverables:
-- first bookmaker adapter implementation;
-- second bookmaker adapter implementation;
+Delivered:
+- SISAL and BET365 adapters behind the shared restricted contract;
 - event/market/line/outcome matching with safe failure;
-- displayed-odds capture and mismatch reporting;
-- local/mock browser fixtures covering positive and negative cases;
-- manual-login pause/resume behavior where applicable.
+- displayed-odds capture/change handling;
+- isolated Playwright Chromium worker;
+- deterministic browser fixtures and negative regressions;
+- manual-login interruption, cancellation, attempt revocation, and post-selection verification behavior.
 
-Recommended initial pair: SISAL + BET365, subject to the Software Architect confirming technical feasibility and permitted access methods.
+**Important:** completion of this milestone establishes `Testable`, not live `Supported`, bookmaker status.
 
-Exit criteria:
-- both legs can be prepared in a test/sanitized environment;
-- uncertain matches never result in a selection;
-- the adapters never cross the manual transaction boundary.
-
-## Milestone 4 — Application orchestration and UX
+## Milestone 4 — Application orchestration and UX — COMPLETE
 
 **Goal:** provide the automatic user-facing workflow from notification receipt to manual handoff.
 
-Deliverables:
-- notification intake that triggers processing automatically;
-- non-blocking parsed/normalized status display;
-- automatic primary-recommendation resolution;
-- immediate creation/start of the exact two-leg plan without preview acknowledgement or pair selection;
-- independent per-leg status display;
-- notification-to-browser-open latency instrumentation;
-- odds-changed, login-required, retry/reopen/cancel/restart states;
-- explicit ready-for-user handoff.
+Delivered:
+- notification intake that starts processing automatically;
+- deterministic primary-recommendation resolution;
+- whole-plan preflight and automatic concurrent leg dispatch;
+- non-blocking normalized/target display;
+- independent per-leg status and recovery actions;
+- auth-required, odds-changed, retry/reopen/cancel/restart, partial-failure, and ready-for-user states;
+- desktop shell with narrow typed IPC;
+- notification-to-plan/worker-start latency instrumentation.
+
+## Milestone 5 — Integration, security, and local-preview release readiness — COMPLETE
+
+**Goal:** harden the product for repeatable local-preview use/distribution.
+
+Delivered/verified:
+- cross-component parser/application/worker/adapter regression coverage;
+- threat model, renderer/browser isolation, navigation hardening, and transaction-boundary tests;
+- pinned reproducible development/runtime dependencies and CI;
+- deterministic Chromium browser E2E and Electron desktop smoke coverage;
+- reproducible **unsigned Windows x64 portable preview** packaging;
+- packaged-app verification, sensitive-content checks, CycloneDX SBOM, SHA-256 records, artifact provenance, and rollback policy;
+- post-merge `main` CI green on the DEVOPS-002 merge revision.
+
+Exit decision (2026-09-14): **Milestone 5 is complete for the local-preview channel.** It does not authorize a production release. `docs/release.md` remains authoritative: production requires signed Windows artifacts and at least the release's bookmaker/market scopes to be explicitly `Supported`, not merely fixture-backed `Testable`.
+
+## Milestone 6 — Initial live bookmaker readiness — CURRENT
+
+**Goal:** turn the first fixture-backed pair into an evidence-backed narrowly scoped live-supported product path using only permitted normal-browser interaction.
+
+Planned work:
+- **#43 BOOK-007:** validate/implement live SISAL mapping for pre-match football total-corners selection preparation;
+- **#44 BOOK-008:** validate/implement live BET365 Italy mapping for the same narrow scope;
+- **#45 QA-002:** qualify the combined SISAL + BET365 automatic path and certify support status.
+
+Rules:
+- no CAPTCHA/login/anti-bot/rate-limit/geo/access-control bypass;
+- no protected/private API reverse engineering;
+- no credentials/MFA automation, stake entry, or wager submission;
+- live validation is controlled and non-CI; deterministic sanitized fixtures remain the automated regression source;
+- if sufficient deterministic evidence cannot be obtained safely, mark the affected scope `Blocked` rather than weakening matching.
 
 Exit criteria:
-- a valid notification starts both legs without asking the user to review, choose a pair, confirm, or press start;
-- both browser legs begin as soon as validation and safety checks permit;
-- one leg can fail without obscuring the state of the other;
-- every terminal state is explicit and actionable.
+- SISAL and BET365 are each documented either as narrowly scoped `Supported` or explicitly `Blocked` with evidence;
+- if both are `Supported`, a representative SISAL + BET365 notification passes the documented automatic preparation smoke path without stake entry or wager submission;
+- deterministic regression, browser E2E, security, and transaction-boundary gates remain green;
+- support scope and failure behavior are release-documentation ready.
 
-## Milestone 5 — Integration, security, and release readiness
+## Milestone 7 — Signed Windows production release readiness — NEXT AFTER MILESTONE 6
 
-**Goal:** harden the product for repeatable local use/distribution.
+**Goal:** produce a traceable signed Windows x64 production release candidate after the initial bookmaker pair is live-supported.
 
-Deliverables:
-- cross-component integration and regression suite;
-- threat model and security review;
-- dependency and browser-runtime hardening;
-- reproducible dev environment and CI;
-- packaging/distribution matching the chosen architecture;
-- release checklist and smoke test.
+Planned work:
+- **#46 DEVOPS-003:** implement controlled Authenticode signing, exact-tag release gating, automated signature verification, production release metadata, and rollback validation.
 
 Exit criteria:
-- all release gates pass;
-- safety-boundary tests are automated;
-- automatic-start behavior is covered by integration tests;
-- installation and execution are reproducible.
+- the release's bookmaker/market scopes are still `Supported`;
+- production artifact is signed and publisher identity is automatically verified;
+- all exact-tag build/test/audit/browser/security/package/SBOM/checksum/provenance gates pass;
+- unsigned preview artifacts remain clearly separate from production artifacts;
+- manual authentication, stake entry, review, and final wager submission boundaries remain intact.
 
-## Post-MVP
+## Later expansion
 
-Potential extensions after the MVP is stable:
-- additional bookmaker adapters (LOTTOMATICA, EPLAY24, ADMIRALBET and others approved by backlog);
+After Milestones 6–7 are stable, prioritize based on product evidence:
 - Telegram ingestion;
-- HTTP/webhook ingestion;
-- clipboard/application integrations;
-- richer notification formats and provenance tracking, including an explicit source-provided primary recommendation marker;
-- observability and diagnostics that preserve privacy.
+- HTTP/webhook or clipboard/application ingestion;
+- additional bookmaker adapters (LOTTOMATICA, EPLAY24, ADMIRALBET, then others);
+- richer notification formats/provenance, including an explicit source-provided primary recommendation marker;
+- observability/latency diagnostics that preserve privacy;
+- macOS/Linux packaging only after their signing/sandbox distribution models are reviewed.
 
-Transport integrations must remain decoupled from the core parser/domain model and should feed the same automatic execution path.
+Transport integrations must remain decoupled from the parser/domain model and feed the same automatic execution path.

@@ -181,3 +181,18 @@ Initial product quality should be evaluated using deterministic fixture/regressi
 - explicit user-visible status for every terminal leg state;
 - automated tests proving transaction-boundary capabilities are absent/blocked;
 - measurable notification-to-browser-open latency suitable for later optimization.
+
+## 9. Product maturity and release interpretation
+
+As of 2026-09-14, the functional MVP described above is implemented and verified for the **local deterministic/unsigned-preview channel**. This means the application can be built as a Windows x64 desktop preview and the representative SISAL + BET365 flow is exercised end-to-end through synthetic controlled browser fixtures with the required safety, matching, recovery, and transaction-boundary checks.
+
+This status must not be interpreted as a live production support claim:
+
+- SISAL and BET365 are currently `Testable`, not live `Supported`;
+- their real public-site DOM/mapping has not yet passed the project's narrow support gates;
+- the Windows x64 preview is unsigned and must not be presented as a production release;
+- production release requires explicit supported bookmaker/market scope plus the signing/release gates in `docs/release.md`.
+
+The next product milestone is to validate the initial SISAL + BET365 pair through permitted normal-browser interaction for the narrow pre-match football total-corners scope. If a bookmaker cannot be mapped reliably without bypassing access controls or weakening deterministic matching, that scope must be marked `Blocked` rather than treated as supported.
+
+After the initial pair is qualified as live `Supported`, the next release milestone is a signed Windows production candidate. Additional bookmakers and automatic notification transports remain later expansion work unless new product evidence reprioritizes them.
