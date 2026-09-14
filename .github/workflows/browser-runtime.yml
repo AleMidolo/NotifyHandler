@@ -51,8 +51,16 @@ jobs:
           npm run test:browser --workspace @notify-handler/automation
           npm run test:browser --workspace @notify-handler/desktop
 
+      - name: Prepare pinned Electron sandbox helper
+        run: |
+          electron_cli="$(npm exec --yes --package=electron@44.3.0 -- sh -c 'readlink -f "$(command -v electron)"' | tail -n 1)"
+          sandbox_helper="$(dirname "$electron_cli")/dist/chrome-sandbox"
+          test -f "$sandbox_helper"
+          sudo chown root:root "$sandbox_helper"
+          sudo chmod 4755 "$sandbox_helper"
+
       - name: Smoke-launch local desktop shell
         run: |
           set -o pipefail
-          timeout 120s xvfb-run -a npm run desktop:dev -- --notifyhandler-smoke-test 2>&1 | tee /tmp/notifyhandler-desktop-smoke.log
+          timeout 120s xvfb-run -a npm run dev --workspace @notify-handler/desktop -- --notifyhandler-smoke-test 2>&1 | tee /tmp/notifyhandler-desktop-smoke.log
           grep -F "NotifyHandler desktop shell smoke ready" /tmp/notifyhandler-desktop-smoke.log
