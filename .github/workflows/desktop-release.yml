@@ -1,0 +1,143 @@
+name: Desktop release artifact
+
+on:
+  pull_request:
+    paths:
+      - package.json
+      - package-lock.json
+      - scripts/build-desktop-release.mjs
+      - scripts/verify-desktop-release.mjs
+      - packages/application/**
+      - packages/automation/**
+      - packages/bookmakers/**
+      - packages/desktop/**
+      - .github/workflows/desktop-release.yml
+      - docs/release.md
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-x64-preview:
+    name: Windows x64 unsigned preview
+    runs-on: windows-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Verify npm version
+        shell: pwsh
+        run: |
+          if ((npm --version).Trim() -ne '11.19.0') { throw 'Unexpected npm version' }
+
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Run repository quality and dependency gates
+        shell: pwsh
+        run: |
+          npm run check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm audit --omit=dev --audit-level=high
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install locked Electron binary
+        run: node node_modules/electron/install.js
+
+      - name: Install locked Playwright Chromium
+        shell: pwsh
+        run: |
+          $browserPath = Join-Path $env:RUNNER_TEMP 'notifyhandler-playwright'
+          "PLAYWRIGHT_BROWSERS_PATH=$browserPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          node node_modules/playwright-core/cli.js install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Run deterministic browser-backed release gates
+        shell: pwsh
+        run: |
+          npm run test:browser --workspace @notify-handler/automation
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:browser --workspace @notify-handler/desktop
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Set deterministic build id
+        shell: pwsh
+        run: |
+          $shortSha = '${{ github.sha }}'.Substring(0, 12)
+          "NOTIFYHANDLER_BUILD_ID=$shortSha" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build unsigned portable bundle
+        run: npm run release:bundle
+
+      - name: Generate CycloneDX dependency inventory
+        shell: pwsh
+        run: |
+          $bundle = Get-ChildItem 'dist/release' -Directory | Where-Object { $_.Name -like 'notifyhandler-v*' } | Select-Object -First 1
+          if (-not $bundle) { throw 'Release bundle directory not found' }
+          npm sbom --sbom-format cyclonedx | Set-Content -Path (Join-Path $bundle.FullName 'SBOM.cdx.json') -Encoding utf8
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify bundle contents and generate per-file checksums
+        run: npm run release:verify
+
+      - name: Smoke-launch packaged desktop shell without notification input
+        shell: pwsh
+        run: |
+          $bundle = Get-ChildItem 'dist/release' -Directory | Where-Object { $_.Name -like 'notifyhandler-v*' } | Select-Object -First 1
+          if (-not $bundle) { throw 'Release bundle directory not found' }
+          $sentinel = Join-Path $env:RUNNER_TEMP 'notifyhandler-packaged-smoke.ready'
+          Remove-Item $sentinel -Force -ErrorAction SilentlyContinue
+          $env:NOTIFYHANDLER_SMOKE_SENTINEL = $sentinel
+          $process = Start-Process -FilePath (Join-Path $bundle.FullName 'NotifyHandler.exe') -ArgumentList '--notifyhandler-smoke-test' -PassThru
+          if (-not $process.WaitForExit(120000)) {
+            $process.Kill()
+            throw 'Packaged desktop smoke timed out'
+          }
+          if ($process.ExitCode -ne 0) { throw "Packaged desktop smoke exited with code $($process.ExitCode)" }
+          if (-not (Test-Path $sentinel)) { throw 'Packaged desktop shell did not reach renderer-ready smoke state' }
+          if ((Get-Content $sentinel -Raw).Trim() -ne 'ready') { throw 'Unexpected packaged smoke sentinel content' }
+
+      - name: Archive portable bundle and record archive checksum
+        shell: pwsh
+        run: |
+          $bundle = Get-ChildItem 'dist/release' -Directory | Where-Object { $_.Name -like 'notifyhandler-v*' } | Select-Object -First 1
+          if (-not $bundle) { throw 'Release bundle directory not found' }
+          $archive = Join-Path 'dist/release' ($bundle.Name + '.zip')
+          Compress-Archive -Path (Join-Path $bundle.FullName '*') -DestinationPath $archive -CompressionLevel Optimal
+          $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $([IO.Path]::GetFileName($archive))" | Set-Content -Path ($archive + '.sha256') -Encoding ascii
+
+      - name: Upload unsigned preview artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: notifyhandler-windows-x64-${{ github.sha }}
+          path: |
+            dist/release/*.zip
+            dist/release/*.zip.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Attest archive provenance
+        if: github.event_name != 'pull_request'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: dist/release/*.zip
