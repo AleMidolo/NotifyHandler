@@ -17,9 +17,9 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 | --- | --- | --- | --- |
 | SISAL | 1 | Blocked (live); Testable (fixtures) | BOOK-007 confirms the public SISAL football/corner product remains reachable, but current live event/market/line/outcome/odds DOM evidence was not available at selector level in the controlled validation surface. No unverified selector was promoted. The deterministic BOOK-001/BOOK-005 fixture-backed path remains Testable. See `docs/live-validation/sisal-book-007.md`. |
 | BET365 | 2 | Blocked (live); Testable (fixtures) | BOOK-008 confirms the public BET365 Italy football surface exposes upcoming fixtures and displayed top-level football odds, but controlled public validation did not establish selector-level evidence tying an event to the requested full-match total-corners market, exact line, outcome, odds, and selected state. No unverified selector was promoted. The deterministic BOOK-003/BOOK-005 fixture-backed path remains Testable. See `docs/live-validation/bet365-book-008.md`. |
-| LOTTOMATICA | 3 | Candidate | Add after first pair stabilizes. |
-| EPLAY24 | 4 | Candidate | Add after first pair stabilizes. |
-| ADMIRALBET | 5 | Candidate | Add after first pair stabilizes. |
+| LOTTOMATICA | 3 | Blocked (feasibility) | BOOK-009 confirms the current official `www.lottomatica.it` product exposes active sports/football material, but controlled public validation did not establish the exact event → full-match total-corners → line → side → odds → selected-state selector chain. A direct official-page fetch in the validation environment returned HTTP 403 and was not bypassed. No adapter is created from insufficient evidence. See `docs/live-validation/lottomatica-book-009.md`. |
+| EPLAY24 | 4 | Candidate | Next feasibility target under BOOK-010 if fewer than two viable live candidates exist. |
+| ADMIRALBET | 5 | Candidate | Follow-on feasibility target under BOOK-011 if still needed. |
 
 Priorities may change when technical feasibility, permitted access, notification prevalence, or regression complexity provides evidence for a better order.
 
@@ -82,6 +82,16 @@ BOOK-008 validated the current public Italian football surface using only normal
 Therefore the **live pre-match football total-corners scope is Blocked** until a controlled permitted headed-browser run can produce sanitized selector-level evidence for every required identity dimension and selected-state verification. `packages/automation` includes a non-CI read-only `live:probe:bet365` command that accepts only credential-free `https://www.bet365.it` top-level URLs, performs no clicks or authentication, and emits only sanitized public structural summaries. The probe deliberately never authorizes production selectors by itself. See `docs/live-validation/bet365-book-008.md`.
 
 No protected/private API reverse engineering is part of this integration.
+
+## LOTTOMATICA feasibility blocker
+
+BOOK-009 evaluated LOTTOMATICA before any production adapter investment. The current official `https://www.lottomatica.it` origin exposes active sports/football material, confirming that football betting remains part of the product. That fact alone is not sufficient for NotifyHandler's deterministic preparation contract.
+
+The controlled public validation did not establish selector-level evidence tying one event to a full-match total-corners market, exact numeric line, requested side, displayed decimal odds, and a deterministic post-selection state. A direct official-page fetch in this validation environment returned HTTP 403; that boundary was not bypassed. No generic football price, promotion text, approximate selector, protected/private API, or third-party DOM sample is accepted as a substitute.
+
+Therefore LOTTOMATICA is **Blocked at feasibility** for the narrow MVP scope, and no adapter/worker mapping is created. `packages/automation` includes a non-CI read-only `live:probe:lottomatica` command restricted to credential-free `https://www.lottomatica.it` URLs. It emits only sanitized structural summaries and deliberately hard-codes `mappingEvidenceSufficient: false`, so a diagnostic run cannot promote the bookmaker into implementation by itself. See `docs/live-validation/lottomatica-book-009.md`.
+
+The next feasibility target is EPLAY24 under BOOK-010 unless repository priorities change.
 
 ## Minimum adapter capabilities
 
