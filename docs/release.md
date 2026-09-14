@@ -15,7 +15,7 @@ The first preview target is intentionally Windows x64. Linux packaging is deferr
 
 ## Artifact naming and versioning
 
-The repository root `package.json` version is the product version source. Preview artifacts also include the first 12 hexadecimal characters of the source commit so a downloaded artifact maps to exactly one repository revision.
+The repository root `package.json` version is the product version source. Preview artifacts also include the first 12 hexadecimal characters of the source commit so a downloaded artifact maps to exactly one repository revision. Internal workspaces use that same explicit development version so CycloneDX/PURL inventory entries are versioned and traceable instead of anonymous workspace ranges.
 
 Bundle/archive format:
 
