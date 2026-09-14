@@ -16,7 +16,7 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 | Bookmaker | Priority | Status | Notes |
 | --- | --- | --- | --- |
 | SISAL | 1 | Blocked (live); Testable (fixtures) | BOOK-007 confirms the public SISAL football/corner product remains reachable, but current live event/market/line/outcome/odds DOM evidence was not available at selector level in the controlled validation surface. No unverified selector was promoted. The deterministic BOOK-001/BOOK-005 fixture-backed path remains Testable. See `docs/live-validation/sisal-book-007.md`. |
-| BET365 | 2 | Testable | BOOK-003 implements the restricted adapter logic. BOOK-005 adds a real isolated Playwright/Chromium worker exercised against controlled synthetic BET365 fixture pages. Live `www.bet365.it` DOM mapping/smoke validation remains required before `Supported`. |
+| BET365 | 2 | Blocked (live); Testable (fixtures) | BOOK-008 confirms the public BET365 Italy football surface exposes upcoming fixtures and displayed top-level football odds, but controlled public validation did not establish selector-level evidence tying an event to the requested full-match total-corners market, exact line, outcome, odds, and selected state. No unverified selector was promoted. The deterministic BOOK-003/BOOK-005 fixture-backed path remains Testable. See `docs/live-validation/bet365-book-008.md`. |
 | LOTTOMATICA | 3 | Candidate | Add after first pair stabilizes. |
 | EPLAY24 | 4 | Candidate | Add after first pair stabilizes. |
 | ADMIRALBET | 5 | Candidate | Add after first pair stabilizes. |
@@ -61,7 +61,7 @@ BOOK-007 attempted the live promotion using only normal public SISAL pages. The 
 
 Therefore the **live pre-match football total-corners scope is Blocked** until a controlled permitted headed-browser run can produce sanitized selector-level evidence for every required identity dimension. `packages/automation` includes a non-CI read-only `live:probe:sisal` command to collect public structural candidates without clicks, authentication, cookies/storage reads, screenshots/traces, stake entry, or wager submission. See `docs/live-validation/sisal-book-007.md`.
 
-## BET365 testable scope and limitations
+## BET365 fixture-backed scope and live blocker
 
 The current BET365 adapter:
 
@@ -75,7 +75,13 @@ The current BET365 adapter:
 - preserves `ATTEMPTED_NOT_VERIFIED`/manual-review semantics when cancellation races an activation already in flight;
 - fails safely on ambiguous/wrong event, market, line, or outcome, unavailable/invalid odds, blocked redirects, cancellation, and failed post-activation verification.
 
-The BET365 adapter is also exercised through the real Playwright worker against controlled browser fixtures. The semantic fixture attributes are internal test-harness data and are **not** assertions about the live BET365 DOM. Promotion from **Testable** to **Supported** still requires a permitted normal-browser mapping for the Italian public site plus the shared adapter contract/security/release gates. No protected/private API reverse engineering is part of this integration.
+The adapter remains **Testable** through the real Playwright worker against controlled browser fixtures. The semantic fixture attributes are internal test-harness data and are **not** assertions about the live BET365 DOM.
+
+BOOK-008 validated the current public Italian football surface using only normal public access. Public BET365 Italy pages expose fixtures, timestamps, competitions, and displayed football odds, which confirms that useful public data is visible. However, the controlled validation surface did not establish a safe selector-level relationship from one exact event to the requested **full-match total-corners** market, exact numeric line, requested side, displayed odds, and post-selection selected state. Top-level 1X2 odds are not a substitute for the requested corner-market evidence, and no protected/private API or access-control bypass is acceptable.
+
+Therefore the **live pre-match football total-corners scope is Blocked** until a controlled permitted headed-browser run can produce sanitized selector-level evidence for every required identity dimension and selected-state verification. `packages/automation` includes a non-CI read-only `live:probe:bet365` command that accepts only credential-free `https://www.bet365.it` top-level URLs, performs no clicks or authentication, and emits only sanitized public structural summaries. The probe deliberately never authorizes production selectors by itself. See `docs/live-validation/bet365-book-008.md`.
+
+No protected/private API reverse engineering is part of this integration.
 
 ## Minimum adapter capabilities
 
