@@ -1,0 +1,38 @@
+name: DEVOPS-002 lockfile bootstrap
+
+on:
+  push:
+    branches:
+      - devops/devops-002-desktop-packaging
+    paths:
+      - package.json
+      - .github/workflows/devops-002-lockfile-bootstrap.yml
+
+permissions:
+  contents: write
+
+jobs:
+  lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: devops/devops-002-desktop-packaging
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+      - name: Generate exact lockfile without lifecycle scripts
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Commit lockfile and remove bootstrap workflow
+        shell: bash
+        run: |
+          rm .github/workflows/devops-002-lockfile-bootstrap.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json .github/workflows/devops-002-lockfile-bootstrap.yml
+          git commit -m "DEVOPS-002: lock desktop release dependencies"
+          git push
