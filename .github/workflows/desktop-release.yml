@@ -66,9 +66,11 @@ jobs:
         shell: pwsh
         run: |
           $browserPath = Join-Path $env:RUNNER_TEMP 'notifyhandler-playwright'
+          $env:PLAYWRIGHT_BROWSERS_PATH = $browserPath
           "PLAYWRIGHT_BROWSERS_PATH=$browserPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           node node_modules/playwright-core/cli.js install chromium
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path $browserPath)) { throw 'Playwright browser staging directory was not created' }
 
       - name: Run deterministic browser-backed release gates
         shell: pwsh
