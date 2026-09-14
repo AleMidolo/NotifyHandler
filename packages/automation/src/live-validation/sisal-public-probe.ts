@@ -126,8 +126,9 @@ export async function runSisalPublicProbe(options: Readonly<{
 }
 
 async function main(): Promise<void> {
+  const configuredUrl = process.env.NH_SISAL_LIVE_PROBE_URL;
   const summary = await runSisalPublicProbe({
-    url: process.env.NH_SISAL_LIVE_PROBE_URL,
+    ...(configuredUrl === undefined ? {} : { url: configuredUrl }),
     headless: process.env.NH_SISAL_LIVE_PROBE_HEADLESS === "1",
   });
   process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
