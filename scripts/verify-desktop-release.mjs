@@ -54,6 +54,9 @@ if (/playwright|chromium|electron\.ipcRenderer\.send\s*\(/i.test(preload)) {
 
 const forbiddenBasenames = new Set(["Cookies", "Login Data", "Local State", "trace.zip"]);
 const forbiddenPatterns = [/(^|\/)\.env($|\.)/i, /(^|\/)playwright-report(\/|$)/i, /(^|\/)test-results(\/|$)/i, /\.har$/i, /\.log$/i];
+const allowedPinnedVendorFiles = [
+  /^resources\/playwright-browsers\/chromium_headless_shell-\d+\/chrome-headless-shell-win64\/debug\.log$/i,
+];
 const filePaths = [];
 
 async function walk(path) {
@@ -65,7 +68,8 @@ async function walk(path) {
       continue;
     }
     if (!entry.isFile()) continue;
-    if (forbiddenBasenames.has(entry.name) || forbiddenPatterns.some((pattern) => pattern.test(rel))) {
+    const allowedPinnedVendorFile = allowedPinnedVendorFiles.some((pattern) => pattern.test(rel));
+    if (forbiddenBasenames.has(entry.name) || (!allowedPinnedVendorFile && forbiddenPatterns.some((pattern) => pattern.test(rel)))) {
       throw new Error(`Sensitive or temporary file must not be packaged: ${rel}`);
     }
     if (rel !== "SHA256SUMS.txt") filePaths.push({ absolute, rel });
