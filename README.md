@@ -23,20 +23,28 @@ NotifyHandler must never enter credentials, automate MFA/CAPTCHA, enter stakes, 
 
 The MVP focuses on deterministic notification parsing, automatic primary-option resolution, a transport-independent domain model, immediate execution planning, two-leg state tracking, bookmaker adapters, safe browser selection, odds-change reporting, and manual-user handoff.
 
-Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRALBET. Support is added incrementally through the shared adapter contract.
+Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRALBET. Support is added incrementally through the shared adapter contract and evidence gates.
 
 ## Current status
 
 As of 2026-09-14, Milestones 0–5 are complete for the **local unsigned Windows x64 preview** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified preview packaging with SBOM/checksums/provenance.
 
-This is not yet a production release. SISAL and BET365 are currently `Testable`, not live `Supported`; their real public-site mapping still requires the narrow permitted validation described in `docs/bookmaker-support.md`. Production Windows distribution also requires signing. The current roadmap is therefore:
+This is not yet a production release. The attempted live promotion of the original SISAL + BET365 pair did not pass the evidence gate:
 
-1. live-support qualification for SISAL (#43);
-2. live-support qualification for BET365 (#44);
-3. QA certification of the combined initial pair (#45);
-4. signed Windows production release candidate (#46).
+- SISAL is `Blocked` for the live pre-match football total-corners scope while remaining fixture-backed `Testable`;
+- BET365 is `Blocked` for the same live scope while remaining fixture-backed `Testable`.
 
-Unsigned preview artifacts must never be represented as production-ready, and a bookmaker must never be called `Supported` merely because synthetic fixture tests pass.
+The public validation surfaces did not establish the complete deterministic selector-level event → total-corners market → exact line → requested side → displayed odds → selected-state chain. NotifyHandler will not compensate with guessed selectors, unrelated prices, protected/private API reverse engineering, or access-control bypasses.
+
+Milestone 6 is therefore feasibility-first for the remaining prioritized candidates:
+
+1. LOTTOMATICA — #52;
+2. EPLAY24 — #53 if fewer than two viable candidates exist;
+3. ADMIRALBET — #54 if fewer than two viable candidates exist after #53.
+
+A feasibility result is not support. Candidates judged feasible still need restricted adapter/worker implementation, deterministic sanitized regressions, and controlled live qualification. QA #45 will certify the first pair that truly reaches narrowly scoped live `Supported` status. Signed Windows production work in #46 remains blocked until then.
+
+Unsigned preview artifacts must never be represented as production-ready, and a bookmaker must never be called `Supported` merely because a site is reachable or synthetic fixture tests pass.
 
 ## Architecture baseline
 
@@ -77,7 +85,8 @@ Repository documentation and specifications are authoritative. Start with:
 - `docs/safety-boundaries.md` — non-negotiable authentication, access, and transaction boundaries;
 - `docs/error-model.md` — interruptions, safe failures, activation disposition, and recovery semantics;
 - `docs/test-strategy.md` — automatic-start, unit/contract/browser/security/release test strategy;
-- `docs/bookmaker-support.md` — bookmaker rollout, live-support gates, and current support status;
+- `docs/bookmaker-support.md` — bookmaker rollout, live-support gates, current support status, and live blockers;
+- `docs/live-validation/` — sanitized evidence for controlled non-CI live validation attempts;
 - `specs/notification-format.md` — input/normalization and primary-recommendation contract;
 - `specs/selection-target.md` — immutable target for one bookmaker leg;
 - `specs/execution-contract.md` — automatic start trigger, exact two-leg state machine, attempts, evidence epochs, and commands;
@@ -86,4 +95,4 @@ Repository documentation and specifications are authoritative. Start with:
 
 ## Development principle
 
-Correctness is more important than clicking something. Automatic startup removes unnecessary user delay, but never weakens validation. When event, market, line, side, origin, odds state, or freshness requirements are not satisfied, the system must fail or pause safely instead of selecting a candidate.
+Correctness is more important than clicking something. Automatic startup removes unnecessary user delay, but never weakens validation. When event, market, line, side, origin, odds state, freshness, or live mapping evidence is insufficient, the system must fail or pause safely instead of selecting a candidate.
