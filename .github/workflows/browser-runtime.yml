@@ -50,3 +50,9 @@ jobs:
         run: |
           npm run test:browser --workspace @notify-handler/automation
           npm run test:browser --workspace @notify-handler/desktop
+
+      - name: Smoke-launch local desktop shell
+        run: |
+          set -o pipefail
+          timeout 120s xvfb-run -a npm run desktop:dev -- --notifyhandler-smoke-test 2>&1 | tee /tmp/notifyhandler-desktop-smoke.log
+          grep -F "NotifyHandler desktop shell smoke ready" /tmp/notifyhandler-desktop-smoke.log
