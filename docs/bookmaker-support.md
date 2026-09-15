@@ -18,8 +18,8 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 | SISAL | 1 | Blocked (live); Testable (fixtures) | BOOK-007 confirms the public SISAL football/corner product remains reachable, but current live event/market/line/outcome/odds DOM evidence was not available at selector level in the controlled validation surface. No unverified selector was promoted. The deterministic BOOK-001/BOOK-005 fixture-backed path remains Testable. See `docs/live-validation/sisal-book-007.md`. |
 | BET365 | 2 | Blocked (live); Testable (fixtures) | BOOK-008 confirms the public BET365 Italy football surface exposes upcoming fixtures and displayed top-level football odds, but controlled public validation did not establish selector-level evidence tying an event to the requested full-match total-corners market, exact line, outcome, odds, and selected state. No unverified selector was promoted. The deterministic BOOK-003/BOOK-005 fixture-backed path remains Testable. See `docs/live-validation/bet365-book-008.md`. |
 | LOTTOMATICA | 3 | Blocked (feasibility) | BOOK-009 confirms the current official `www.lottomatica.it` product exposes active sports/football material, but controlled public validation did not establish the exact event → full-match total-corners → line → side → odds → selected-state selector chain. A direct official-page fetch in the validation environment returned HTTP 403 and was not bypassed. No adapter is created from insufficient evidence. See `docs/live-validation/lottomatica-book-009.md`. |
-| EPLAY24 | 4 | Candidate | Next feasibility target under BOOK-010 if fewer than two viable live candidates exist. |
-| ADMIRALBET | 5 | Candidate | Follow-on feasibility target under BOOK-011 if still needed. |
+| EPLAY24 | 4 | Blocked (feasibility) | BOOK-010 confirms current ADM concession `16004` maps E-play 24 Ita Limited to `www.eplay24.it`, and public EPLAY24 material confirms football/prematch betting. The accessible betting application is JavaScript-only in the crawl surface and the controlled validation did not establish the exact event → total-corners → line → side → odds → selected-state chain. No adapter is created from insufficient evidence. See `docs/live-validation/eplay24-book-010.md`. |
+| ADMIRALBET | 5 | Candidate | Next feasibility target under BOOK-011 because fewer than two viable live candidates exist. |
 
 Priorities may change when technical feasibility, permitted access, notification prevalence, or regression complexity provides evidence for a better order.
 
@@ -91,7 +91,15 @@ The controlled public validation did not establish selector-level evidence tying
 
 Therefore LOTTOMATICA is **Blocked at feasibility** for the narrow MVP scope, and no adapter/worker mapping is created. `packages/automation` includes a non-CI read-only `live:probe:lottomatica` command restricted to credential-free `https://www.lottomatica.it` URLs. It emits only sanitized structural summaries and deliberately hard-codes `mappingEvidenceSufficient: false`, so a diagnostic run cannot promote the bookmaker into implementation by itself. See `docs/live-validation/lottomatica-book-009.md`.
 
-The next feasibility target is EPLAY24 under BOOK-010 unless repository priorities change.
+## EPLAY24 feasibility blocker
+
+BOOK-010 evaluated EPLAY24 before any production adapter investment. The current ADM concession register maps E-play 24 Ita Limited, concession `16004`, to `www.eplay24.it`, and current public EPLAY24 material confirms a sports/football and prematch product. That is enough to establish the operator and product family, but not the deterministic mapping required by NotifyHandler.
+
+The indexed betting application is JavaScript-only in the controlled crawl surface. A public redirect record for a prematch Serie A route points toward the bare `eplay24.it` host, while a direct controlled fetch of that bare host returned HTTP 403. Those boundaries were not bypassed. The controlled public evidence therefore did not establish selector-level event identity, competition/time context, full-match total-corners market identity, exact numeric line, requested side, displayed decimal odds, or deterministic post-selection state.
+
+Therefore EPLAY24 is **Blocked at feasibility** for the narrow MVP scope, and no adapter/worker mapping is created. `packages/automation` includes a non-CI read-only `live:probe:eplay24` command restricted to credential-free `https://www.eplay24.it` URLs. It emits only sanitized structural summaries and deliberately hard-codes `mappingEvidenceSufficient: false`, so a diagnostic run cannot promote the bookmaker into implementation by itself. See `docs/live-validation/eplay24-book-010.md`.
+
+The next feasibility target is ADMIRALBET under BOOK-011 unless repository priorities change.
 
 ## Minimum adapter capabilities
 
