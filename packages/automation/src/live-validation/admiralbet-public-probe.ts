@@ -1,4 +1,4 @@
-import { chromium } from "playwright-core";
+import { chromium, type Locator } from "playwright-core";
 
 const ADMIRALBET_ORIGIN = "https://www.admiralbet.it";
 const DEFAULT_URL = `${ADMIRALBET_ORIGIN}/scommesse`;
@@ -50,7 +50,7 @@ function sanitizePath(value: string): string {
   }
 }
 
-async function collectLabels(locator: ReturnType<Awaited<ReturnType<typeof chromium.launch>>["newPage"]>["locator"]>): Promise<string[]> {
+async function collectLabels(locator: Locator): Promise<string[]> {
   const labels: string[] = [];
   const count = await locator.count();
   for (let index = 0; index < Math.min(count, MAX_SAMPLES); index += 1) {
