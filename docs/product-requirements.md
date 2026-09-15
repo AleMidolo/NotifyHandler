@@ -184,15 +184,30 @@ Initial product quality should be evaluated using deterministic fixture/regressi
 
 ## 9. Product maturity and release interpretation
 
-As of 2026-09-14, the functional MVP described above is implemented and verified for the **local deterministic/unsigned-preview channel**. This means the application can be built as a Windows x64 desktop preview and the representative SISAL + BET365 flow is exercised end-to-end through synthetic controlled browser fixtures with the required safety, matching, recovery, and transaction-boundary checks.
+As of 2026-09-15, the functional MVP described above is implemented and verified for the **local deterministic/unsigned-preview channel**. The application can be built as a Windows x64 desktop preview and the representative SISAL + BET365 flow is exercised end-to-end through synthetic controlled browser fixtures with the required safety, matching, recovery, and transaction-boundary checks.
 
-This status must not be interpreted as a live production support claim:
+This status must not be interpreted as a live production support claim. The first passive live-validation phase is exhausted without any bookmaker reaching live `Supported` status for the target pre-match football full-match total-corners scope:
 
-- SISAL and BET365 are currently `Testable`, not live `Supported`;
-- their real public-site DOM/mapping has not yet passed the project's narrow support gates;
-- the Windows x64 preview is unsigned and must not be presented as a production release;
-- production release requires explicit supported bookmaker/market scope plus the signing/release gates in `docs/release.md`.
+- SISAL — live `Blocked`; fixture-backed `Testable`;
+- BET365 — live `Blocked`; fixture-backed `Testable`;
+- LOTTOMATICA — `Blocked (feasibility)`;
+- EPLAY24 — `Blocked (feasibility)`;
+- ADMIRALBET — `Blocked (feasibility)` under passive inspection despite comparatively rich public event/generic-market/line/odds visibility.
 
-The next product milestone is to validate the initial SISAL + BET365 pair through permitted normal-browser interaction for the narrow pre-match football total-corners scope. If a bookmaker cannot be mapped reliably without bypassing access controls or weakening deterministic matching, that scope must be marked `Blocked` rather than treated as supported.
+The current product decision is to **retain full-match total corners as the Milestone 6 market target** rather than silently substituting an easier market. The representative use case requires exact market-family, numeric-line, and side identity; generic goal U/O, 1X2, live corner statistics, next-corner products, and editorial references do not satisfy that requirement.
 
-After the initial pair is qualified as live `Supported`, the next release milestone is a signed Windows production candidate. Additional bookmakers and automatic notification transports remain later expansion work unless new product evidence reprioritizes them.
+The next evidence strategy is controlled interactive public-browser validation:
+
+1. #61 builds a non-CI headed-browser explorer that may follow same-origin public event/market navigation and expand non-transactional UI while remaining structurally unable to interact with login/auth/CAPTCHA, betting outcomes/odds that add a selection, betslip/stake/submit/payment controls, protected/private APIs, or access-control bypass mechanisms.
+2. #62 revalidates ADMIRALBET first because it exposed the richest public structure.
+3. #63 revalidates SISAL if fewer than two feasible candidates exist.
+4. #64 revalidates BET365 if still needed.
+
+For feasibility, the required evidence is the deterministic **pre-activation** chain:
+`event → competition/time context → full-match total-corners market → exact line → requested side → displayed odds`.
+
+A `Feasible for implementation` result is not live support. A feasible candidate must then complete a separate restricted adapter/worker live-mapping task with deterministic fixtures, all shared matching/security/cancellation/auth/odds gates, and selected-state verification through the authorized production outcome-selection capability. Exploratory tooling must not activate betting outcomes merely to discover selected-state behavior.
+
+QA #45 certifies only the first two bookmakers that genuinely become narrowly scoped live `Supported`. Windows x64 preview artifacts remain unsigned and must not be presented as production releases. Production release remains blocked on #45 plus the signing/release gates in `docs/release.md`.
+
+If the controlled interactive strategy still cannot yield two feasible candidates, Product Coordination must make an explicit candidate-pool or market-scope decision; the project must not manufacture support by weakening deterministic matching or bypassing access controls.
