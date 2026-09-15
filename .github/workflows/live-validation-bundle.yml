@@ -1,0 +1,278 @@
+name: Portable BOOK-012 validation bundle
+
+on:
+  pull_request:
+    paths:
+      - package.json
+      - package-lock.json
+      - .nvmrc
+      - scripts/portable-live-explorer.mjs
+      - scripts/portable-live-explorer.test.mjs
+      - scripts/build-live-validation-bundle.mjs
+      - scripts/verify-live-validation-bundle.mjs
+      - packages/automation/package.json
+      - packages/automation/src/navigation-policy.ts
+      - packages/automation/src/live-validation/interactive-explorer.ts
+      - packages/automation/test/live-explorer-boundary.test.ts
+      - .github/workflows/live-validation-bundle.yml
+      - .github/live-validation-bundle.json
+      - docs/live-validation/portable-runner-devops-007.md
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/live-validation-bundle.json
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: live-validation-bundle-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-x64-diagnostic:
+    name: Windows x64 BOOK-012 diagnostic bundle
+    runs-on: windows-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Verify npm version
+        shell: pwsh
+        run: |
+          if ((npm --version).Trim() -ne '11.19.0') { throw 'Unexpected npm version' }
+
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Run repository quality and dependency gates
+        shell: pwsh
+        run: |
+          npm run check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm audit --omit=dev --audit-level=high
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Install locked Playwright Chromium for packaging
+        shell: pwsh
+        run: |
+          $browserPath = Join-Path $env:RUNNER_TEMP 'notifyhandler-book012-playwright'
+          $env:PLAYWRIGHT_BROWSERS_PATH = $browserPath
+          "PLAYWRIGHT_BROWSERS_PATH=$browserPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          node node_modules/playwright-core/cli.js install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path $browserPath)) { throw 'Playwright browser staging directory was not created' }
+
+      - name: Run deterministic automation browser regressions
+        run: npm run test:browser --workspace @notify-handler/automation
+
+      - name: Set exact source commit
+        shell: pwsh
+        run: |
+          "NOTIFYHANDLER_SOURCE_COMMIT=${{ github.sha }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build portable diagnostic bundle
+        run: npm run live:bundle:build
+
+      - name: Verify portable bundle and per-file checksums
+        run: npm run live:bundle:verify
+
+      - name: Prove normal live launcher fails closed in CI
+        shell: pwsh
+        run: |
+          $bundle = Get-ChildItem 'dist/live-validation' -Directory | Where-Object { $_.Name -like 'notifyhandler-book012-admiralbet-*-win32-x64' } | Select-Object -First 1
+          if (-not $bundle) { throw 'Portable validation bundle was not found' }
+          Push-Location $bundle.FullName
+          try {
+            Remove-Item 'ExplorerSummary.json' -Force -ErrorAction SilentlyContinue
+            cmd /c run-admiralbet-validation.cmd
+            $guardExit = $LASTEXITCODE
+            if ($guardExit -eq 0) { throw 'Normal portable launcher unexpectedly ran live under CI' }
+            if (Test-Path 'ExplorerSummary.json') { throw 'CI guard failure retained an ExplorerSummary result file' }
+            $global:LASTEXITCODE = 0
+          } finally {
+            Pop-Location
+          }
+
+      - name: Synthetic packaged Chromium smoke without bookmaker access
+        shell: pwsh
+        run: |
+          $bundle = Get-ChildItem 'dist/live-validation' -Directory | Where-Object { $_.Name -like 'notifyhandler-book012-admiralbet-*-win32-x64' } | Select-Object -First 1
+          if (-not $bundle) { throw 'Portable validation bundle was not found' }
+          Push-Location $bundle.FullName
+          try {
+            Remove-Item 'ExplorerSummary.json' -Force -ErrorAction SilentlyContinue
+            $output = & '.\runtime\node.exe' '.\app\portable-live-explorer.mjs' --synthetic-smoke
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $result = $output | ConvertFrom-Json
+            if ($result.mode -ne 'SYNTHETIC_SMOKE_OK') { throw 'Unexpected portable synthetic smoke result' }
+            if ($result.bookmaker -ne 'admiralbet') { throw 'Synthetic smoke changed the locked bookmaker' }
+            if ($result.approvedOrigin -ne 'https://www.admiralbet.it') { throw 'Synthetic smoke changed the approved origin' }
+            if ($result.networkContacted -ne $false) { throw 'Synthetic smoke reported network contact' }
+            if ($result.authorizesProductionMapping -ne $false) { throw 'Synthetic smoke unexpectedly authorizes production mapping' }
+            if (Test-Path 'ExplorerSummary.json') { throw 'Synthetic smoke must not produce live evidence output' }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Archive bundle and record archive checksum
+        shell: pwsh
+        run: |
+          $bundle = Get-ChildItem 'dist/live-validation' -Directory | Where-Object { $_.Name -like 'notifyhandler-book012-admiralbet-*-win32-x64' } | Select-Object -First 1
+          if (-not $bundle) { throw 'Portable validation bundle was not found' }
+          $archive = Join-Path 'dist/live-validation' ($bundle.Name + '.zip')
+          Compress-Archive -Path (Join-Path $bundle.FullName '*') -DestinationPath $archive -CompressionLevel Optimal
+          $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $([IO.Path]::GetFileName($archive))" | Set-Content -Path ($archive + '.sha256') -Encoding ascii
+
+      - name: Upload diagnostic artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: notifyhandler-book012-admiralbet-${{ github.sha }}
+          path: |
+            dist/live-validation/*.zip
+            dist/live-validation/*.zip.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Attest diagnostic archive provenance
+        if: github.event_name == 'push'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: dist/live-validation/*.zip
+
+  publish-diagnostic:
+    name: Publish BOOK-012 diagnostic prerelease
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: windows-x64-diagnostic
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Checkout exact diagnostic source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Resolve and validate diagnostic release metadata
+        id: diagnostic
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(fs.readFileSync('.github/live-validation-bundle.json', 'utf8'));
+          const notes = fs.readFileSync('docs/live-validation/portable-runner-devops-007.md', 'utf8');
+          if (!/^book012-admiralbet-diagnostic-v[1-9][0-9]*$/.test(config.tag)) {
+            throw new Error('Diagnostic tag must match book012-admiralbet-diagnostic-v<N>.');
+          }
+          if (!/^NotifyHandler BOOK-012 ADMIRALBET diagnostic runner v[1-9][0-9]*$/.test(config.title)) {
+            throw new Error('Diagnostic release title is invalid.');
+          }
+          for (const required of [
+            'Diagnostic / non-production',
+            'does **not** change bookmaker matching',
+            'No bookmaker URL is opened by the workflow',
+            'Attach **only** `ExplorerSummary.json`',
+            'not bookmaker feasibility evidence',
+          ]) {
+            if (!notes.includes(required)) throw new Error(`Diagnostic notes missing required statement: ${required}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${config.tag}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `title=${config.title}\n`);
+          NODE
+
+      - name: Download verified artifact from this workflow run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "notifyhandler-book012-admiralbet-$GITHUB_SHA" \
+            --dir diagnostic-download
+          shopt -s nullglob
+          archives=(diagnostic-download/*.zip)
+          hashes=(diagnostic-download/*.zip.sha256)
+          if [ "${#archives[@]}" -ne 1 ] || [ "${#hashes[@]}" -ne 1 ]; then
+            echo 'Expected exactly one diagnostic ZIP and one SHA-256 companion file.' >&2
+            exit 1
+          fi
+
+      - name: Verify downloaded archive checksum
+        shell: bash
+        run: |
+          cd diagnostic-download
+          sha256sum --check *.zip.sha256
+
+      - name: Refuse an existing diagnostic tag or release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.diagnostic.outputs.tag }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; refusing to replace a published diagnostic." >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists; refusing to retarget an existing diagnostic tag." >&2
+            exit 1
+          fi
+
+      - name: Publish durable diagnostic prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.diagnostic.outputs.tag }}
+          TITLE: ${{ steps.diagnostic.outputs.title }}
+        run: |
+          shopt -s nullglob
+          assets=(diagnostic-download/*.zip diagnostic-download/*.zip.sha256)
+          gh release create "$TAG" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "$TITLE" \
+            --notes-file docs/live-validation/portable-runner-devops-007.md
+
+      - name: Verify diagnostic prerelease metadata and assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.diagnostic.outputs.tag }}
+        run: |
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.prerelease')" != 'true' ]; then
+            echo 'Published diagnostic is not marked as a prerelease.' >&2
+            exit 1
+          fi
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.draft')" != 'false' ]; then
+            echo 'Published diagnostic unexpectedly remained a draft.' >&2
+            exit 1
+          fi
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.target_commitish')" != "$GITHUB_SHA" ]; then
+            echo 'Published diagnostic does not target the exact verified source commit.' >&2
+            exit 1
+          fi
+          for asset in diagnostic-download/*.zip diagnostic-download/*.zip.sha256; do
+            name="$(basename "$asset")"
+            if [ -z "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq ".assets[] | select(.name == \"$name\") | .name")" ]; then
+              echo "Published diagnostic is missing asset $name." >&2
+              exit 1
+            fi
+          done
