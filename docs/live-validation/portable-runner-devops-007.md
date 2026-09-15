@@ -73,7 +73,7 @@ Use a normal Windows x64 workstation with a headed desktop session and ordinary 
 7. If BOOK-012 produces a valid result, the wrapper prints the sanitized JSON and writes exactly one operator result file: `ExplorerSummary.json`.
 8. Attach **only** `ExplorerSummary.json` to issue #62 / PR #68 for Bookmaker Automation Engineer interpretation.
 
-If DNS/network/runtime prerequisites fail, retain only the minimal error text needed to diagnose the workstation. Such an environment failure is **not** bookmaker feasibility evidence and must not classify ADMIRALBET as `Blocked`.
+If DNS/network/runtime prerequisites fail, retain only the minimal error text needed to diagnose the workstation. Such an environment failure is not bookmaker feasibility evidence and must not classify ADMIRALBET as `Blocked`.
 
 The existing clean-checkout path remains an alternative:
 
