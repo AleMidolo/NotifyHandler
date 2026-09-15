@@ -27,11 +27,11 @@ Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRA
 
 ## Current status
 
-As of 2026-09-15, Milestones 0–5 are complete for the **local unsigned Windows x64 preview** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified preview packaging with SBOM/checksums/provenance.
+As of 2026-09-15, Milestones 0–5 are complete for the **local unsigned Windows x64 preview/alpha** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified packaging with SBOM/checksums/provenance.
 
-A user-testable alpha delivery track is now active. **#75 DEVOPS-006** will publish the existing verified Windows x64 preview as an easy-to-download GitHub **prerelease**. That alpha is intentionally unsigned and non-production; Windows may show an unsigned-app warning.
+The first user-testable alpha is now published as GitHub prerelease **`v0.0.0-alpha.1`**, built from commit `3327bc29078d0ab036453e1deaff1b7094fd29ee`. It provides a portable Windows x64 ZIP plus checksum and is intentionally **unsigned and non-production**; Windows may show an unsigned-app or SmartScreen warning.
 
-The alpha is for testing the application itself. It must not imply live bookmaker support: no bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope. SISAL and BET365 remain fixture-backed `Testable`; real bookmaker flows may fail safely when deterministic live evidence is unavailable.
+The alpha is for testing the application itself. It does not imply live bookmaker support: no bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope. SISAL and BET365 remain fixture-backed `Testable`; real bookmaker flows may fail safely when deterministic live evidence is unavailable.
 
 The first passive validation phase did not establish a complete safe live mapping for SISAL, BET365, LOTTOMATICA, EPLAY24, or ADMIRALBET. The project therefore added a controlled interactive evidence path rather than guessing selectors or weakening the matching policy.
 
@@ -40,19 +40,17 @@ Two key pieces are complete:
 - **BOOK-012/#61:** controlled non-CI headed-browser explorer for same-origin public navigation and non-transactional market expansion, with no login/auth/CAPTCHA handling, outcome activation, stake entry, or wager submission capability;
 - **DEVOPS-004/#69:** reproducible local-only runner `npm run live:explore:local -- <bookmaker>` with pinned toolchain checks, CI refusal, Chromium setup, and network diagnostics.
 
-The live-support critical path is operational:
+The live-support critical path is now blocked on one external execution prerequisite:
 
-1. **#71 DEVOPS-005** — execute the ADMIRALBET explorer on a qualifying normal development/workstation host that has the repository-pinned Node/npm, outbound DNS/HTTPS, and headed Chromium support;
-2. **#62 BOOK-013** — interpret that real sanitized ADMIRALBET result;
+1. **#71 DEVOPS-005** — execute the ADMIRALBET explorer on a qualifying normal development/workstation host with repository-pinned Node/npm, outbound DNS/HTTPS, and headed Chromium support;
+2. **#62 BOOK-013** — interpret that real sanitized ADMIRALBET result; PR #68 remains pending until the evidence exists;
 3. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist;
 4. **#64 BOOK-015** — revalidate BET365 if still needed;
 5. implement restricted live mappings only for candidates genuinely proven feasible;
 6. **#45 QA-002** — certify the first two bookmakers that become live `Supported`;
 7. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
 
-#71 and #75 are independent: the downloadable alpha can be published while live-bookmaker validation remains blocked by the current execution host.
-
-A runner, DNS, toolchain, or browser-host failure is **not bookmaker evidence** and must not be used to mark a bookmaker `Blocked` or to relax the full-match total-corners target.
+The current autonomous execution container is known not to satisfy #71's pinned runtime/network prerequisites, so repeating the same run there does not constitute progress. A runner, DNS, toolchain, or browser-host failure is **not bookmaker evidence** and must not be used to mark a bookmaker `Blocked` or to relax the full-match total-corners target.
 
 Exploratory validation may navigate public event/market UI but must not activate a betting outcome. Outcome activation and selected-state verification remain later restricted implementation/support gates after all deterministic predicates pass.
 
