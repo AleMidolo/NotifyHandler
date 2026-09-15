@@ -1,0 +1,218 @@
+import { spawn, spawnSync } from "node:child_process";
+import { lookup } from "node:dns/promises";
+import { access, readFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const supportedBookmakers = Object.freeze({
+  admiralbet: "https://www.admiralbet.it",
+  sisal: "https://www.sisal.it",
+  bet365: "https://www.bet365.it",
+});
+
+const ciSignals = Object.freeze([
+  "CI",
+  "GITHUB_ACTIONS",
+  "TF_BUILD",
+  "BUILD_BUILDID",
+  "JENKINS_URL",
+  "BUILDKITE",
+  "CIRCLECI",
+]);
+
+function isTruthyEnvironmentValue(value) {
+  if (value === undefined || value === null) return false;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized !== "" && normalized !== "0" && normalized !== "false" && normalized !== "no";
+}
+
+export function assertNonCiEnvironment(environment = process.env) {
+  const activeSignal = ciSignals.find((name) => isTruthyEnvironmentValue(environment[name]));
+  if (activeSignal !== undefined) {
+    throw new Error(
+      `Live bookmaker exploration is intentionally disabled in CI (${activeSignal} is set). Run it from a normal local/development environment.`,
+    );
+  }
+}
+
+export function parseRunnerBookmaker(args) {
+  if (args.length !== 1 || !(args[0] in supportedBookmakers)) {
+    throw new Error("Usage: npm run live:explore:local -- admiralbet|sisal|bet365");
+  }
+  return args[0];
+}
+
+export function assertExactVersion(name, actual, expected) {
+  const normalizedActual = String(actual).trim().replace(/^v/, "");
+  const normalizedExpected = String(expected).trim().replace(/^v/, "");
+  if (normalizedActual !== normalizedExpected) {
+    throw new Error(`${name} ${normalizedExpected} is required; found ${normalizedActual || "unknown"}.`);
+  }
+}
+
+export function originForBookmaker(bookmaker) {
+  const origin = supportedBookmakers[bookmaker];
+  if (origin === undefined) throw new Error(`Unsupported bookmaker: ${bookmaker}`);
+  return origin;
+}
+
+async function readJson(path) {
+  return JSON.parse(await readFile(path, "utf8"));
+}
+
+async function loadPinnedVersions() {
+  const [nodeVersion, rootPackage, automationPackage] = await Promise.all([
+    readFile(join(root, ".nvmrc"), "utf8"),
+    readJson(join(root, "package.json")),
+    readJson(join(root, "packages", "automation", "package.json")),
+  ]);
+  const npmVersion = String(rootPackage.packageManager ?? "").replace(/^npm@/, "");
+  const playwrightVersion = automationPackage.dependencies?.["playwright-core"];
+  if (!npmVersion || typeof playwrightVersion !== "string") {
+    throw new Error("Repository toolchain pins are incomplete.");
+  }
+  return {
+    node: nodeVersion.trim(),
+    npm: npmVersion,
+    playwright: playwrightVersion,
+  };
+}
+
+function installedNpmVersion() {
+  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+  const result = spawnSync(npmCommand, ["--version"], {
+    cwd: root,
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  if (result.error) throw new Error(`Unable to execute npm: ${result.error.message}`);
+  if (result.status !== 0) throw new Error("Unable to determine the installed npm version.");
+  return result.stdout.trim();
+}
+
+async function assertLockedPlaywrightInstalled(expectedVersion) {
+  const packagePath = join(root, "node_modules", "playwright-core", "package.json");
+  let installed;
+  try {
+    installed = await readJson(packagePath);
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+      throw new Error("Locked dependencies are not installed. Run `npm ci --ignore-scripts` first.");
+    }
+    throw error;
+  }
+  assertExactVersion("playwright-core", installed.version, expectedVersion);
+}
+
+function runPrerequisiteCommand(command, args) {
+  return new Promise((resolveCommand, rejectCommand) => {
+    const child = spawn(command, args, {
+      cwd: root,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    });
+    child.stdout.on("data", (chunk) => process.stderr.write(chunk));
+    child.stderr.on("data", (chunk) => process.stderr.write(chunk));
+    child.once("error", rejectCommand);
+    child.once("close", (code) => {
+      if (code === 0) resolveCommand();
+      else rejectCommand(new Error(`Prerequisite command exited with code ${code ?? "unknown"}.`));
+    });
+  });
+}
+
+async function ensurePinnedChromiumInstalled() {
+  const playwrightModule = await import("playwright-core");
+  const executable = playwrightModule.chromium.executablePath();
+  try {
+    await access(executable);
+    return;
+  } catch {
+    process.stderr.write("Pinned Playwright Chromium is missing; installing the lockfile-selected browser revision.\n");
+  }
+
+  await runPrerequisiteCommand(process.execPath, [
+    join(root, "node_modules", "playwright-core", "cli.js"),
+    "install",
+    "chromium",
+  ]);
+
+  try {
+    await access(playwrightModule.chromium.executablePath());
+  } catch {
+    throw new Error("Pinned Chromium installation completed without producing the expected executable.");
+  }
+}
+
+async function assertNetworkPrerequisite(bookmaker) {
+  const hostname = new URL(originForBookmaker(bookmaker)).hostname;
+  try {
+    await lookup(hostname);
+  } catch {
+    throw new Error(
+      `Network prerequisite failed: DNS could not resolve ${hostname}. Run from a local/development environment with outbound DNS and HTTPS access.`,
+    );
+  }
+}
+
+async function runExplorer(bookmaker) {
+  const explorerPath = join(
+    root,
+    "packages",
+    "automation",
+    "src",
+    "live-validation",
+    "interactive-explorer.ts",
+  );
+  return new Promise((resolveExplorer, rejectExplorer) => {
+    const child = spawn(process.execPath, ["--experimental-strip-types", explorerPath], {
+      cwd: root,
+      env: {
+        ...process.env,
+        NH_LIVE_EXPLORER_BOOKMAKER: bookmaker,
+      },
+      stdio: ["inherit", "inherit", "inherit"],
+      windowsHide: true,
+    });
+    child.once("error", rejectExplorer);
+    child.once("close", (code, signal) => {
+      if (signal !== null) {
+        rejectExplorer(new Error(`Interactive explorer terminated by signal ${signal}.`));
+        return;
+      }
+      resolveExplorer(code ?? 1);
+    });
+  });
+}
+
+export async function runLocalLiveExplorer(bookmaker, options = {}) {
+  const environment = options.environment ?? process.env;
+  assertNonCiEnvironment(environment);
+
+  const pinned = await loadPinnedVersions();
+  assertExactVersion("Node.js", process.version, pinned.node);
+  assertExactVersion("npm", installedNpmVersion(), pinned.npm);
+  await assertLockedPlaywrightInstalled(pinned.playwright);
+  await ensurePinnedChromiumInstalled();
+  await assertNetworkPrerequisite(bookmaker);
+
+  return runExplorer(bookmaker);
+}
+
+async function main() {
+  const bookmaker = parseRunnerBookmaker(process.argv.slice(2));
+  const exitCode = await runLocalLiveExplorer(bookmaker);
+  process.exitCode = exitCode;
+}
+
+const invokedAsScript =
+  process.argv[1] !== undefined && pathToFileURL(resolve(process.argv[1])).href === import.meta.url;
+if (invokedAsScript) {
+  void main().catch((error) => {
+    const message = error instanceof Error ? error.message : "Unknown local live-explorer runner failure.";
+    process.stderr.write(`NotifyHandler live explorer runner failed safely: ${message}\n`);
+    process.exitCode = 1;
+  });
+}
