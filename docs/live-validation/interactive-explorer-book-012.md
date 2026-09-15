@@ -42,13 +42,15 @@ The explorer always launches **headed Chromium** with a fresh ephemeral context,
 
 ## Default-deny interaction policy
 
-Every candidate control is classified before interaction and revalidated immediately before the click. Unknown or ambiguous controls are denied.
+Every candidate control is classified before interaction and revalidated immediately before the action. Unknown or ambiguous controls are denied.
 
 Allowed classes are limited to:
 
 - same-origin links whose label/path positively identifies public sports, competition, event, match, or pre-match navigation;
-- non-transactional market/navigation tabs;
-- public accordions, summaries, expanders, market-category controls, and similar disclosure controls with explicit structural or semantic evidence.
+- non-transactional market/navigation tabs whose visible label is itself explicitly market/navigation relevant;
+- public accordions, summaries, expanders, market-category controls, and similar disclosure controls only when both structural evidence and an explicitly relevant visible label are present.
+
+A structural role alone is never enough: a generic `role="tab"`, `<summary>`, `aria-expanded`, or `aria-controls` element is denied unless its label also positively identifies an allowed market/navigation concept. This prevents outcome-like labels, participant names, and other ambiguous structural controls from being clicked merely because they use a tab/disclosure role.
 
 Controls are denied when they look like:
 
@@ -60,6 +62,14 @@ Controls are denied when they look like:
 - navigation outside the exact approved origin.
 
 The classifier does not use fuzzy scoring to turn an ambiguous control into an allowed one.
+
+## Navigation versus expansion execution
+
+Validated public navigation and expansion are intentionally executed differently.
+
+For `NAVIGATION`, the explorer does **not** click the bookmaker-controlled anchor. After immediate revalidation it resolves the fresh href, verifies the exact approved origin again, and performs direct browser navigation with `page.goto()`. This avoids executing page-defined anchor click handlers that could mutate betslip or selection state before navigation.
+
+For `EXPANSION`, the explorer may click only the narrowly qualified disclosure/tab/market-expansion control that passed the default-deny classifier and immediate revalidation. Outcome/odds controls remain forbidden even when visually or structurally similar to expansion controls.
 
 ## Browser/network boundary
 
@@ -123,10 +133,12 @@ Repository tests cover:
 
 - same-origin relevant navigation allowed;
 - cross-origin, HTTP, and credential-bearing navigation denied;
-- explicit market expansion allowed;
+- relevant market expansion allowed;
+- structurally clickable but semantically ambiguous tabs/summaries denied;
 - outcome/odds controls denied, including clickable/tabpanel-shaped examples;
 - auth/transaction/consent controls denied;
 - ambiguous controls denied by default;
+- safe navigation executed directly with `page.goto()` rather than a page-controlled anchor click;
 - unsafe configuration rejected before Chromium launch;
 - source-level absence of credential/form/storage/screenshot/trace/arbitrary-evaluation capabilities;
 - headed mode, fixed interaction budget, minimum delay, navigation policy, internal-host blocking, and non-authorizing output.
