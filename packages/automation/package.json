@@ -10,6 +10,7 @@
     "live:probe:bet365": "node --experimental-strip-types src/live-validation/bet365-public-probe.ts",
     "live:probe:lottomatica": "node --experimental-strip-types src/live-validation/lottomatica-public-probe.ts",
     "live:probe:eplay24": "node --experimental-strip-types src/live-validation/eplay24-public-probe.ts",
+    "live:probe:admiralbet": "node --experimental-strip-types src/live-validation/admiralbet-public-probe.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
