@@ -4,7 +4,9 @@ Priority levels: **P0** blocks the current product milestone or protects correct
 
 ## Current product status
 
-The automatic local desktop MVP is complete for the **unsigned Windows x64 preview channel**. Deterministic parsing, automatic first-recommendation resolution, automatic two-leg orchestration, independent leg state/recovery, isolated Playwright/Chromium execution, fixture-backed SISAL/BET365 adapters, security regressions, reproducible CI, and preview packaging are implemented.
+The automatic local desktop MVP is complete for the **unsigned Windows x64 preview/alpha channel**. Deterministic parsing, automatic first-recommendation resolution, automatic two-leg orchestration, independent leg state/recovery, isolated Playwright/Chromium execution, fixture-backed SISAL/BET365 adapters, security regressions, reproducible CI, and preview packaging are implemented.
+
+The first downloadable user alpha is now published as GitHub prerelease **`v0.0.0-alpha.1`**, built from source commit `3327bc29078d0ab036453e1deaff1b7094fd29ee`. The release contains the portable Windows x64 ZIP and companion SHA-256 checksum. It is unsigned, non-production, and does not imply live bookmaker support.
 
 The product is **not production-ready**. No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope.
 
@@ -12,32 +14,15 @@ The controlled interactive explorer (**#61**) and reproducible local runner (**#
 
 **Product rule:** runner, DNS, browser-host, or toolchain failure is not bookmaker feasibility evidence. It must not classify a bookmaker `Blocked` or relax matching.
 
-## Ready now — parallel P0 tracks
+## Ready now
 
-### P0 — DEVOPS-005 / #71: Execute ADMIRALBET interactive validation on a qualifying local host
+### P0 — DEVOPS-005 / #71: Execute ADMIRALBET interactive validation on a qualifying external host
 Owner: Release / DevOps Engineer
 Milestone: 6 — Evidence-backed live bookmaker readiness
 
 Run `npm run live:explore:local -- admiralbet` from a qualifying non-CI workstation/development host with repository-pinned Node/npm, normal outbound DNS/HTTPS, and headed Chromium support. Preserve BOOK-012 restrictions and retain only sanitized `ExplorerSummary` evidence. Environment failure is not bookmaker evidence.
 
-### P0 — DEVOPS-006 / #75: Publish downloadable unsigned Windows alpha prerelease
-Owner: Release / DevOps Engineer
-Milestone: 5/6 bridge — user-testable alpha preview
-Depends on: PRODUCT-007 / #74
-
-Publish the already-proven Windows x64 preview as an easy-to-download GitHub **prerelease** so the user can try the application without relying on an expiring Actions artifact.
-
-Acceptance summary:
-- use the existing verified desktop release pipeline on an exact current `main` revision;
-- retain repository checks, dependency audit, deterministic browser/desktop suites, packaged smoke, sensitive-content verification, SBOM, checksums, and provenance;
-- publish a portable Windows x64 ZIP in a durable GitHub prerelease location;
-- label it prominently **unsigned alpha / non-production**;
-- state that no bookmaker is currently live `Supported`; SISAL/BET365 remain fixture-backed `Testable` unless the support docs change before publication;
-- state that real bookmaker flows may fail safely;
-- provide checksum verification/extract/run instructions and warn that Windows may show an unsigned-app warning;
-- do not weaken live-support qualification, signing, authentication, or transaction boundaries.
-
-#71 and #75 are independent and may proceed in parallel.
+The current autonomous execution container has repeatedly demonstrated that it does **not** qualify for this task. Re-running #71 in the same container is not progress. The next meaningful execution must occur on a qualifying external workstation/development host.
 
 ## Next in Milestone 6
 
@@ -46,6 +31,8 @@ Owner: Bookmaker Automation Engineer
 Depends on: actual sanitized qualifying-host result from #71
 
 Interpret the real BOOK-012 result. If the full total-corners pre-activation chain is deterministic, create a separate live-mapping implementation issue. If evidence is genuinely insufficient after a qualifying run, keep ADMIRALBET `Blocked` and document the exact missing dimensions.
+
+Open PR #68 remains pending until that real #71 result exists.
 
 ### P1 — BOOK-014 / #63: Revalidate SISAL interactively
 Owner: Bookmaker Automation Engineer
@@ -83,8 +70,10 @@ The unsigned alpha channel is not a substitute for this production gate.
 - #61 / BOOK-012 — controlled interactive headed-browser explorer: complete/merged.
 - #69 / DEVOPS-004 — reproducible non-CI local explorer runner: complete/merged.
 - #72 / PRODUCT-006 — qualifying-host blocker/routing reconciliation: complete.
+- #74 / PRODUCT-007 — downloadable unsigned alpha channel definition: complete.
+- #75 / DEVOPS-006 — `v0.0.0-alpha.1` Windows x64 GitHub prerelease publication: complete.
 
-All Milestones 0–5 implementation work remains complete for the unsigned local-preview channel.
+All Milestones 0–5 implementation work remains complete for the unsigned local-preview/alpha channel.
 
 ## Later expansion
 
