@@ -235,10 +235,7 @@ export function classifyPublicControl(descriptor: PublicControlDescriptor): Publ
     descriptor.ariaControls !== undefined;
   const explicitlyRelevant = EXPANSION_RELEVANCE.test(text);
 
-  if (!structuralExpansion && !explicitlyRelevant) {
-    return { kind: "DENY", reasonCode: "AMBIGUOUS_CONTROL" };
-  }
-  if (!explicitlyRelevant && descriptor.tag !== "summary" && descriptor.tag !== "role-tab") {
+  if (!structuralExpansion || !explicitlyRelevant) {
     return { kind: "DENY", reasonCode: "AMBIGUOUS_CONTROL" };
   }
 
@@ -439,7 +436,11 @@ function chooseNextControl(
 }
 
 async function revalidateBeforeInteraction(record: InternalControlRecord): Promise<
-  | Readonly<{ kind: "ALLOW"; decision: Extract<PublicControlDecision, { kind: "ALLOW" }> }>
+  | Readonly<{
+      kind: "ALLOW";
+      decision: Extract<PublicControlDecision, { kind: "ALLOW" }>;
+      descriptor: PublicControlDescriptor;
+    }>
   | Readonly<{ kind: "DENY" }>
 > {
   if (!(await record.locator.isVisible().catch(() => false))) return { kind: "DENY" };
@@ -452,7 +453,7 @@ async function revalidateBeforeInteraction(record: InternalControlRecord): Promi
   if (fingerprintControl(freshDescriptor) !== record.fingerprint) return { kind: "DENY" };
   const freshDecision = classifyPublicControl(freshDescriptor);
   return freshDecision.kind === "ALLOW"
-    ? { kind: "ALLOW", decision: freshDecision }
+    ? { kind: "ALLOW", decision: freshDecision, descriptor: freshDescriptor }
     : { kind: "DENY" };
 }
 
@@ -602,14 +603,25 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
       if (revalidated.kind !== "ALLOW") continue;
 
       const beforePath = sanitizePath(page.url(), target.origin);
-      await next.locator.click({ timeout: 5_000 });
+      if (revalidated.decision.interaction === "NAVIGATION") {
+        const href = revalidated.descriptor.href;
+        if (href === undefined) continue;
+        const destination = new URL(href, page.url());
+        if (!navigationPolicy.isAllowed(destination.href) || destination.origin !== target.origin) {
+          routeBlockReason = "UNAPPROVED_NAVIGATION";
+          continue;
+        }
+        await page.goto(destination.href, { waitUntil: "domcontentloaded", timeout: 20_000 });
+      } else {
+        await next.locator.click({ timeout: 5_000 });
+      }
       await page.waitForTimeout(delayMs);
       await page.waitForLoadState("domcontentloaded", { timeout: 3_000 }).catch(() => undefined);
       const afterPath = sanitizePath(page.url(), target.origin);
       actions.push({
         sequence: actions.length + 1,
         interaction: revalidated.decision.interaction,
-        label: next.descriptor.label,
+        label: revalidated.descriptor.label,
         beforePath,
         afterPath,
       });
