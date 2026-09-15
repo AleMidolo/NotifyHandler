@@ -6,22 +6,24 @@ Priority levels: **P0** blocks the current product milestone or protects correct
 
 The automatic local desktop MVP is complete for the **unsigned Windows x64 preview channel**. Deterministic parsing, automatic first-recommendation resolution, automatic two-leg orchestration, independent leg state/recovery, isolated Playwright/Chromium execution, fixture-backed SISAL/BET365 adapters, security regressions, reproducible CI, and preview packaging are implemented.
 
-The product is **not production-ready**. The passive live-validation phase is now exhausted:
+The product is **not production-ready**. No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope.
 
+The passive validation phase is exhausted:
 - SISAL — live `Blocked`; fixture-backed `Testable`.
 - BET365 — live `Blocked`; fixture-backed `Testable`.
 - LOTTOMATICA — `Blocked (feasibility)`.
 - EPLAY24 — `Blocked (feasibility)`.
-- ADMIRALBET — `Blocked (feasibility)` under the passive probe despite richer public event/generic-market/line/odds visibility.
+- ADMIRALBET — `Blocked (feasibility)` under the earlier passive probe.
 
-Across the candidate pool, the common limitation was inability to establish the complete deterministic selector-level chain for the target pre-match football full-match total-corners market using passive top-level inspection. The next step is to improve evidence collection through **controlled interactive public navigation**, not to weaken matching, bypass controls, or silently change the target market.
+The controlled interactive explorer (**BOOK-012/#61**) is now implemented and merged. The reproducible local-only runner (**DEVOPS-004/#69**) is also implemented and merged. The remaining immediate blocker is environmental: the autonomous container cannot satisfy the repository-pinned Node/npm runtime and cannot resolve `www.admiralbet.it`.
+
+**Product rule:** runner, DNS, browser-host, or toolchain failure is not bookmaker feasibility evidence. It must not be used to classify a bookmaker `Blocked`, must not relax the matching policy, and must not trigger a market-scope downgrade.
 
 ## Product decision for Milestone 6
 
-Keep **pre-match football full-match total-corners over/under** as the current live-support target. Generic goal U/O, 1X2, live corner statistics, next-corner products, and editorial references do not satisfy the representative product use case.
+Keep **pre-match football full-match total-corners over/under** as the live-support target.
 
-Split live-readiness into three distinct stages:
-
+Live readiness remains split into three stages:
 1. controlled interactive evidence gathering;
 2. restricted adapter/worker implementation for candidates proven feasible;
 3. QA certification of the first two genuinely live-supported bookmakers.
@@ -29,56 +31,51 @@ Split live-readiness into three distinct stages:
 Exploratory feasibility requires a deterministic pre-activation chain:
 `event → competition/time context → full-match total-corners market → exact numeric line → requested side → displayed odds`.
 
-Selected-state verification is a later implementation/support gate and must occur only through the existing restricted production selection capability after all deterministic predicates pass.
+Selected-state verification remains a later implementation/support gate through the existing restricted production selection capability.
 
 ## Ready now
 
-### P0 — BOOK-012 / #61: Build controlled interactive live-validation explorer
-Owner: Bookmaker Automation Engineer
+### P0 — DEVOPS-005 / #71: Execute ADMIRALBET interactive validation on a qualifying local host
+Owner: Release / DevOps Engineer
 Milestone: 6 — Evidence-backed live bookmaker readiness
+Depends on: completed #61 and #69
 
-Replace the passive-only discovery limitation with a non-CI headed-browser explorer that can follow normal public same-origin navigation and expand non-transactional market UI.
+Run the existing command from a normal non-CI workstation/development environment that satisfies the repository pins, outbound DNS/HTTPS, and headed Chromium requirements:
+
+`npm run live:explore:local -- admiralbet`
 
 Acceptance summary:
-- preserve exact approved-origin, redirect, URL-userinfo, and private/internal destination protections;
-- allow only explicitly non-transactional public navigation/expansion such as event links, tabs, accordions, filters, market categories, scrolling, and lazy-load waits;
-- default-deny and reject login/auth/CAPTCHA controls, outcome/odds controls that add a selection, betslip/stake/submit/payment controls, and any access-control bypass behavior;
-- use bounded interaction/rate budgets and stop on anti-bot, login, geo, or access denial rather than retrying around them;
-- emit only sanitized structural evidence, never credentials, cookies/storage, authenticated captures, full HTML, user/session data, stakes, or wager actions;
-- add boundary regressions proving forbidden controls cannot be interacted with;
-- keep repository/browser/security tests green.
+- use a clean current `main` checkout and repository-pinned Node/npm;
+- preserve BOOK-012 interaction/capability restrictions unchanged;
+- do not add proxy/bypass/auth/session-capture behavior merely to make the run succeed;
+- retain only sanitized `ExplorerSummary` JSON and minimal non-sensitive prerequisite diagnostics;
+- attach/record the result for BOOK-013/#62 and PR #68;
+- environment failure remains an environment result, not bookmaker evidence.
 
 ## Next in Milestone 6
 
 ### P0 — BOOK-013 / #62: Revalidate ADMIRALBET interactively
 Owner: Bookmaker Automation Engineer
-Depends on: #61
+Depends on: an actual sanitized qualifying-host result from #71
 
-Revalidate ADMIRALBET first because its passive run exposed the richest public event, generic market, line, and odds structure. If the full total-corners pre-activation chain becomes deterministic, create a separate implementation issue; otherwise keep it blocked with explicit missing dimensions.
+Interpret the real BOOK-012 explorer result. If the full total-corners pre-activation chain is deterministic, create a separate ADMIRALBET live-mapping implementation issue. If evidence is genuinely insufficient after a qualifying run, keep ADMIRALBET `Blocked` and document the exact missing dimensions.
 
 ### P1 — BOOK-014 / #63: Revalidate SISAL interactively
 Owner: Bookmaker Automation Engineer
-Depends on: #61; execute if fewer than two feasible candidates exist after #62
+Depends on: #61; execute only if fewer than two feasible candidates exist after #62
 
-SISAL has an existing fixture-backed adapter and public corner-product documentation. Use the interactive explorer to determine whether normal public event/market navigation exposes a deterministic total-corners chain. If feasible, create a live-mapping implementation issue that reuses the current adapter.
+Use the interactive explorer to determine whether normal public event/market navigation exposes a deterministic total-corners chain. If feasible, create a live-mapping implementation issue that reuses the current fixture-backed adapter.
 
 ### P1 — BOOK-015 / #64: Revalidate BET365 interactively
 Owner: Bookmaker Automation Engineer
-Depends on: #61; execute if fewer than two feasible candidates exist after #62/#63
+Depends on: #61; execute only if fewer than two feasible candidates exist after #62/#63
 
-BET365 also has an existing fixture-backed adapter and public event/pricing visibility. Revalidate the total-corners path through normal public market navigation and create a live-mapping implementation issue only if deterministic evidence is sufficient.
+Revalidate through normal public market navigation and create a live-mapping implementation issue only if deterministic evidence is sufficient.
 
 ### Implementation issues for feasible candidates
 Owner: Bookmaker Automation Engineer
 
-A candidate marked `Feasible for implementation` still needs a separately reviewable restricted adapter/worker live-mapping change with:
-- deterministic sanitized fixtures learned from permitted live structure;
-- exact event/competition/time/market/line/side/odds gates;
-- origin, redirect, auth, odds-change, cancellation, freshness, and stale-attempt protection;
-- selected-state verification through the authorized selection gate;
-- no credential/MFA/CAPTCHA/stake/submit capability.
-
-Feasibility alone never changes status to `Supported`.
+A candidate marked `Feasible for implementation` still requires a separately reviewable restricted adapter/worker live-mapping change with deterministic fixtures, exact event/competition/time/market/line/side/odds gates, origin/redirect/auth/odds/cancellation/freshness protections, and selected-state verification. Feasibility alone never changes status to `Supported`.
 
 ### P1 — QA-002 / #45: Certify the first evidence-backed live-supported bookmaker pair
 Owner: QA / Integration Engineer
@@ -93,7 +90,7 @@ Owner: Release / DevOps Engineer
 Milestone: 7 — Production release readiness
 Depends on: #45 passing and at least two release-scope bookmakers remaining live `Supported`
 
-The unsigned preview pipeline is healthy, but production signing/release must not proceed as a publication path until Milestone 6 succeeds. Lack of supported bookmakers or an approved signing identity is a release blocker, not a reason to relax gates.
+The unsigned preview pipeline is healthy, but production signing/publication must not proceed until Milestone 6 succeeds.
 
 ## Completed / historical live-validation work
 
@@ -102,24 +99,21 @@ The unsigned preview pipeline is healthy, but production signing/release must no
 - #52 / BOOK-009 — LOTTOMATICA passive feasibility: `Blocked`.
 - #53 / BOOK-010 — EPLAY24 passive feasibility: `Blocked`.
 - #54 / BOOK-011 — ADMIRALBET passive feasibility: `Blocked`.
+- #61 / BOOK-012 — controlled interactive headed-browser explorer: complete/merged.
+- #69 / DEVOPS-004 — reproducible non-CI local explorer runner: complete/merged.
 - #51 / PRODUCT-004 — feasibility-first re-plan after SISAL/BET365 blockers.
-- #60 / PRODUCT-005 — re-plan after the passive candidate pool was exhausted.
+- #60 / PRODUCT-005 — interactive-evidence re-plan after passive candidate exhaustion.
 
 All Milestones 0–5 implementation work remains complete for the unsigned local-preview channel.
 
 ## Later expansion
 
 After a live-supported pair and production-release path are stable:
-
-### P2 — Additional bookmaker adapters
-Owner: Bookmaker Automation Engineer
-
-Continue adding evidence-backed bookmakers incrementally using the same feasibility/support distinction. Do not equate a reachable page or fixture-backed adapter with live support.
-
-### P2 — Additional notification transports
-Owner: Application Engineer / Notification & Domain Engineer
-
-Add Telegram, HTTP/webhook, clipboard monitoring, or other ingestion adapters without coupling transport code to parsing/domain logic. Every transport must feed the existing deterministic automatic-start path.
+- additional evidence-backed bookmakers;
+- Telegram ingestion;
+- HTTP/webhook or clipboard/application ingestion;
+- richer notification provenance and observability;
+- macOS/Linux packaging after platform-specific distribution review.
 
 ## Product constraints applying to every backlog item
 
