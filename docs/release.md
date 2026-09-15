@@ -7,11 +7,12 @@ This document defines the current NotifyHandler desktop artifact policy. It appl
 | Channel | Platform | Architecture | Format | Signing | Status |
 | --- | --- | --- | --- | --- | --- |
 | CI preview | Windows | x64 | portable ZIP | unsigned | supported for release-readiness testing |
+| Alpha prerelease | Windows | x64 | portable ZIP | unsigned | user-testable, non-production |
 | Production | Windows | x64 | TBD signed distribution | required | not yet release-ready |
 | Preview/production | macOS | arm64/x64 | TBD | notarization/signing required | deferred |
 | Preview/production | Linux | x64 | TBD | platform packaging review required | deferred |
 
-The first preview target is intentionally Windows x64. Linux packaging is deferred because preserving Chromium/Electron sandbox behavior in a redistributable archive needs a reviewed installation model rather than a CI-only setuid workaround. macOS is deferred until signing/notarization can be designed and tested.
+The first preview/alpha target is intentionally Windows x64. Linux packaging is deferred because preserving Chromium/Electron sandbox behavior in a redistributable archive needs a reviewed installation model rather than a CI-only setuid workaround. macOS is deferred until signing/notarization can be designed and tested.
 
 ## Artifact naming and versioning
 
@@ -21,9 +22,9 @@ Bundle/archive format:
 
 `notifyhandler-v<version>-<12-char-commit>-win32-x64.zip`
 
-A tagged production candidate must use a `v<version>` tag that exactly matches `package.json`. DEVOPS-002 does not create or publish a production release.
+A public alpha must be published as a GitHub **prerelease**, using a SemVer prerelease tag derived from the package version (for example `v<version>-alpha.<N>`). A future production tag must remain `v<version>` and must satisfy the production signing/live-support gates below. Alpha publication must never consume or masquerade as the production tag.
 
-Each preview archive contains:
+Each preview/alpha archive contains:
 
 - the packaged Electron application and static renderer/preload;
 - worker/application/domain/bookmaker runtime bundled as privileged main-process JavaScript;
@@ -34,7 +35,7 @@ Each preview archive contains:
 - `SHA256SUMS.txt` covering packaged files;
 - `PREVIEW-README.txt` identifying the bundle as unsigned and non-production.
 
-The CI workflow also emits a SHA-256 file for the final ZIP. Non-PR workflow runs can attach GitHub artifact provenance to the ZIP.
+The release workflow also emits a SHA-256 file for the final ZIP. Non-PR workflow runs can attach GitHub artifact provenance to the ZIP.
 
 ## Why two Chromium payloads exist
 
@@ -42,18 +43,30 @@ Electron contains Chromium for the application renderer. NotifyHandler does **no
 
 Reusing Electron's renderer Chromium, attaching to an arbitrary user Chrome profile, or embedding bookmaker pages in a webview would weaken that boundary. The duplicate browser payload is therefore currently intentional. It can only be removed by a later reviewed architecture change that preserves browser/session isolation and deterministic Playwright support.
 
-## Preview distribution
+## Preview and alpha distribution
 
-Preview artifacts are produced by `.github/workflows/desktop-release.yml` from a clean checkout. They are retained as GitHub Actions artifacts for a limited period and are not advertised as production releases.
+CI preview artifacts are produced by `.github/workflows/desktop-release.yml` from a clean checkout and retained as GitHub Actions artifacts for a limited period.
 
-Preview installation is portable:
+The **alpha prerelease** channel exists so a user can download and try the proven desktop application without relying on an expiring Actions artifact. Alpha publication is allowed only when the exact artifact has passed the existing preview quality, browser, packaging, sensitive-content, checksum, SBOM, provenance, and packaged-smoke gates.
 
-1. download the ZIP and companion `.sha256` file from the successful workflow run;
+An alpha prerelease must prominently state all of the following:
+
+- it is an **unsigned Windows x64 alpha** and Windows may show an unsigned-app warning;
+- it is for application testing, not a production release;
+- no bookmaker is currently live `Supported` unless `docs/bookmaker-support.md` explicitly says otherwise at that revision;
+- fixture-backed `Testable` adapters do not imply reliable operation against the live bookmaker site;
+- real bookmaker navigation may fail safely when deterministic evidence is unavailable;
+- authentication, stake entry, review, and final wager submission remain manual;
+- the alpha must not be represented as suitable for unattended or real-money operation.
+
+Portable installation:
+
+1. download the alpha ZIP and companion SHA-256 information from the GitHub prerelease;
 2. verify the ZIP SHA-256;
 3. extract to a new directory;
 4. run `NotifyHandler.exe` from the extracted directory.
 
-Windows may display an unsigned-application warning. That is expected for the preview channel and must not be hidden or represented as a signed production experience.
+The alpha channel does **not** weaken Milestone 6 live-bookmaker qualification and does **not** satisfy Milestone 7 production signing requirements.
 
 ## Signing and production requirements
 
@@ -72,10 +85,10 @@ macOS distribution additionally requires a reviewed signing/notarization process
 
 ## Update and rollback policy
 
-NotifyHandler currently has **no automatic updater**. Preview and initial production candidates use explicit artifact replacement:
+NotifyHandler currently has **no automatic updater**. Preview, alpha, and initial production candidates use explicit artifact replacement:
 
 1. close NotifyHandler and all application-owned bookmaker browser sessions;
-2. verify the replacement artifact checksum/signature;
+2. verify the replacement artifact checksum/signature as appropriate for the channel;
 3. extract/install the replacement as a new versioned directory rather than overwriting an active process;
 4. launch and complete the safe no-notification smoke check before normal use;
 5. retain the prior verified artifact long enough to support rollback.
@@ -98,7 +111,7 @@ Release artifacts must not contain:
 
 ## Release checklist
 
-Before promoting any artifact beyond CI preview, verify all of the following on the exact source revision:
+Before publishing an alpha or promoting any artifact beyond CI preview, verify all of the following on the exact source revision:
 
 - [ ] `npm ci --ignore-scripts` succeeds from the committed lockfile.
 - [ ] Electron and Playwright Chromium are installed only from pinned/locked release inputs.
@@ -106,13 +119,13 @@ Before promoting any artifact beyond CI preview, verify all of the following on 
 - [ ] Production dependency audit passes at the repository-defined severity threshold.
 - [ ] Automation and desktop deterministic Chromium E2E suites pass.
 - [ ] Security/transaction-boundary tests pass.
-- [ ] Supported bookmaker adapters pass their contract suites.
+- [ ] Supported/testable bookmaker adapters pass their applicable contract suites.
 - [ ] Packaged bundle verification passes and no sensitive artifacts are present.
 - [ ] Packaged no-notification application smoke reaches renderer-ready state and exits cleanly.
 - [ ] CycloneDX SBOM is generated.
 - [ ] Per-file and archive SHA-256 records are generated.
-- [ ] Build provenance is recorded for release candidates.
-- [ ] Supported bookmakers/markets and known failure behavior are documented.
+- [ ] Build provenance is recorded.
+- [ ] Alpha notes distinguish `Testable`/preview behavior from live `Supported` behavior.
 - [ ] Authentication, stake entry, review, and final wager submission remain manual.
-- [ ] Signing/notarization requirements for the target channel are satisfied; unsigned artifacts are never presented as production releases.
+- [ ] Signing requirements match the target channel; unsigned alpha artifacts are never presented as production releases.
 - [ ] The previous verified artifact remains available for rollback.

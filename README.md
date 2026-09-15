@@ -29,16 +29,18 @@ Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRA
 
 As of 2026-09-15, Milestones 0–5 are complete for the **local unsigned Windows x64 preview** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified preview packaging with SBOM/checksums/provenance.
 
-This is not yet a production release and no bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope.
+A user-testable alpha delivery track is now active. **#75 DEVOPS-006** will publish the existing verified Windows x64 preview as an easy-to-download GitHub **prerelease**. That alpha is intentionally unsigned and non-production; Windows may show an unsigned-app warning.
+
+The alpha is for testing the application itself. It must not imply live bookmaker support: no bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope. SISAL and BET365 remain fixture-backed `Testable`; real bookmaker flows may fail safely when deterministic live evidence is unavailable.
 
 The first passive validation phase did not establish a complete safe live mapping for SISAL, BET365, LOTTOMATICA, EPLAY24, or ADMIRALBET. The project therefore added a controlled interactive evidence path rather than guessing selectors or weakening the matching policy.
 
-Two key pieces are now complete:
+Two key pieces are complete:
 
 - **BOOK-012/#61:** controlled non-CI headed-browser explorer for same-origin public navigation and non-transactional market expansion, with no login/auth/CAPTCHA handling, outcome activation, stake entry, or wager submission capability;
 - **DEVOPS-004/#69:** reproducible local-only runner `npm run live:explore:local -- <bookmaker>` with pinned toolchain checks, CI refusal, Chromium setup, and network diagnostics.
 
-The current critical path is operational rather than architectural:
+The live-support critical path is operational:
 
 1. **#71 DEVOPS-005** — execute the ADMIRALBET explorer on a qualifying normal development/workstation host that has the repository-pinned Node/npm, outbound DNS/HTTPS, and headed Chromium support;
 2. **#62 BOOK-013** — interpret that real sanitized ADMIRALBET result;
@@ -48,11 +50,13 @@ The current critical path is operational rather than architectural:
 6. **#45 QA-002** — certify the first two bookmakers that become live `Supported`;
 7. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
 
+#71 and #75 are independent: the downloadable alpha can be published while live-bookmaker validation remains blocked by the current execution host.
+
 A runner, DNS, toolchain, or browser-host failure is **not bookmaker evidence** and must not be used to mark a bookmaker `Blocked` or to relax the full-match total-corners target.
 
 Exploratory validation may navigate public event/market UI but must not activate a betting outcome. Outcome activation and selected-state verification remain later restricted implementation/support gates after all deterministic predicates pass.
 
-Unsigned preview artifacts must never be represented as production-ready, and a bookmaker must never be called `Supported` merely because a site is reachable or synthetic fixture tests pass.
+Unsigned alpha/preview artifacts must never be represented as production-ready, and a bookmaker must never be called `Supported` merely because a site is reachable or synthetic fixture tests pass.
 
 ## Architecture baseline
 
@@ -88,7 +92,7 @@ Repository documentation and specifications are authoritative. Start with:
 - `docs/adr/0001-local-desktop-playwright-runtime.md` — deployment/runtime architecture decision record;
 - `docs/adr/0002-automatic-primary-option-startup.md` — deterministic primary recommendation and automatic two-leg startup decision;
 - `docs/development.md` — reproducible local setup, CI, browser runtime, diagnostics, and release baseline;
-- `docs/release.md` — preview/production artifact policy, signing gates, checksums/SBOM/provenance, and rollback;
+- `docs/release.md` — CI preview, unsigned alpha prerelease, production artifact policy, signing gates, checksums/SBOM/provenance, and rollback;
 - `docs/workflow.md` — end-to-end user/application workflow;
 - `docs/safety-boundaries.md` — non-negotiable authentication, access, and transaction boundaries;
 - `docs/error-model.md` — interruptions, safe failures, activation disposition, and recovery semantics;

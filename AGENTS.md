@@ -60,13 +60,15 @@ Owns reproducible development setup, CI/CD, browser/runtime dependencies, packag
 - A reachable site, feasibility result, or fixture-backed adapter is not automatically live `Supported`; follow `docs/bookmaker-support.md`.
 - Exploratory validation and production selection are separate capability levels.
 - Runner/toolchain/DNS/browser-host failures are **environment evidence**, not bookmaker evidence. They must not classify a bookmaker `Blocked` or justify weakening scope/matching.
+- An unsigned alpha prerelease may be published for user application testing only when it is explicitly non-production and does not imply live bookmaker support.
 - If a requirement changes, update repository docs/specs first.
 - When work exposes a new blocker or requirement, create/update an issue rather than leaving it only in chat.
 
 ## Current priority order
 
-Milestones 0–5 are complete for the unsigned local-preview MVP. BOOK-012/#61 and DEVOPS-004/#69 are complete. The current Milestone 6 critical path is:
+Milestones 0–5 are complete for the unsigned local-preview MVP. Two P0 tracks may proceed independently:
 
+### Live-readiness track
 1. **#71 DEVOPS-005** — execute the existing ADMIRALBET BOOK-012 explorer on a qualifying non-CI host and return sanitized evidence;
 2. **#62 BOOK-013** — interpret that actual ADMIRALBET result; do not classify from runner failure;
 3. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist;
@@ -75,8 +77,13 @@ Milestones 0–5 are complete for the unsigned local-preview MVP. BOOK-012/#61 a
 6. **#45 QA-002** — qualify the first evidence-backed live-supported pair;
 7. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
 
+### User-alpha track
+- **#75 DEVOPS-006** — publish the already-verified Windows x64 preview as a clearly labeled unsigned GitHub prerelease so the user can try the application without relying on an expiring Actions artifact.
+
+The alpha track must retain all packaging/security gates and state clearly that no bookmaker is currently live `Supported`. It must not be represented as production or as suitable for unattended/real-money operation.
+
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 
 ## Definition of done
 
-A change is done only when its acceptance criteria are met, relevant tests pass, documentation/specs are synchronized, safety boundaries are preserved, and no known blocker remains hidden from the repository. `Feasible`, fixture-backed `Testable`, live `Supported`, and `Blocked` are distinct maturity states. Preview/testable status must never be represented as production/supported status without satisfying the documented gates.
+A change is done only when its acceptance criteria are met, relevant tests pass, documentation/specs are synchronized, safety boundaries are preserved, and no known blocker remains hidden from the repository. `Feasible`, fixture-backed `Testable`, live `Supported`, and `Blocked` are distinct maturity states. Unsigned alpha/preview status must never be represented as production/supported status without satisfying the documented gates.

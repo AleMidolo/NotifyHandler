@@ -3,9 +3,10 @@
 ## Milestone status summary
 
 - **Milestones 0–5: complete for the local-preview MVP.** The repository can build, test, package, and smoke-test an unsigned Windows x64 desktop preview with deterministic synthetic browser coverage.
+- **Alpha delivery track: ready for publication.** #75 will publish the existing verified Windows x64 preview as a clearly labeled unsigned GitHub prerelease so the application can be tried without relying on expiring Actions artifacts.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
 - **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** The interactive explorer and local runner are implemented; the immediate blocker is obtaining a real sanitized live-validation result from a qualifying non-CI host.
-- **Next release milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
+- **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW
 
@@ -18,6 +19,23 @@ Delivered:
 - integration/security coverage and reproducible unsigned Windows x64 preview packaging with SBOM/checksums/provenance.
 
 This maturity is `Testable`/preview, not a live bookmaker support claim.
+
+## Alpha preview delivery — PARALLEL READY TRACK
+
+**Goal:** make the already-proven desktop preview easy for the user to download and try while preserving every production/live-support distinction.
+
+**#75 DEVOPS-006 — P0 parallel:** publish a Windows x64 **unsigned alpha prerelease** from the existing verified desktop release pipeline.
+
+The alpha must:
+- remain explicitly unsigned and non-production;
+- retain repository checks, dependency audit, deterministic browser/desktop tests, packaged smoke, sensitive-content checks, SBOM, checksums, and provenance;
+- state clearly that no bookmaker is currently live `Supported`;
+- describe SISAL/BET365 only as fixture-backed `Testable` unless support status changes before publication;
+- explain that live bookmaker paths may fail safely;
+- preserve manual authentication, stake entry, review, and final wager submission;
+- provide portable Windows run instructions and expected unsigned-app warning behavior.
+
+The alpha track may proceed while #71 is blocked. Publishing an alpha does not satisfy Milestone 6 or Milestone 7.
 
 ## Milestone 6 — Evidence-backed live bookmaker readiness — CURRENT
 
@@ -32,13 +50,13 @@ The initial passive phase produced useful blocker evidence but no supported cand
 - EPLAY24 / #53 — `Blocked (feasibility)`;
 - ADMIRALBET / #54 — `Blocked (feasibility)` under the passive probe.
 
-The controlled interactive phase is now technically enabled:
+The controlled interactive phase is technically enabled:
 - **#61 BOOK-012 — COMPLETE:** non-CI headed-browser explorer with default-deny interaction classification, bounded navigation/expansion, sanitized evidence, and no outcome activation/auth/stake/submit capability.
 - **#69 DEVOPS-004 — COMPLETE:** repository-level local runner `npm run live:explore:local -- <bookmaker>` with pinned toolchain checks, CI refusal, Chromium setup, DNS diagnostics, and deterministic guard tests.
 
 ### Current blocker — qualifying-host execution
 
-**#71 DEVOPS-005 — P0 / ready now**
+**#71 DEVOPS-005 — P0**
 
 The autonomous execution container cannot currently perform the real ADMIRALBET run because its Node/npm versions do not match repository pins and outbound DNS cannot resolve `www.admiralbet.it`.
 
@@ -56,7 +74,7 @@ Only sanitized `ExplorerSummary` JSON plus minimal non-sensitive prerequisite di
 ### Interactive evidence order
 
 1. **#71 DEVOPS-005** — execute ADMIRALBET explorer on a qualifying host.
-2. **#62 BOOK-013** — interpret the actual ADMIRALBET result. `Feasible for implementation` requires the deterministic pre-activation chain; genuine insufficiency after a qualifying run may keep it `Blocked`.
+2. **#62 BOOK-013** — interpret the actual ADMIRALBET result.
 3. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist.
 4. **#64 BOOK-015** — revalidate BET365 if still fewer than two feasible candidates exist.
 
@@ -102,7 +120,7 @@ Exit criteria include:
 - at least two release-scope bookmakers remain live `Supported`;
 - production artifact is Authenticode-signed and publisher identity is verified;
 - exact-tag build/test/audit/browser/security/package/SBOM/checksum/provenance gates pass;
-- unsigned preview artifacts remain clearly separate from production artifacts;
+- unsigned preview/alpha artifacts remain clearly separate from production artifacts;
 - manual authentication, stake entry, review, and final wager submission boundaries remain intact.
 
 ## Later expansion
