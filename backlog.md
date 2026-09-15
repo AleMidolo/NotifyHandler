@@ -10,19 +10,34 @@ The first downloadable user alpha is now published as GitHub prerelease **`v0.0.
 
 The product is **not production-ready**. No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope.
 
-The controlled interactive explorer (**#61**) and reproducible local runner (**#69**) are complete. The remaining live-readiness blocker is environmental: the autonomous container cannot satisfy the pinned runtime/network prerequisites needed for the real ADMIRALBET run.
+The controlled interactive explorer (**#61**) and reproducible local runner (**#69**) are complete. The current autonomous container cannot perform the required real ADMIRALBET run because it lacks the pinned runtime/network prerequisites. Repeating that attempt in the same container is not progress.
 
 **Product rule:** runner, DNS, browser-host, or toolchain failure is not bookmaker feasibility evidence. It must not classify a bookmaker `Blocked` or relax matching.
 
 ## Ready now
 
-### P0 — DEVOPS-005 / #71: Execute ADMIRALBET interactive validation on a qualifying external host
+### P0 — DEVOPS-007 / #81: Package portable Windows BOOK-012 validation runner
 Owner: Release / DevOps Engineer
 Milestone: 6 — Evidence-backed live bookmaker readiness
 
-Run `npm run live:explore:local -- admiralbet` from a qualifying non-CI workstation/development host with repository-pinned Node/npm, normal outbound DNS/HTTPS, and headed Chromium support. Preserve BOOK-012 restrictions and retain only sanitized `ExplorerSummary` evidence. Environment failure is not bookmaker evidence.
+Build and publish a portable Windows x64 diagnostic bundle containing the existing approved BOOK-012 explorer with pinned runtime/browser dependencies. The operator should not need a repository checkout or separately installed Node/npm.
 
-The current autonomous execution container has repeatedly demonstrated that it does **not** qualify for this task. Re-running #71 in the same container is not progress. The next meaningful execution must occur on a qualifying external workstation/development host.
+Acceptance summary:
+- exact-source, reproducible bundle with checksum and concise operator instructions;
+- one-command local ADMIRALBET launcher using the existing hard-coded approved origin and BOOK-012 classifier/safe-stop rules;
+- fresh ephemeral browser context and sanitized `ExplorerSummary` only;
+- no credentials, profiles, cookies/storage capture, screenshots/traces, protected/private API inspection, login/MFA/CAPTCHA handling, outcome activation, stake entry, wager submission, proxies, alternate origins, or access-control bypass;
+- CI may build/test/package/synthetic-smoke the bundle but must **not** contact a bookmaker or execute live validation;
+- repository checks, dependency audit, relevant browser/security tests, bundle verification, and synthetic smoke remain green.
+
+### P0 — DEVOPS-005 / #71: Execute ADMIRALBET validation on a qualifying external host
+Owner: Release / DevOps Engineer
+Milestone: 6 — Evidence-backed live bookmaker readiness
+Depends on: a real external workstation; #81 is the preferred low-friction handoff once complete
+
+After #81 is available, download the portable bundle, verify its checksum, extract it on a normal Windows workstation with outbound DNS/HTTPS and headed desktop support, run the documented ADMIRALBET validation command, and attach only the sanitized `ExplorerSummary` to #62 / PR #68.
+
+A clean checkout with repository-pinned Node/npm and `npm run live:explore:local -- admiralbet` remains an acceptable alternative. Environment failure is not bookmaker evidence.
 
 ## Next in Milestone 6
 
@@ -72,6 +87,8 @@ The unsigned alpha channel is not a substitute for this production gate.
 - #72 / PRODUCT-006 — qualifying-host blocker/routing reconciliation: complete.
 - #74 / PRODUCT-007 — downloadable unsigned alpha channel definition: complete.
 - #75 / DEVOPS-006 — `v0.0.0-alpha.1` Windows x64 GitHub prerelease publication: complete.
+- #78 / PRODUCT-008 — published-alpha/external-host reconciliation: complete.
+- #80 / PRODUCT-009 — portable validation handoff decision and task decomposition: complete once PR/docs merge.
 
 All Milestones 0–5 implementation work remains complete for the unsigned local-preview/alpha channel.
 
@@ -95,6 +112,7 @@ After a live-supported pair and production-release path are stable:
 - Do not bypass authentication, anti-bot measures, access controls, rate limits, or geo restrictions.
 - Do not rely on protected/private bookmaker APIs.
 - Exploratory live validation may navigate/expand public non-transactional UI but must not activate betting outcomes.
+- Live validation against bookmakers must remain non-CI; CI may only package and test synthetic/local behavior.
 - `Feasible`, fixture-backed `Testable`, live `Supported`, and `Blocked` are distinct maturity states.
-- Unsigned alpha/preview artifacts are not production releases.
+- Unsigned alpha/preview artifacts and diagnostic validation bundles are not production releases.
 - Repository docs/specs override stale chat context and superseded closed-issue assumptions.
