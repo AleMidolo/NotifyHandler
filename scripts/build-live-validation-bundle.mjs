@@ -147,6 +147,20 @@ async function buildChecksumLines(files, bundle) {
   return lines;
 }
 
+function resolveChromiumMetadata(browsersMetadata) {
+  const chromium = Array.isArray(browsersMetadata?.browsers)
+    ? browsersMetadata.browsers.find((entry) => entry?.name === "chromium")
+    : undefined;
+  if (
+    chromium === undefined ||
+    typeof chromium.revision !== "string" ||
+    typeof chromium.browserVersion !== "string"
+  ) {
+    throw new Error("Locked playwright-core browsers.json does not define Chromium metadata.");
+  }
+  return { revision: chromium.revision, version: chromium.browserVersion };
+}
+
 export async function buildPortableValidationBundle(options = {}) {
   if (process.platform !== "win32" || process.arch !== "x64") {
     throw new Error("The BOOK-012 portable diagnostic bundle must be built on Windows x64.");
@@ -173,26 +187,19 @@ export async function buildPortableValidationBundle(options = {}) {
   }
   assertExactVersion("Node.js", process.version, expectedNode);
 
-  const installedPlaywrightPackage = await readJson(
-    join(root, "node_modules", "playwright-core", "package.json"),
-  );
+  const [installedPlaywrightPackage, browsersMetadata] = await Promise.all([
+    readJson(join(root, "node_modules", "playwright-core", "package.json")),
+    readJson(join(root, "node_modules", "playwright-core", "browsers.json")),
+  ]);
   assertExactVersion("playwright-core", installedPlaywrightPackage.version, expectedPlaywright);
+  const chromiumMetadata = resolveChromiumMetadata(browsersMetadata);
 
   await requirePath(process.execPath, "Pinned Node.js executable");
   await requirePath(join(root, "node_modules", "playwright-core"), "Locked playwright-core package");
   await requirePath(browsersSource, "Pinned Playwright browser staging directory");
 
   const { chromium } = await import("playwright-core");
-  const chromiumExecutable = chromium.executablePath();
-  await requirePath(chromiumExecutable, "Pinned Chromium executable");
-  const chromiumVersionResult = spawnSync(chromiumExecutable, ["--version"], {
-    encoding: "utf8",
-    windowsHide: true,
-  });
-  if (chromiumVersionResult.status !== 0) {
-    throw new Error("Unable to determine the packaged Chromium version.");
-  }
-  const chromiumVersion = chromiumVersionResult.stdout.trim();
+  await requirePath(chromium.executablePath(), "Pinned Chromium executable");
 
   const shortSha = sourceCommit.slice(0, 12).toLowerCase();
   const bundleName = `notifyhandler-book012-admiralbet-${shortSha}-win32-x64`;
@@ -243,7 +250,8 @@ export async function buildPortableValidationBundle(options = {}) {
     startPath: START_PATH,
     nodeVersion: expectedNode,
     playwrightCoreVersion: expectedPlaywright,
-    chromiumVersion,
+    chromiumRevision: chromiumMetadata.revision,
+    chromiumVersion: chromiumMetadata.version,
     liveValidationAllowedInCi: false,
     authorizesProductionMapping: false,
     outputFile: "ExplorerSummary.json",
