@@ -6,53 +6,85 @@ Priority levels: **P0** blocks the current product milestone or protects correct
 
 The automatic local desktop MVP is complete for the **unsigned Windows x64 preview channel**. Deterministic parsing, automatic first-recommendation resolution, automatic two-leg orchestration, independent leg state/recovery, isolated Playwright/Chromium execution, fixture-backed SISAL/BET365 adapters, security regressions, reproducible CI, and preview packaging are implemented.
 
-The product is **not production-ready**. Live validation on 2026-09-14 established:
+The product is **not production-ready**. The passive live-validation phase is now exhausted:
 
-- SISAL: `Blocked` for the live pre-match football total-corners scope; fixture-backed path remains `Testable`.
-- BET365: `Blocked` for the live pre-match football total-corners scope; fixture-backed path remains `Testable`.
+- SISAL — live `Blocked`; fixture-backed `Testable`.
+- BET365 — live `Blocked`; fixture-backed `Testable`.
+- LOTTOMATICA — `Blocked (feasibility)`.
+- EPLAY24 — `Blocked (feasibility)`.
+- ADMIRALBET — `Blocked (feasibility)` under the passive probe despite richer public event/generic-market/line/odds visibility.
 
-Both blockers arise because the complete deterministic selector-level event/market/exact-line/side/odds/selected-state chain could not be established through the permitted controlled public surface. This is not a reason to weaken matching or bypass access controls.
+Across the candidate pool, the common limitation was inability to establish the complete deterministic selector-level chain for the target pre-match football full-match total-corners market using passive top-level inspection. The next step is to improve evidence collection through **controlled interactive public navigation**, not to weaken matching, bypass controls, or silently change the target market.
+
+## Product decision for Milestone 6
+
+Keep **pre-match football full-match total-corners over/under** as the current live-support target. Generic goal U/O, 1X2, live corner statistics, next-corner products, and editorial references do not satisfy the representative product use case.
+
+Split live-readiness into three distinct stages:
+
+1. controlled interactive evidence gathering;
+2. restricted adapter/worker implementation for candidates proven feasible;
+3. QA certification of the first two genuinely live-supported bookmakers.
+
+Exploratory feasibility requires a deterministic pre-activation chain:
+`event → competition/time context → full-match total-corners market → exact numeric line → requested side → displayed odds`.
+
+Selected-state verification is a later implementation/support gate and must occur only through the existing restricted production selection capability after all deterministic predicates pass.
 
 ## Ready now
 
-### P0 — BOOK-009 / #52: Validate live LOTTOMATICA feasibility for the MVP scope
+### P0 — BOOK-012 / #61: Build controlled interactive live-validation explorer
 Owner: Bookmaker Automation Engineer
 Milestone: 6 — Evidence-backed live bookmaker readiness
 
-Run feasibility-first permitted public-browser validation before implementing a full LOTTOMATICA adapter.
+Replace the passive-only discovery limitation with a non-CI headed-browser explorer that can follow normal public same-origin navigation and expand non-transactional market UI.
 
 Acceptance summary:
-- identify the canonical approved HTTPS origin/navigation path;
-- determine whether selector-level evidence can establish the exact event → full-match total-corners market → numeric line → requested side → displayed odds chain required by the shared contracts;
-- use no guessed selectors, unrelated prices, protected/private APIs, or CAPTCHA/login/anti-bot/rate/geo/access-control bypass;
-- collect no credentials/session data and perform no stake entry or wager submission;
-- record a sanitized outcome of `Feasible for implementation` or `Blocked`;
-- if feasible, create a separate implementation issue rather than calling feasibility evidence `Supported`.
+- preserve exact approved-origin, redirect, URL-userinfo, and private/internal destination protections;
+- allow only explicitly non-transactional public navigation/expansion such as event links, tabs, accordions, filters, market categories, scrolling, and lazy-load waits;
+- default-deny and reject login/auth/CAPTCHA controls, outcome/odds controls that add a selection, betslip/stake/submit/payment controls, and any access-control bypass behavior;
+- use bounded interaction/rate budgets and stop on anti-bot, login, geo, or access denial rather than retrying around them;
+- emit only sanitized structural evidence, never credentials, cookies/storage, authenticated captures, full HTML, user/session data, stakes, or wager actions;
+- add boundary regressions proving forbidden controls cannot be interacted with;
+- keep repository/browser/security tests green.
 
 ## Next in Milestone 6
 
-### P1 — BOOK-010 / #53: Validate live EPLAY24 feasibility
+### P0 — BOOK-013 / #62: Revalidate ADMIRALBET interactively
 Owner: Bookmaker Automation Engineer
-Depends on: #52 outcome/patterns
+Depends on: #61
 
-Execute next if fewer than two viable live candidates have been identified. Apply the same feasibility-only evidence gate and safe public-browser constraints.
+Revalidate ADMIRALBET first because its passive run exposed the richest public event, generic market, line, and odds structure. If the full total-corners pre-activation chain becomes deterministic, create a separate implementation issue; otherwise keep it blocked with explicit missing dimensions.
 
-### P1 — BOOK-011 / #54: Validate live ADMIRALBET feasibility
+### P1 — BOOK-014 / #63: Revalidate SISAL interactively
 Owner: Bookmaker Automation Engineer
-Depends on: #53 outcome/patterns
+Depends on: #61; execute if fewer than two feasible candidates exist after #62
 
-Execute if fewer than two viable live candidates exist after EPLAY24 validation. Apply the same feasibility-only evidence gate.
+SISAL has an existing fixture-backed adapter and public corner-product documentation. Use the interactive explorer to determine whether normal public event/market navigation exposes a deterministic total-corners chain. If feasible, create a live-mapping implementation issue that reuses the current adapter.
+
+### P1 — BOOK-015 / #64: Revalidate BET365 interactively
+Owner: Bookmaker Automation Engineer
+Depends on: #61; execute if fewer than two feasible candidates exist after #62/#63
+
+BET365 also has an existing fixture-backed adapter and public event/pricing visibility. Revalidate the total-corners path through normal public market navigation and create a live-mapping implementation issue only if deterministic evidence is sufficient.
 
 ### Implementation issues for feasible candidates
 Owner: Bookmaker Automation Engineer
 
-A candidate that passes feasibility still needs a separately reviewable restricted adapter/worker implementation with deterministic sanitized fixtures, exact matching regressions, origin policy, auth/odds/cancellation/stale-attempt handling, post-selection verification, and transaction-boundary tests before it may become live `Supported`.
+A candidate marked `Feasible for implementation` still needs a separately reviewable restricted adapter/worker live-mapping change with:
+- deterministic sanitized fixtures learned from permitted live structure;
+- exact event/competition/time/market/line/side/odds gates;
+- origin, redirect, auth, odds-change, cancellation, freshness, and stale-attempt protection;
+- selected-state verification through the authorized selection gate;
+- no credential/MFA/CAPTCHA/stake/submit capability.
+
+Feasibility alone never changes status to `Supported`.
 
 ### P1 — QA-002 / #45: Certify the first evidence-backed live-supported bookmaker pair
 Owner: QA / Integration Engineer
-Depends on: two bookmakers reaching narrowly scoped live `Supported` status
+Depends on: two bookmakers completing interactive feasibility, implementation, and live `Supported` qualification
 
-The former hard-coded SISAL + BET365 certification dependency is superseded. QA-002 will qualify whichever first two candidates genuinely satisfy the support gate for a common market/notification scope.
+QA-002 qualifies whichever first two candidates genuinely satisfy the support gate for the common full-match total-corners notification scope.
 
 ## Blocked release work
 
@@ -65,9 +97,13 @@ The unsigned preview pipeline is healthy, but production signing/release must no
 
 ## Completed / historical live-validation work
 
-- #43 / BOOK-007 — SISAL public live validation: `Blocked` live, `Testable` fixtures.
-- #44 / BOOK-008 — BET365 public live validation: `Blocked` live, `Testable` fixtures.
-- #51 / PRODUCT-004 — re-plan Milestone 6 after those blockers.
+- #43 / BOOK-007 — SISAL passive public live validation: `Blocked` live, `Testable` fixtures.
+- #44 / BOOK-008 — BET365 passive public live validation: `Blocked` live, `Testable` fixtures.
+- #52 / BOOK-009 — LOTTOMATICA passive feasibility: `Blocked`.
+- #53 / BOOK-010 — EPLAY24 passive feasibility: `Blocked`.
+- #54 / BOOK-011 — ADMIRALBET passive feasibility: `Blocked`.
+- #51 / PRODUCT-004 — feasibility-first re-plan after SISAL/BET365 blockers.
+- #60 / PRODUCT-005 — re-plan after the passive candidate pool was exhausted.
 
 All Milestones 0–5 implementation work remains complete for the unsigned local-preview channel.
 
@@ -95,6 +131,7 @@ Add Telegram, HTTP/webhook, clipboard monitoring, or other ingestion adapters wi
 - Never automate bookmaker credentials, MFA, CAPTCHA, stakes, or bet submission.
 - Do not bypass authentication, anti-bot measures, access controls, rate limits, or geo restrictions.
 - Do not rely on protected/private bookmaker APIs.
+- Exploratory live validation may navigate/expand public non-transactional UI but must not activate betting outcomes.
 - Keep expected and observed odds distinct and surface changes explicitly.
 - `Feasible`, fixture-backed `Testable`, live `Supported`, and `Blocked` are distinct maturity states.
 - Unsigned Windows preview artifacts are not production releases.

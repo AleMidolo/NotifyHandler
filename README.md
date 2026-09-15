@@ -27,22 +27,29 @@ Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRA
 
 ## Current status
 
-As of 2026-09-14, Milestones 0–5 are complete for the **local unsigned Windows x64 preview** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified preview packaging with SBOM/checksums/provenance.
+As of 2026-09-15, Milestones 0–5 are complete for the **local unsigned Windows x64 preview** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified preview packaging with SBOM/checksums/provenance.
 
-This is not yet a production release. The attempted live promotion of the original SISAL + BET365 pair did not pass the evidence gate:
+This is not yet a production release. The first passive live-validation phase did not produce a supported bookmaker for the target pre-match football full-match total-corners scope:
 
-- SISAL is `Blocked` for the live pre-match football total-corners scope while remaining fixture-backed `Testable`;
-- BET365 is `Blocked` for the same live scope while remaining fixture-backed `Testable`.
+- SISAL — live `Blocked`, fixture-backed `Testable`;
+- BET365 — live `Blocked`, fixture-backed `Testable`;
+- LOTTOMATICA — `Blocked (feasibility)`;
+- EPLAY24 — `Blocked (feasibility)`;
+- ADMIRALBET — `Blocked (feasibility)` under the passive probe despite richer public event/generic-market/line/odds visibility.
 
-The public validation surfaces did not establish the complete deterministic selector-level event → total-corners market → exact line → requested side → displayed odds → selected-state chain. NotifyHandler will not compensate with guessed selectors, unrelated prices, protected/private API reverse engineering, or access-control bypasses.
+The common blocker is evidence collection depth: passive top-level probes cannot establish the complete dynamic selector chain required by the deterministic matcher. NotifyHandler will not compensate with guessed selectors, unrelated prices, protected/private API reverse engineering, or access-control bypasses.
 
-Milestone 6 is therefore feasibility-first for the remaining prioritized candidates:
+Milestone 6 therefore keeps **pre-match football full-match total-corners over/under** as the target and moves to a controlled interactive evidence strategy:
 
-1. LOTTOMATICA — #52;
-2. EPLAY24 — #53 if fewer than two viable candidates exist;
-3. ADMIRALBET — #54 if fewer than two viable candidates exist after #53.
+1. #61 — build a safe non-CI interactive live-validation explorer for same-origin public navigation and non-transactional market expansion;
+2. #62 — revalidate ADMIRALBET first because it exposed the richest public structure;
+3. #63 — revalidate SISAL if fewer than two feasible candidates exist;
+4. #64 — revalidate BET365 if still needed;
+5. implement restricted live mappings only for candidates actually proven feasible;
+6. #45 — QA-certify the first two bookmakers that genuinely become live `Supported`;
+7. #46 — prepare a signed Windows production candidate only after #45 passes.
 
-A feasibility result is not support. Candidates judged feasible still need restricted adapter/worker implementation, deterministic sanitized regressions, and controlled live qualification. QA #45 will certify the first pair that truly reaches narrowly scoped live `Supported` status. Signed Windows production work in #46 remains blocked until then.
+Exploratory validation may navigate public event/market UI but must not activate a betting outcome. Outcome activation and selected-state verification remain later restricted implementation/support gates after all deterministic predicates pass.
 
 Unsigned preview artifacts must never be represented as production-ready, and a bookmaker must never be called `Supported` merely because a site is reachable or synthetic fixture tests pass.
 
