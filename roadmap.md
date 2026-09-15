@@ -5,7 +5,7 @@
 - **Milestones 0–5: complete for the local-preview MVP.** The repository can build, test, package, and smoke-test an unsigned Windows x64 desktop preview with deterministic synthetic browser coverage.
 - **Alpha delivery track: complete.** GitHub prerelease **`v0.0.0-alpha.1`** is published from source commit `3327bc29078d0ab036453e1deaff1b7094fd29ee` with the portable Windows x64 ZIP and checksum. It is unsigned, non-production, and does not imply live bookmaker support.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** The interactive explorer and local runner are implemented; the immediate blocker is obtaining a real sanitized live-validation result from a qualifying non-CI host.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** The interactive explorer and local runner are implemented. The immediate autonomous task is #81, which packages the explorer into a portable Windows handoff; the subsequent real bookmaker run remains a non-CI external-workstation step under #71.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -46,29 +46,32 @@ The controlled interactive phase is technically enabled:
 - **#61 BOOK-012 — COMPLETE:** non-CI headed-browser explorer with default-deny interaction classification, bounded navigation/expansion, sanitized evidence, and no outcome activation/auth/stake/submit capability.
 - **#69 DEVOPS-004 — COMPLETE:** repository-level local runner `npm run live:explore:local -- <bookmaker>` with pinned toolchain checks, CI refusal, Chromium setup, DNS diagnostics, and deterministic guard tests.
 
-### Current blocker — qualifying external host execution
+### Current unblock plan — portable external-host handoff
 
-**#71 DEVOPS-005 — P0**
+The autonomous execution container cannot perform the real ADMIRALBET run because its Node/npm versions do not match repository pins and outbound DNS cannot resolve `www.admiralbet.it`. Repeating the same execution attempt there is not progress and is not bookmaker evidence.
 
-The autonomous execution container cannot perform the real ADMIRALBET run because its Node/npm versions do not match repository pins and outbound DNS cannot resolve `www.admiralbet.it`.
+**#81 DEVOPS-007 — P0 / READY NOW**
 
-DEVOPS-005 must therefore run the existing command from a qualifying normal development/workstation environment with:
-- current `main` checkout;
-- repository-pinned Node/npm;
-- normal outbound DNS/HTTPS;
-- headed Chromium support;
-- the existing BOOK-012 interaction/capability restrictions unchanged.
+Package the existing approved BOOK-012 explorer as a portable Windows x64 diagnostic bundle with pinned runtime/browser dependencies. The bundle must:
+- require no repository checkout or separate Node/npm installation by the operator;
+- provide a simple local ADMIRALBET launcher;
+- preserve the existing hard-coded origin, interaction classifier, action budget, safe-stop behavior, ephemeral context, and sanitized `ExplorerSummary` output;
+- contain no credential/auth/session capture, persistent profiles, screenshots/traces, protected/private API inspection, outcome activation, stake/wager capability, proxy, alternate-origin, or access-control-bypass mechanism;
+- be buildable/testable/checksummed in CI using synthetic/local tests only; CI must never contact a bookmaker.
 
-Only sanitized `ExplorerSummary` JSON plus minimal non-sensitive prerequisite diagnostics may be retained. Repeating the same task in the known-incompatible autonomous container is not progress and must not change bookmaker status.
+**#71 DEVOPS-005 — P0 live-evidence execution after/alongside #81**
+
+Once the portable bundle exists, execute it on a normal Windows workstation with outbound DNS/HTTPS and headed desktop support, verify the bundle checksum, and attach only its sanitized `ExplorerSummary` to #62 / PR #68. A clean developer checkout using the existing runner remains an acceptable alternative.
 
 **Important product rule:** runner/toolchain/DNS/browser-host failure is not bookmaker feasibility evidence. It must not classify a bookmaker `Blocked` or justify relaxing the market/matching policy.
 
 ### Interactive evidence order
 
-1. **#71 DEVOPS-005** — execute ADMIRALBET explorer on a qualifying external host.
-2. **#62 BOOK-013** — interpret the actual ADMIRALBET result; PR #68 remains pending until this evidence exists.
-3. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist.
-4. **#64 BOOK-015** — revalidate BET365 if still fewer than two feasible candidates exist.
+1. **#81 DEVOPS-007** — package/publish the portable BOOK-012 Windows validation handoff; no live bookmaker traffic in CI.
+2. **#71 DEVOPS-005** — execute the ADMIRALBET explorer on a qualifying external workstation and return only sanitized evidence.
+3. **#62 BOOK-013** — interpret the actual ADMIRALBET result; PR #68 remains pending until this evidence exists.
+4. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist.
+5. **#64 BOOK-015** — revalidate BET365 if still fewer than two feasible candidates exist.
 
 Interactive feasibility requires:
 `event → competition/time context → full-match total-corners market → exact numeric line → requested side → displayed odds`.
@@ -93,7 +96,8 @@ Then **#45 QA-002** certifies the first two bookmakers that actually reach narro
 - no protected/private API reverse engineering;
 - no credential/MFA automation, stake entry, or wager submission;
 - exploratory evidence collection may navigate/expand public non-transactional UI but must not activate betting outcomes;
-- live validation is controlled, sanitized, and non-CI;
+- live bookmaker validation is controlled, sanitized, and non-CI;
+- CI may package/test the diagnostic runner only against synthetic/local targets;
 - environment failure is not bookmaker evidence;
 - fixture-backed `Testable`, `Feasible`, live `Supported`, and `Blocked` are distinct states.
 
