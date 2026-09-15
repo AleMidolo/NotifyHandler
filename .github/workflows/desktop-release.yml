@@ -12,11 +12,18 @@ on:
       - packages/bookmakers/**
       - packages/desktop/**
       - .github/workflows/desktop-release.yml
+      - .github/alpha-release.json
+      - docs/alpha-prerelease-notes.md
       - docs/release.md
   workflow_dispatch:
   push:
+    branches:
+      - main
+    paths:
+      - .github/alpha-release.json
     tags:
       - 'v*'
+      - '!v*-alpha.*'
 
 permissions:
   contents: read
@@ -143,3 +150,135 @@ jobs:
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: dist/release/*.zip
+
+  publish-alpha:
+    name: Publish unsigned alpha prerelease
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: windows-x64-preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Checkout exact alpha source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version-file: .nvmrc
+
+      - name: Resolve and validate alpha metadata
+        id: alpha
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(fs.readFileSync('.github/alpha-release.json', 'utf8'));
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const notes = fs.readFileSync('docs/alpha-prerelease-notes.md', 'utf8');
+          const prefix = `v${pkg.version}-alpha.`;
+          const ordinal = config.tag.startsWith(prefix) ? config.tag.slice(prefix.length) : '';
+          if (!/^[1-9][0-9]*$/.test(ordinal)) {
+            throw new Error(`Alpha tag must match ${prefix}<positive integer>.`);
+          }
+          if (config.title !== `NotifyHandler ${config.tag}`) {
+            throw new Error('Alpha title must match the configured tag.');
+          }
+          for (const required of [
+            'unsigned Windows x64 alpha',
+            'not a production release',
+            'No bookmaker is currently live `Supported`',
+            'SISAL and BET365 are fixture-backed `Testable`',
+            'Authentication remains manual',
+            'real-money operation',
+          ]) {
+            if (!notes.includes(required)) throw new Error(`Alpha notes missing required statement: ${required}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `tag=${config.tag}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `title=${config.title}\n`);
+          NODE
+
+      - name: Download verified artifact from this workflow run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "notifyhandler-windows-x64-$GITHUB_SHA" \
+            --dir release-download
+          shopt -s nullglob
+          archives=(release-download/*.zip)
+          hashes=(release-download/*.zip.sha256)
+          if [ "${#archives[@]}" -ne 1 ] || [ "${#hashes[@]}" -ne 1 ]; then
+            echo 'Expected exactly one ZIP and one SHA-256 companion file.' >&2
+            exit 1
+          fi
+
+      - name: Verify downloaded archive checksum
+        shell: bash
+        run: |
+          cd release-download
+          sha256sum --check *.zip.sha256
+
+      - name: Refuse an existing alpha tag or release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.alpha.outputs.tag }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; refusing to replace a published alpha." >&2
+            exit 1
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists; refusing to retarget an existing tag." >&2
+            exit 1
+          fi
+
+      - name: Publish durable GitHub prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.alpha.outputs.tag }}
+          TITLE: ${{ steps.alpha.outputs.title }}
+        run: |
+          shopt -s nullglob
+          assets=(release-download/*.zip release-download/*.zip.sha256)
+          gh release create "$TAG" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "$TITLE" \
+            --notes-file docs/alpha-prerelease-notes.md
+
+      - name: Verify prerelease metadata and assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.alpha.outputs.tag }}
+        run: |
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.prerelease')" != 'true' ]; then
+            echo 'Published release is not marked as a prerelease.' >&2
+            exit 1
+          fi
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.draft')" != 'false' ]; then
+            echo 'Published alpha unexpectedly remained a draft.' >&2
+            exit 1
+          fi
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq '.target_commitish')" != "$GITHUB_SHA" ]; then
+            echo 'Published alpha does not target the exact verified source commit.' >&2
+            exit 1
+          fi
+          for asset in release-download/*.zip release-download/*.zip.sha256; do
+            name="$(basename "$asset")"
+            if [ -z "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --jq ".assets[] | select(.name == \"$name\") | .name")" ]; then
+              echo "Published alpha is missing asset $name." >&2
+              exit 1
+            fi
+          done
