@@ -29,25 +29,26 @@ Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRA
 
 As of 2026-09-15, Milestones 0–5 are complete for the **local unsigned Windows x64 preview** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified preview packaging with SBOM/checksums/provenance.
 
-This is not yet a production release. The first passive live-validation phase did not produce a supported bookmaker for the target pre-match football full-match total-corners scope:
+This is not yet a production release and no bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope.
 
-- SISAL — live `Blocked`, fixture-backed `Testable`;
-- BET365 — live `Blocked`, fixture-backed `Testable`;
-- LOTTOMATICA — `Blocked (feasibility)`;
-- EPLAY24 — `Blocked (feasibility)`;
-- ADMIRALBET — `Blocked (feasibility)` under the passive probe despite richer public event/generic-market/line/odds visibility.
+The first passive validation phase did not establish a complete safe live mapping for SISAL, BET365, LOTTOMATICA, EPLAY24, or ADMIRALBET. The project therefore added a controlled interactive evidence path rather than guessing selectors or weakening the matching policy.
 
-The common blocker is evidence collection depth: passive top-level probes cannot establish the complete dynamic selector chain required by the deterministic matcher. NotifyHandler will not compensate with guessed selectors, unrelated prices, protected/private API reverse engineering, or access-control bypasses.
+Two key pieces are now complete:
 
-Milestone 6 therefore keeps **pre-match football full-match total-corners over/under** as the target and moves to a controlled interactive evidence strategy:
+- **BOOK-012/#61:** controlled non-CI headed-browser explorer for same-origin public navigation and non-transactional market expansion, with no login/auth/CAPTCHA handling, outcome activation, stake entry, or wager submission capability;
+- **DEVOPS-004/#69:** reproducible local-only runner `npm run live:explore:local -- <bookmaker>` with pinned toolchain checks, CI refusal, Chromium setup, and network diagnostics.
 
-1. #61 — build a safe non-CI interactive live-validation explorer for same-origin public navigation and non-transactional market expansion;
-2. #62 — revalidate ADMIRALBET first because it exposed the richest public structure;
-3. #63 — revalidate SISAL if fewer than two feasible candidates exist;
-4. #64 — revalidate BET365 if still needed;
-5. implement restricted live mappings only for candidates actually proven feasible;
-6. #45 — QA-certify the first two bookmakers that genuinely become live `Supported`;
-7. #46 — prepare a signed Windows production candidate only after #45 passes.
+The current critical path is operational rather than architectural:
+
+1. **#71 DEVOPS-005** — execute the ADMIRALBET explorer on a qualifying normal development/workstation host that has the repository-pinned Node/npm, outbound DNS/HTTPS, and headed Chromium support;
+2. **#62 BOOK-013** — interpret that real sanitized ADMIRALBET result;
+3. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist;
+4. **#64 BOOK-015** — revalidate BET365 if still needed;
+5. implement restricted live mappings only for candidates genuinely proven feasible;
+6. **#45 QA-002** — certify the first two bookmakers that become live `Supported`;
+7. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
+
+A runner, DNS, toolchain, or browser-host failure is **not bookmaker evidence** and must not be used to mark a bookmaker `Blocked` or to relax the full-match total-corners target.
 
 Exploratory validation may navigate public event/market UI but must not activate a betting outcome. Outcome activation and selected-state verification remain later restricted implementation/support gates after all deterministic predicates pass.
 
@@ -93,7 +94,7 @@ Repository documentation and specifications are authoritative. Start with:
 - `docs/error-model.md` — interruptions, safe failures, activation disposition, and recovery semantics;
 - `docs/test-strategy.md` — automatic-start, unit/contract/browser/security/release test strategy;
 - `docs/bookmaker-support.md` — bookmaker rollout, live-support gates, current support status, and live blockers;
-- `docs/live-validation/` — sanitized evidence for controlled non-CI live validation attempts;
+- `docs/live-validation/` — sanitized evidence and live-validation runner documentation;
 - `specs/notification-format.md` — input/normalization and primary-recommendation contract;
 - `specs/selection-target.md` — immutable target for one bookmaker leg;
 - `specs/execution-contract.md` — automatic start trigger, exact two-leg state machine, attempts, evidence epochs, and commands;
