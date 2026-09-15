@@ -19,7 +19,9 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 | BET365 | 2 | Blocked (live); Testable (fixtures) | BOOK-008 confirms the public BET365 Italy football surface exposes upcoming fixtures and displayed top-level football odds, but controlled public validation did not establish selector-level evidence tying an event to the requested full-match total-corners market, exact line, outcome, odds, and selected state. No unverified selector was promoted. The deterministic BOOK-003/BOOK-005 fixture-backed path remains Testable. See `docs/live-validation/bet365-book-008.md`. |
 | LOTTOMATICA | 3 | Blocked (feasibility) | BOOK-009 confirms the current official `www.lottomatica.it` product exposes active sports/football material, but controlled public validation did not establish the exact event → full-match total-corners → line → side → odds → selected-state selector chain. A direct official-page fetch in the validation environment returned HTTP 403 and was not bypassed. No adapter is created from insufficient evidence. See `docs/live-validation/lottomatica-book-009.md`. |
 | EPLAY24 | 4 | Blocked (feasibility) | BOOK-010 confirms current ADM concession `16004` maps E-play 24 Ita Limited to `www.eplay24.it`, and public EPLAY24 material confirms football/prematch betting. The accessible betting application is JavaScript-only in the crawl surface and the controlled validation did not establish the exact event → total-corners → line → side → odds → selected-state chain. No adapter is created from insufficient evidence. See `docs/live-validation/eplay24-book-010.md`. |
-| ADMIRALBET | 5 | Candidate | Next feasibility target under BOOK-011 because fewer than two viable live candidates exist. |
+| ADMIRALBET | 5 | Blocked (feasibility) | BOOK-011 confirms ADM concession `16048` maps Admiral Bet S.r.l. to `www.admiralbet.it`. Its public sports surface exposes football events, times, generic market families, exact generic lines, and displayed odds, but validation did not establish the specific pre-match full-match total-corners market plus selected-state semantics. Generic goal U/O and live corner statistics are not substitutes. See `docs/live-validation/admiralbet-book-011.md`. |
+
+The PRODUCT-004 feasibility queue is now exhausted without two live-supported bookmakers. Product Coordination must re-plan Milestone 6 rather than silently widening the market or weakening deterministic matching requirements.
 
 Priorities may change when technical feasibility, permitted access, notification prevalence, or regression complexity provides evidence for a better order.
 
@@ -99,7 +101,15 @@ The indexed betting application is JavaScript-only in the controlled crawl surfa
 
 Therefore EPLAY24 is **Blocked at feasibility** for the narrow MVP scope, and no adapter/worker mapping is created. `packages/automation` includes a non-CI read-only `live:probe:eplay24` command restricted to credential-free `https://www.eplay24.it` URLs. It emits only sanitized structural summaries and deliberately hard-codes `mappingEvidenceSufficient: false`, so a diagnostic run cannot promote the bookmaker into implementation by itself. See `docs/live-validation/eplay24-book-010.md`.
 
-The next feasibility target is ADMIRALBET under BOOK-011 unless repository priorities change.
+## ADMIRALBET feasibility blocker
+
+BOOK-011 evaluated ADMIRALBET before production adapter investment. ADM's current concession register maps Admiral Bet S.r.l., concession `16048`, to `www.admiralbet.it`, and the current public `/scommesse` surface exposes meaningful sports structure: football competitions, event participants and times, generic market families, numeric lines, and displayed odds.
+
+That richer public surface still does not establish the exact NotifyHandler target. Controlled validation did not prove a selector-level **pre-match full-match total-corners** market tied to one exact event and numeric corner line, nor a deterministic post-selection state. Generic goal `U/O`, editorial corner references, live next-corner products, and live corner statistics are separate semantics and are not accepted as substitutes.
+
+Therefore ADMIRALBET is **Blocked at feasibility** for the narrow MVP scope, and no adapter/worker mapping is created. `packages/automation` includes a non-CI read-only `live:probe:admiralbet` command restricted to credential-free `https://www.admiralbet.it` URLs. It reports sanitized football/generic U/O/corner/event structural candidates but deliberately hard-codes `mappingEvidenceSufficient: false`. See `docs/live-validation/admiralbet-book-011.md`.
+
+With BOOK-011, the candidate feasibility queue defined by PRODUCT-004 is exhausted. Product Coordination should decide whether to source additional permitted bookmaker candidates, obtain stronger controlled headed-browser evidence for an existing blocked candidate, or revise product scope explicitly. The matching/security contract must not be weakened implicitly.
 
 ## Minimum adapter capabilities
 
