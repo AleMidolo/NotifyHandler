@@ -13,3 +13,11 @@ The current SISAL and BET365 DOM mappings are deliberately **synthetic semantic 
 Browser CI uses `launchFixtureLegSession` and `createFixtureAutomationWorker`, test-support entry points that intercept only explicitly configured, adapter-approved HTTPS fixture URLs and block all other network requests. Production navigation origins are never broadened for tests.
 
 Production sessions default to headed Chromium. CI fixture sessions default to headless Chromium. Profiles are ephemeral; persistent authenticated profiles, CAPTCHA/MFA automation, anti-bot/geo/rate-limit bypass, stake entry, funding, cash-out, and wager submission are outside this package by design.
+
+## Non-CI live-validation tooling
+
+The `src/live-validation/` tools are diagnostic-only and are not part of the production worker API. Passive bookmaker probes remain available for sanitized structural checks.
+
+BOOK-012 adds `npm run live:explore --workspace @notify-handler/automation`, a controlled headed-browser explorer for ADMIRALBET, SISAL, and BET365 revalidation. It uses a fixed action budget and a default-deny classifier that permits only positively identified same-origin public navigation or non-transactional market expansion. Outcome/odds controls, authentication, consent, betslip/stake/submit/payment controls, unsafe navigation, and ambiguous controls are rejected.
+
+The explorer emits bounded sanitized evidence only and hard-codes `authorizesProductionMapping: false`. It does not export Playwright objects, credentials/session data, or any production selection capability. See `docs/live-validation/interactive-explorer-book-012.md`.
