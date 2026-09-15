@@ -62,6 +62,7 @@ Owns reproducible development setup, CI/CD, browser/runtime dependencies, packag
 - Runner/toolchain/DNS/browser-host failures are **environment evidence**, not bookmaker evidence. They must not classify a bookmaker `Blocked` or justify weakening scope/matching.
 - An unsigned alpha prerelease may be published for user application testing only when it is explicitly non-production and does not imply live bookmaker support.
 - If a task is known to require an external workstation/host capability unavailable to the current autonomous container, repeated execution in the same container is not progress; preserve the blocker and do not fabricate evidence.
+- Diagnostic live-validation bundles may be built/tested in CI only against synthetic/local fixtures. CI must never contact a bookmaker or perform live feasibility validation.
 - If a requirement changes, update repository docs/specs first.
 - When work exposes a new blocker or requirement, create/update an issue rather than leaving it only in chat.
 
@@ -70,16 +71,17 @@ Owns reproducible development setup, CI/CD, browser/runtime dependencies, packag
 Milestones 0–5 are complete for the unsigned local-preview MVP, and the first downloadable alpha **`v0.0.0-alpha.1`** is published. The alpha track is complete; it is unsigned/non-production and does not imply live bookmaker support.
 
 ### Live-readiness track
-1. **#71 DEVOPS-005** — execute the existing ADMIRALBET BOOK-012 explorer on a qualifying non-CI external workstation/development host and return sanitized evidence. The current autonomous container is known not to satisfy the runtime/network prerequisites; do not repeat it there as if that were progress.
-2. **#62 BOOK-013** — interpret that actual ADMIRALBET result; do not classify from runner failure. Open PR #68 remains pending until the result exists.
-3. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist.
-4. **#64 BOOK-015** — revalidate BET365 if still fewer than two feasible candidates exist.
-5. Create/execute restricted live-mapping implementation issues only for candidates marked `Feasible for implementation` until two bookmakers are genuinely live `Supported`.
-6. **#45 QA-002** — qualify the first evidence-backed live-supported pair.
-7. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
+1. **#81 DEVOPS-007** — package and publish the existing BOOK-012 explorer as a portable Windows x64 diagnostic bundle with pinned runtime/browser inputs, checksum, synthetic smoke, and no live bookmaker access in CI. This is the immediate autonomous task.
+2. **#71 DEVOPS-005** — execute that bundle on a qualifying non-CI external Windows workstation and return only sanitized `ExplorerSummary` evidence. The existing clean-checkout runner is an acceptable alternative. The current autonomous container is known not to satisfy the runtime/network prerequisites; do not repeat it there as if that were progress.
+3. **#62 BOOK-013** — interpret the actual ADMIRALBET result; do not classify from runner failure. Open PR #68 remains pending until the result exists.
+4. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist.
+5. **#64 BOOK-015** — revalidate BET365 if still fewer than two feasible candidates exist.
+6. Create/execute restricted live-mapping implementation issues only for candidates marked `Feasible for implementation` until two bookmakers are genuinely live `Supported`.
+7. **#45 QA-002** — qualify the first evidence-backed live-supported pair.
+8. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
 
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 
 ## Definition of done
 
-A change is done only when its acceptance criteria are met, relevant tests pass, documentation/specs are synchronized, safety boundaries are preserved, and no known blocker remains hidden from the repository. `Feasible`, fixture-backed `Testable`, live `Supported`, and `Blocked` are distinct maturity states. Unsigned alpha/preview status must never be represented as production/supported status without satisfying the documented gates.
+A change is done only when its acceptance criteria are met, relevant tests pass, documentation/specs are synchronized, safety boundaries are preserved, and no known blocker remains hidden from the repository. `Feasible`, fixture-backed `Testable`, live `Supported`, and `Blocked` are distinct maturity states. Unsigned alpha/preview status and diagnostic validation bundles must never be represented as production/supported status without satisfying the documented gates.
