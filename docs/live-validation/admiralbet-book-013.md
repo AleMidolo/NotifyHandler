@@ -5,78 +5,59 @@ Scope: Italian public ADMIRALBET sports-betting surface, pre-match football, ful
 
 ## Decision
 
-**Interactive revalidation outcome: Blocked.**
+**Interactive revalidation outcome: Pending execution.**
 
-BOOK-013 revisited ADMIRALBET after BOOK-012 introduced the controlled, non-authorizing public-navigation explorer. The current public surface provides stronger semantic evidence than BOOK-011: a pre-match football competition page exposes exact event rows and an explicit `Calci D Angolo` market-family control. That is meaningful progress, but it still does not establish the complete deterministic pre-activation chain required before a production adapter can be implemented safely.
+BOOK-013 depends on an actual run of the merged BOOK-012 controlled interactive explorer against credential-free `https://www.admiralbet.it`. That acceptance experiment has **not** completed in this agent execution environment, so this record does not classify ADMIRALBET as newly `Feasible for implementation` or newly `Blocked` from interactive evidence.
 
-No production ADMIRALBET adapter, worker DOM mapping, or implementation issue is created from this partial evidence.
+The previously established BOOK-011 support state remains authoritative until BOOK-012 produces a sanitized result.
 
-## Validation boundary
+## Why this remains pending
 
-The approved public origin remains:
+QA correctly identified that normal public browsing/search evidence is not a substitute for the BOOK-012 experiment required by issue #62. The key unanswered question is whether the approved explorer can safely navigate/expand the public `Calci D Angolo` surface and either:
 
-- `https://www.admiralbet.it`
+- expose the deterministic pre-activation chain, or
+- stop with a defined BOOK-012 safe-stop / no-eligible-expansion result.
 
-Only normal public same-origin navigation/evidence was used. No login, CAPTCHA, anti-bot, rate-limit, geo, access-control, protected/private API, credential/session, stake, outcome-activation, or wager-submission capability was used.
+This agent attempted to obtain a runnable environment. The available execution container has Chromium installed, but it cannot resolve external hosts and has no configured outbound proxy. `playwright-core` is also not installed locally, and package/repository download is unavailable because external DNS/network access fails. No access-control, anti-bot, geo, CAPTCHA, or network restriction was bypassed.
 
-The repository's BOOK-012 explorer remains the authoritative non-CI tool for future local headed validation. In this agent execution environment, a network-capable local Chromium/`agent-browser` executable was not available, so this run does **not** claim that the BOOK-012 CLI itself was executed against ADMIRALBET. Instead, the available controlled browser/search surface was used to follow and inspect current public same-origin ADMIRALBET pages under the same non-transactional evidence rules. This limitation is recorded explicitly rather than inventing a headed-browser transcript.
+Therefore no BOOK-012 live transcript is claimed or fabricated.
 
-## Stronger public evidence obtained
+## Supplementary public observation
 
-A current public pre-match Premier League page under the approved origin exposes all of the following together:
+Current public ADMIRALBET pre-match pages provide stronger non-interactive evidence than BOOK-011. In particular, a football competition surface exposes:
 
-- competition context: `Calcio - Inghilterra - Premier League`;
-- scheduled pre-match event rows with participant names and times;
-- exact ordinary market rows and displayed decimal prices for markets such as final result and goal under/over;
-- a visible market-family navigation entry named **`Calci D Angolo`** alongside other distinct families such as `Cartellini`, `Tiri`, `Fuorigioco`, `U/O Asiatici`, `Tempi`, and `Squadre`.
+- competition context and scheduled event rows;
+- participants and event times;
+- ordinary market families and displayed prices;
+- a distinct pre-match market-family control labelled `Calci D Angolo`.
 
-That last point is important: unlike BOOK-011, current public evidence now positively shows that ADMIRALBET presents a distinct pre-match corner-market family rather than only editorial/live corner references.
+This observation is useful for targeting the future explorer run, but it is **not** an interactive acceptance result and does not change support state by itself.
 
-The public live surface was also checked as a negative-control distinction. It exposes live goal under/over rows and match statistics including current corner counts. Those live statistics and goal totals remain semantically separate from the target pre-match full-match total-corners market and are not accepted as substitutes.
+## Required BOOK-012 result
 
-## Required chain assessment
+A compliant headed run must use only the merged BOOK-012 boundary:
 
-Target chain:
+- exact credential-free `https://www.admiralbet.it` origin;
+- fresh ephemeral headed Chromium context;
+- classifier-approved same-origin navigation;
+- narrowly qualified non-transactional expansion controls only;
+- no outcome/odd activation;
+- no login, MFA, CAPTCHA handling, credentials/session capture, cookies/storage capture, screenshots/traces, private/protected API inspection, stake entry, or wager submission;
+- fixed action/rate budget and normal safe-stop behavior.
 
-`event → competition/time context → full-match total-corners market → exact numeric line → OVER/UNDER side → displayed odds`
+The persisted evidence must be limited to BOOK-012's sanitized JSON result.
 
-Current evidence assessment:
+The acceptance decision after that run is:
 
-1. **Event identity — evidenced.** Public competition pages expose participant pairs in discrete scheduled event rows.
-2. **Competition/time context — evidenced.** The page carries league context and scheduled date/time text for the same rows.
-3. **Corner market family — partially evidenced.** `Calci D Angolo` is explicitly exposed as a distinct pre-match market-family control.
-4. **Full-match total-corners semantics — not yet evidenced.** The available controlled surface does not expose the expanded contents of `Calci D Angolo` strongly enough to distinguish full-match total corners from team corners, half corners, exact/range corner products, handicaps, or other corner submarkets.
-5. **Exact numeric corner line — not evidenced.** No selector-level line value tied to the required full-match total-corners market was obtained.
-6. **Requested OVER/UNDER side — not evidenced.** No selector-level side identity tied to an exact corner line was obtained.
-7. **Displayed odds for that side — not evidenced.** Ordinary football odds are visible publicly, but no current decimal price was deterministically tied to the required corner side/line.
-8. **Selected state — intentionally not part of feasibility.** BOOK-013 does not activate outcomes. Selected-state verification remains a later restricted implementation/support gate.
+- **Feasible for implementation** only if sanitized evidence deterministically establishes `event → competition/time → full-match total-corners market → exact line → OVER/UNDER side → displayed odds`; otherwise
+- **Blocked** with the exact BOOK-012 safe-stop or missing identity dimensions.
 
-Targeted public queries for current ADMIRALBET corner totals did not expose a deterministic exact-line/side/price tuple. Absence of indexed evidence is not treated as proof that the product does not exist; it only means the required mapping is still unproven under the available permitted validation surface.
+Selected-state behavior remains outside this feasibility experiment and belongs to the later restricted production activation path.
 
-## Why the result remains Blocked
+## Current repository consequence
 
-The presence of a `Calci D Angolo` category is not sufficient to authorize a production mapping. NotifyHandler must know exactly which nested market represents **full-match total corners**, the exact decimal/integer line, which control is `OVER` versus `UNDER`, and which displayed odd belongs to that exact side and line.
-
-Creating an implementation issue now would require one or more assumptions about the corner submarket hierarchy or outcome binding. That would violate `specs/matching-policy.md` and the fail-safe product contract.
-
-Therefore ADMIRALBET remains **Blocked at feasibility**, despite the stronger evidence that a distinct pre-match corner market family exists.
-
-## Required evidence to unblock
-
-A future permitted headed-browser run should use BOOK-012 and capture sanitized structural evidence after expanding `Calci D Angolo` for one exact pre-match event. It must establish:
-
-- event container with both participants;
-- competition and scheduled time context;
-- full-match total-corners market title/context;
-- exact numeric line;
-- `OVER` and `UNDER` controls bound to that exact line;
-- displayed decimal odds bound to each side;
-- stable, non-sensitive structural attributes sufficient to create deterministic fixtures.
-
-The explorer must continue to avoid outcome activation. Selected-state verification belongs to the later restricted production activation path if feasibility is eventually proven.
-
-If obtaining the missing evidence requires authentication automation, CAPTCHA solving, anti-bot/rate-limit/geo/access-control bypass, protected/private API reverse engineering, or collection of credentials/session data, the scope remains **Blocked**.
-
-## Queue consequence
-
-BOOK-013 does not produce a feasible live candidate. Per PRODUCT-005 sequencing, BOOK-014 / #63 (SISAL interactive revalidation) becomes the next bookmaker task because fewer than two feasible candidates exist.
+- Issue #62 remains open.
+- No ADMIRALBET production adapter/worker mapping or implementation issue is created.
+- `docs/bookmaker-support.md` remains at the last proven BOOK-011 state.
+- BOOK-014 / #63 must remain blocked until #62 has an actual BOOK-012 result.
+- A release/DevOps task should provide a controlled non-CI execution environment for the BOOK-012 live explorer without weakening its safety boundary.
