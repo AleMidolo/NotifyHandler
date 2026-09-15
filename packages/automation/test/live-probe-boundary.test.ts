@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { runBet365PublicProbe } from "../src/live-validation/bet365-public-probe.ts";
+import { runEplay24PublicProbe } from "../src/live-validation/eplay24-public-probe.ts";
 import { runLottomaticaPublicProbe } from "../src/live-validation/lottomatica-public-probe.ts";
 import { runSisalPublicProbe } from "../src/live-validation/sisal-public-probe.ts";
 
@@ -124,6 +125,37 @@ test("LOTTOMATICA public probe rejects unsafe targets before attempting browser 
     await assert.rejects(
       runLottomaticaPublicProbe({ url, headless: true }),
       /only accepts credential-free HTTPS URLs on https:\/\/www\.lottomatica\.it/,
+      `expected unsafe live probe target to be rejected: ${url}`,
+    );
+  }
+});
+
+test("EPLAY24 public probe is read-only and cannot authorize production mapping by itself", async () => {
+  await assertReadOnlyProbeSource(
+    "../src/live-validation/eplay24-public-probe.ts",
+    /const EPLAY24_ORIGIN = "https:\/\/www\.eplay24\.it"/,
+    "EPLAY24",
+  );
+
+  const source = await readFile(
+    new URL("../src/live-validation/eplay24-public-probe.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /mappingEvidenceSufficient: false/);
+  assert.match(source, /process\.exitCode = 2/);
+});
+
+test("EPLAY24 public probe rejects unsafe targets before attempting browser collection", async () => {
+  for (const url of [
+    "http://www.eplay24.it/scommesse/prematch/calcio/1/palinsesto",
+    "https://user@www.eplay24.it/scommesse/prematch/calcio/1/palinsesto",
+    "https://user:secret@www.eplay24.it/scommesse/prematch/calcio/1/palinsesto",
+    "https://eplay24.it/scommesse/prematch/calcio/1/palinsesto",
+    "https://example.com/scommesse/prematch/calcio/1/palinsesto",
+  ]) {
+    await assert.rejects(
+      runEplay24PublicProbe({ url, headless: true }),
+      /only accepts credential-free HTTPS URLs on https:\/\/www\.eplay24\.it/,
       `expected unsafe live probe target to be rejected: ${url}`,
     );
   }
