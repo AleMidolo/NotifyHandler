@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { access, cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { access, cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -9,6 +10,7 @@ const outputRoot = join(root, "dist", "live-validation");
 const APPROVED_BOOKMAKER = "admiralbet";
 const APPROVED_ORIGIN = "https://www.admiralbet.it";
 const START_PATH = "/scommesse";
+const CHECKSUM_CONCURRENCY = 8;
 
 async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
@@ -68,11 +70,14 @@ function operatorReadmeText(sourceCommit) {
   ].join("\r\n");
 }
 
-async function sha256(path) {
-  const hash = createHash("sha256");
-  const data = await readFile(path);
-  hash.update(data);
-  return hash.digest("hex");
+function sha256(path) {
+  return new Promise((resolveHash, rejectHash) => {
+    const hash = createHash("sha256");
+    const stream = createReadStream(path);
+    stream.on("error", rejectHash);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("end", () => resolveHash(hash.digest("hex")));
+  });
 }
 
 async function listFiles(directory) {
@@ -92,6 +97,54 @@ async function requirePath(path, description) {
   } catch {
     throw new Error(`${description} is missing: ${path}`);
   }
+}
+
+function copyDirectory(source, destination, description) {
+  const result = spawnSync(
+    "robocopy",
+    [
+      source,
+      destination,
+      "/E",
+      "/COPY:DAT",
+      "/DCOPY:DAT",
+      "/R:2",
+      "/W:1",
+      "/NFL",
+      "/NDL",
+      "/NJH",
+      "/NJS",
+      "/NP",
+    ],
+    { encoding: "utf8", windowsHide: true },
+  );
+  if (result.error) {
+    throw new Error(`Unable to copy ${description}: ${result.error.message}`);
+  }
+  const status = result.status ?? 16;
+  if (status >= 8) {
+    const detail = String(result.stderr || result.stdout || "robocopy failed").trim();
+    throw new Error(`Unable to copy ${description} (robocopy exit ${status}): ${detail}`);
+  }
+}
+
+async function buildChecksumLines(files, bundle) {
+  const lines = new Array(files.length);
+  let nextIndex = 0;
+  const workerCount = Math.min(CHECKSUM_CONCURRENCY, Math.max(files.length, 1));
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      for (;;) {
+        const index = nextIndex;
+        nextIndex += 1;
+        if (index >= files.length) return;
+        const path = files[index];
+        const relativePath = relative(bundle, path).replaceAll("\\", "/");
+        lines[index] = `${await sha256(path)}  ${relativePath}`;
+      }
+    }),
+  );
+  return lines;
 }
 
 export async function buildPortableValidationBundle(options = {}) {
@@ -171,10 +224,12 @@ export async function buildPortableValidationBundle(options = {}) {
   await writeFile(join(bundle, "app", "package.json"), '{"type":"module","private":true}\n', "utf8");
 
   await mkdir(join(bundle, "node_modules"), { recursive: true });
-  await cp(join(root, "node_modules", "playwright-core"), join(bundle, "node_modules", "playwright-core"), {
-    recursive: true,
-  });
-  await cp(browsersSource, join(bundle, "browsers"), { recursive: true });
+  copyDirectory(
+    join(root, "node_modules", "playwright-core"),
+    join(bundle, "node_modules", "playwright-core"),
+    "locked playwright-core package",
+  );
+  copyDirectory(browsersSource, join(bundle, "browsers"), "pinned Playwright browser runtime");
 
   const manifest = {
     formatVersion: 1,
@@ -200,11 +255,7 @@ export async function buildPortableValidationBundle(options = {}) {
   const files = (await listFiles(bundle))
     .filter((path) => relative(bundle, path).replaceAll("\\", "/") !== "SHA256SUMS.txt")
     .sort((a, b) => a.localeCompare(b));
-  const checksumLines = [];
-  for (const path of files) {
-    const relativePath = relative(bundle, path).replaceAll("\\", "/");
-    checksumLines.push(`${await sha256(path)}  ${relativePath}`);
-  }
+  const checksumLines = await buildChecksumLines(files, bundle);
   await writeFile(join(bundle, "SHA256SUMS.txt"), `${checksumLines.join("\n")}\n`, "ascii");
 
   return { bundle, bundleName, manifest, fileCount: files.length + 1 };
