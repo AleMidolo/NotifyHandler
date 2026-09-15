@@ -95,6 +95,21 @@ test("interactive explorer rejects outcome and odds controls even when structura
   }
 });
 
+test("interactive explorer defaults structurally clickable but semantically ambiguous tabs and summaries to deny", () => {
+  for (const input of [
+    descriptor({ tag: "role-tab", label: "1", role: "tab" }),
+    descriptor({ tag: "role-tab", label: "X", role: "tab" }),
+    descriptor({ tag: "role-tab", label: "Real Madrid", role: "tab" }),
+    descriptor({ tag: "summary", label: "Selection", role: undefined }),
+  ]) {
+    assert.equal(
+      classifyPublicControl(input).kind,
+      "DENY",
+      `ambiguous structural control must fail closed: ${input.label}`,
+    );
+  }
+});
+
 test("interactive explorer rejects auth, transaction, and consent controls", () => {
   const forbidden = [
     "Accedi",
@@ -172,5 +187,13 @@ test("interactive explorer source keeps the evidence collector outside sensitive
   assert.match(source, /new NavigationPolicy\(\[target\.origin\]\)/);
   assert.match(source, /isInternalHostname\(parsed\.hostname\)/);
   assert.match(source, /authorizesProductionMapping: false/);
-  assert.match(source, /next\.locator\.click\(\{ timeout: 5_000 \}\)/);
+});
+
+test("interactive explorer must not click navigation anchors because page handlers can mutate betting state", async () => {
+  const source = await readFile(
+    new URL("../src/live-validation/interactive-explorer.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /revalidated\.decision\.interaction === "NAVIGATION"/);
+  assert.match(source, /page\.goto\(/);
 });
