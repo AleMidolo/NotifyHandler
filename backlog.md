@@ -6,44 +6,40 @@ Priority levels: **P0** blocks the current product milestone or protects correct
 
 The automatic local desktop MVP is complete for the **unsigned Windows x64 preview/alpha channel**. Deterministic parsing, automatic first-recommendation resolution, automatic two-leg orchestration, independent leg state/recovery, isolated Playwright/Chromium execution, fixture-backed SISAL/BET365 adapters, security regressions, reproducible CI, and preview packaging are implemented.
 
-The first downloadable user alpha is now published as GitHub prerelease **`v0.0.0-alpha.1`**, built from source commit `3327bc29078d0ab036453e1deaff1b7094fd29ee`. The release contains the portable Windows x64 ZIP and companion SHA-256 checksum. It is unsigned, non-production, and does not imply live bookmaker support.
+The first downloadable user alpha is published as GitHub prerelease **`v0.0.0-alpha.1`** from source commit `3327bc29078d0ab036453e1deaff1b7094fd29ee`. It is unsigned, non-production, and does not imply live bookmaker support.
 
 The product is **not production-ready**. No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope.
 
-The controlled interactive explorer (**#61**) and reproducible local runner (**#69**) are complete. The current autonomous container cannot perform the required real ADMIRALBET run because it lacks the pinned runtime/network prerequisites. Repeating that attempt in the same container is not progress.
+The controlled interactive explorer (**#61**), reproducible local runner (**#69**), and portable Windows ADMIRALBET validation bundle (**#81**) are complete. The durable diagnostic prerelease is **`book012-admiralbet-diagnostic-v1`**, built from exact `main` commit `d16e34dec26086497c6b581a77ba26038b34b836`.
 
-**Product rule:** runner, DNS, browser-host, or toolchain failure is not bookmaker feasibility evidence. It must not classify a bookmaker `Blocked` or relax matching.
+The remaining immediate blocker is no longer software packaging. It is a real **non-CI workstation execution** under #71. The known autonomous container cannot satisfy the required live network/runtime conditions, and repeating the run there is not progress.
+
+**Product rule:** runner, DNS, browser-host, or toolchain failure is environment evidence, not bookmaker feasibility evidence. It must not classify a bookmaker `Blocked` or relax deterministic matching.
 
 ## Ready now
 
-### P0 — DEVOPS-007 / #81: Package portable Windows BOOK-012 validation runner
+### P0 — DEVOPS-005 / #71: Execute ADMIRALBET validation on a qualifying external Windows host
 Owner: Release / DevOps Engineer
 Milestone: 6 — Evidence-backed live bookmaker readiness
+Depends on: completed #61, #69, and #81; requires a normal non-CI Windows workstation with headed desktop support and ordinary outbound DNS/HTTPS.
 
-Build and publish a portable Windows x64 diagnostic bundle containing the existing approved BOOK-012 explorer with pinned runtime/browser dependencies. The operator should not need a repository checkout or separately installed Node/npm.
+Preferred operator flow:
+1. Open prerelease **`book012-admiralbet-diagnostic-v1`**.
+2. Download `notifyhandler-book012-admiralbet-d16e34dec260-win32-x64.zip` and its `.sha256` companion.
+3. Verify the ZIP SHA-256: `ee7bc881b6823fb80f64c51e9bf43732329a5eb1ca3a0987915c0eacabc033de`.
+4. Extract to a fresh writable directory on a normal Windows x64 workstation.
+5. Run `run-admiralbet-validation.cmd`.
+6. Retain/attach only the sanitized `ExplorerSummary.json` to #62 / PR #68.
 
-Acceptance summary:
-- exact-source, reproducible bundle with checksum and concise operator instructions;
-- one-command local ADMIRALBET launcher using the existing hard-coded approved origin and BOOK-012 classifier/safe-stop rules;
-- fresh ephemeral browser context and sanitized `ExplorerSummary` only;
-- no credentials, profiles, cookies/storage capture, screenshots/traces, protected/private API inspection, login/MFA/CAPTCHA handling, outcome activation, stake entry, wager submission, proxies, alternate origins, or access-control bypass;
-- CI may build/test/package/synthetic-smoke the bundle but must **not** contact a bookmaker or execute live validation;
-- repository checks, dependency audit, relevant browser/security tests, bundle verification, and synthetic smoke remain green.
+The bundle is diagnostic/non-production, hard-locked to the approved ADMIRALBET public origin, uses a fresh ephemeral browser context, and does not add credential/auth/session capture, persistent profiles, screenshots/traces/HAR, login/MFA/CAPTCHA handling, outcome activation, stake entry, wager submission, proxies, alternate origins, private APIs, or access-control bypass.
 
-### P0 — DEVOPS-005 / #71: Execute ADMIRALBET validation on a qualifying external host
-Owner: Release / DevOps Engineer
-Milestone: 6 — Evidence-backed live bookmaker readiness
-Depends on: a real external workstation; #81 is the preferred low-friction handoff once complete
-
-After #81 is available, download the portable bundle, verify its checksum, extract it on a normal Windows workstation with outbound DNS/HTTPS and headed desktop support, run the documented ADMIRALBET validation command, and attach only the sanitized `ExplorerSummary` to #62 / PR #68.
-
-A clean checkout with repository-pinned Node/npm and `npm run live:explore:local -- admiralbet` remains an acceptable alternative. Environment failure is not bookmaker evidence.
+A clean checkout using the repository-pinned toolchain and `npm run live:explore:local -- admiralbet` remains an acceptable alternative.
 
 ## Next in Milestone 6
 
 ### P0 — BOOK-013 / #62: Revalidate ADMIRALBET interactively
 Owner: Bookmaker Automation Engineer
-Depends on: actual sanitized qualifying-host result from #71
+Depends on: actual sanitized qualifying-host result from #71.
 
 Interpret the real BOOK-012 result. If the full total-corners pre-activation chain is deterministic, create a separate live-mapping implementation issue. If evidence is genuinely insufficient after a qualifying run, keep ADMIRALBET `Blocked` and document the exact missing dimensions.
 
@@ -73,7 +69,7 @@ Owner: Release / DevOps Engineer
 Milestone: 7 — Production release readiness
 Depends on: #45 passing and at least two release-scope bookmakers remaining live `Supported`.
 
-The unsigned alpha channel is not a substitute for this production gate.
+The unsigned alpha channel and diagnostic validation bundle are not substitutes for this production gate.
 
 ## Completed / historical work
 
@@ -88,7 +84,8 @@ The unsigned alpha channel is not a substitute for this production gate.
 - #74 / PRODUCT-007 — downloadable unsigned alpha channel definition: complete.
 - #75 / DEVOPS-006 — `v0.0.0-alpha.1` Windows x64 GitHub prerelease publication: complete.
 - #78 / PRODUCT-008 — published-alpha/external-host reconciliation: complete.
-- #80 / PRODUCT-009 — portable validation handoff decision and task decomposition: complete once PR/docs merge.
+- #80 / PRODUCT-009 — portable validation handoff decision and task decomposition: complete.
+- #81 / DEVOPS-007 — portable Windows BOOK-012 ADMIRALBET diagnostic bundle and prerelease: complete.
 
 All Milestones 0–5 implementation work remains complete for the unsigned local-preview/alpha channel.
 

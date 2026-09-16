@@ -68,17 +68,18 @@ Owns reproducible development setup, CI/CD, browser/runtime dependencies, packag
 
 ## Current priority order
 
-Milestones 0–5 are complete for the unsigned local-preview MVP, and the first downloadable alpha **`v0.0.0-alpha.1`** is published. The alpha track is complete; it is unsigned/non-production and does not imply live bookmaker support.
+Milestones 0–5 are complete for the unsigned local-preview MVP, and downloadable alpha **`v0.0.0-alpha.1`** is published. The alpha track is complete; it is unsigned/non-production and does not imply live bookmaker support.
+
+The portable ADMIRALBET BOOK-012 handoff is also complete: **#81 DEVOPS-007** published diagnostic prerelease **`book012-admiralbet-diagnostic-v1`** from exact `main` commit `d16e34dec26086497c6b581a77ba26038b34b836`.
 
 ### Live-readiness track
-1. **#81 DEVOPS-007** — package and publish the existing BOOK-012 explorer as a portable Windows x64 diagnostic bundle with pinned runtime/browser inputs, checksum, synthetic smoke, and no live bookmaker access in CI. This is the immediate autonomous task.
-2. **#71 DEVOPS-005** — execute that bundle on a qualifying non-CI external Windows workstation and return only sanitized `ExplorerSummary` evidence. The existing clean-checkout runner is an acceptable alternative. The current autonomous container is known not to satisfy the runtime/network prerequisites; do not repeat it there as if that were progress.
-3. **#62 BOOK-013** — interpret the actual ADMIRALBET result; do not classify from runner failure. Open PR #68 remains pending until the result exists.
-4. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist.
-5. **#64 BOOK-015** — revalidate BET365 if still fewer than two feasible candidates exist.
-6. Create/execute restricted live-mapping implementation issues only for candidates marked `Feasible for implementation` until two bookmakers are genuinely live `Supported`.
-7. **#45 QA-002** — qualify the first evidence-backed live-supported pair.
-8. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
+1. **#71 DEVOPS-005 — immediate blocker.** Execute the published diagnostic bundle on a qualifying non-CI Windows workstation with normal outbound DNS/HTTPS and headed desktop support. Download the ZIP and `.sha256`, verify SHA-256 `ee7bc881b6823fb80f64c51e9bf43732329a5eb1ca3a0987915c0eacabc033de`, extract to a fresh writable directory, run `run-admiralbet-validation.cmd`, and retain only sanitized `ExplorerSummary.json`. The current autonomous container is known not to qualify; do not retry there as if that were progress.
+2. **#62 BOOK-013** — interpret the actual ADMIRALBET result; do not classify from runner failure. Open PR #68 remains pending until the result exists.
+3. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist.
+4. **#64 BOOK-015** — revalidate BET365 if still fewer than two feasible candidates exist.
+5. Create/execute restricted live-mapping implementation issues only for candidates marked `Feasible for implementation` until two bookmakers are genuinely live `Supported`.
+6. **#45 QA-002** — qualify the first evidence-backed live-supported pair.
+7. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
 
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 
