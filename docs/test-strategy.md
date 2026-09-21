@@ -158,7 +158,7 @@ Core assertions:
 - source order is not sorted/re-ranked by ROI, bookmaker name, odds, or display order;
 - after dispatch, each leg's state and failures are independent.
 
-## 3.1 Structured-ingress harness requirements
+### 3.1 Structured-ingress harness requirements
 
 The application/security harness should provide:
 
