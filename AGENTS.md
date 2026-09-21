@@ -70,14 +70,14 @@ Owns reproducible development setup, CI/CD, browser/runtime dependencies, packag
 
 Milestones 0–5 are complete for the unsigned local-preview MVP, and downloadable alpha **`v0.0.0-alpha.1`** is published. The alpha track is complete; it is unsigned/non-production and does not imply live bookmaker support.
 
-The portable ADMIRALBET BOOK-012 handoff is also complete: **#81 DEVOPS-007** published diagnostic prerelease **`book012-admiralbet-diagnostic-v1`** from exact `main` commit `d16e34dec26086497c6b581a77ba26038b34b836`.
+The ADMIRALBET interactive feasibility track is complete: BOOK-013/#62 was merged via PR #68 and is **Blocked at interactive feasibility** for the narrow full-match total-corners scope. No production mapping was authorized.
+
+The SISAL diagnostic packaging track is also complete: DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`. The ZIP SHA-256 is `03d053426b75711aab730d7eeb01b29db88e0d62b0643c768556dd30c9b89439`.
 
 ### Live-readiness track
-DEVOPS-005/#71 is complete: a qualifying non-CI Windows workstation produced the sanitized ADMIRALBET BOOK-012 result. The result exhausted the fixed 10-action explorer budget, produced 11 snapshots, and keeps `authorizesProductionMapping: false`; it is evidence to interpret, not a support decision.
-
-1. **#62 BOOK-013 — immediate P0.** Interpret the actual ADMIRALBET explorer result in PR #68 against the required deterministic event/competition-time/full-match-total-corners/exact-line/side/odds chain. Do not increase the bounded explorer budget, guess selectors, or infer support merely because the site was reachable.
-2. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist.
-3. **#64 BOOK-015** — revalidate BET365 if still fewer than two feasible candidates exist.
+1. **#89 DEVOPS-009 — immediate P0 external blocker.** On a qualifying non-CI Windows x64 workstation, download/verify/extract the SISAL diagnostic, run `run-sisal-validation.cmd`, and return only sanitized `ExplorerSummary.json` to #63. Do not treat workstation/network failure as bookmaker evidence.
+2. **#63 BOOK-014** — interpret the actual SISAL explorer result against the deterministic event/competition-time/full-match-total-corners/exact-line/side/odds chain.
+3. **#64 BOOK-015** — revalidate BET365 only if fewer than two feasible candidates exist after SISAL.
 4. Create/execute restricted live-mapping implementation issues only for candidates marked `Feasible for implementation` until two bookmakers are genuinely live `Supported`.
 5. **#45 QA-002** — qualify the first evidence-backed live-supported pair.
 6. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
