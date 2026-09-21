@@ -127,7 +127,7 @@ Before any browser process navigates, the application/worker boundary must rejec
 3. username and password components are empty;
 4. origin exactly matches an origin registered for the selected bookmaker adapter;
 5. hostname is not loopback, link-local, multicast, or private/internal by literal address;
-6. DNS resolution used for navigation does not resolve exclusively to forbidden private/internal targets;
+6. DNS resolution used for navigation contains no loopback, link-local, private/internal, or otherwise forbidden target address;
 7. the target is not `file:`, `data:`, `javascript:`, browser-internal, extension, or another executable/custom scheme;
 8. notification-controlled data is not used to form shell commands or arbitrary browser-evaluation source.
 
