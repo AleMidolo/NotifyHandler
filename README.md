@@ -45,25 +45,21 @@ The portable bundle is published as GitHub prerelease **`book012-admiralbet-diag
 
 The ADMIRALBET interactive feasibility step is complete. BOOK-013/#62 consumed the qualifying BOOK-012 workstation result and, under the existing deterministic evidence criteria, classified ADMIRALBET as **Blocked at interactive feasibility** for the narrow pre-match football full-match total-corners scope. PR #68 merged that result. The run reached `/scommesse/calcio` but did not establish selector-level event/competition-time/full-match-total-corners/exact-line/side/bound-odds evidence before the fixed budget ended. No production mapping was authorized.
 
-SISAL/BOOK-014 is now active. DEVOPS-008/#88 reused the reviewed portable-runner pattern without changing BOOK-012 and published SISAL diagnostic prerelease **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
+SISAL/BOOK-014 is complete. PR #95 consumed the qualifying SISAL BOOK-012 result and kept SISAL **Blocked at interactive live feasibility** for the narrow pre-match football full-match total-corners scope; the existing fixture-backed adapter remains Testable.
 
-Current SISAL diagnostic handoff:
-- ZIP: `notifyhandler-book012-sisal-f77f99013b6f-win32-x64.zip`;
-- ZIP SHA-256: `03d053426b75711aab730d7eeb01b29db88e0d62b0643c768556dd30c9b89439`;
-- launcher: `run-sisal-validation.cmd`;
-- approved origin/path: `https://www.sisal.it` / `/scommesse-matchpoint/sport/calcio`.
+BET365/BOOK-015 is now active. DEVOPS-010/#96 published BET365 diagnostic prerelease **`book012-bet365-diagnostic-v1`** from exact `main` commit `dee0a2c50ce64c195df424c8c4938e0726f70127`.
 
-DEVOPS-009/#89 is now complete. A real non-CI Windows workstation produced the qualifying SISAL BOOK-012 result and the sanitized evidence is recorded on #89 and BOOK-014/#63. The result reports `status: BUDGET_EXHAUSTED`, fixed budget 10/10, 11 snapshots, final path `/totocalcio`, and `authorizesProductionMapping: false`. This completes the execution handoff only; it does **not** classify SISAL.
+DEVOPS-011/#97 is now complete. A real non-CI Windows workstation produced the qualifying BET365 BOOK-012 result and the sanitized evidence is recorded on #97 and BOOK-015/#64. The result reports `status: BUDGET_EXHAUSTED`, fixed budget 10/10, 11 snapshots, final path `/hub/it-it/football/football-competitions/bundesliga`, and `authorizesProductionMapping: false`. The run reached multiple competition pages and exposed event/time groupings, but this handoff does **not** classify BET365.
 
 The live-support critical path is now:
 
-1. **#63 BOOK-014** — immediate P0: interpret the actual SISAL explorer result against the deterministic full-match total-corners evidence requirements;
-2. **#64 BOOK-015** — revalidate BET365 only if fewer than two feasible candidates exist after SISAL;
-3. implement restricted live mappings only for candidates genuinely proven feasible;
-4. **#45 QA-002** — certify the first two bookmakers that become live `Supported`;
-5. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
+1. **#64 BOOK-015** — immediate P0: interpret the actual BET365 explorer result against the deterministic full-match total-corners evidence requirements;
+2. if BET365 is `Feasible for implementation`, create and execute the restricted live-mapping implementation issue;
+3. if BET365 is also `Blocked`, Product Coordination must explicitly replan Milestone 6 rather than weakening matching or silently changing the target scope;
+4. **#45 QA-002** remains blocked until two bookmakers genuinely become live `Supported`;
+5. **#46 DEVOPS-003** remains blocked until #45 passes.
 
-The fixed explorer budget being exhausted is evidence for BOOK-014 to interpret, not permission to increase the budget, guess selectors, weaken matching, or change SISAL support status without satisfying #63's acceptance criteria.
+The fixed explorer budget being exhausted is evidence for BOOK-015 to interpret, not permission to increase the budget, guess selectors, weaken matching, or change BET365 support status without satisfying #64's acceptance criteria.
 
 Exploratory validation may navigate public event/market UI but must not activate a betting outcome. Outcome activation and selected-state verification remain later restricted implementation/support gates after all deterministic predicates pass.
 
