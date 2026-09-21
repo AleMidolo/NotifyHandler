@@ -73,13 +73,38 @@ An odds change must never cause the system to select a different event/market/li
 
 ## 7. Navigation and URL safety
 
-Notification content is untrusted input. Deep links must be validated before navigation.
+Notification content and direct match links are untrusted input.
 
-The architecture/security design should:
-- allow only supported bookmaker origins/schemes;
-- reject javascript/data/file or other unsafe schemes unless explicitly justified;
-- avoid arbitrary local-file or internal-network navigation;
-- treat redirects and cross-origin changes as evidence requiring re-validation.
+Before any notification-derived bookmaker navigation:
+
+- URL must parse successfully and use exactly `https:`;
+- URL username/password components must be empty;
+- origin must exactly match an adapter-approved bookmaker origin;
+- literal or resolved loopback/link-local/private/internal targets are rejected;
+- unsafe/browser-internal/local-file/custom executable schemes are rejected;
+- redirects and final origins are revalidated;
+- navigation/redirect invalidates matching evidence that may have become stale.
+
+A direct match link is never evidence that the page contains the requested event/market/line/outcome.
+
+For `notifyhandler.direct-pair.v1`, each direct link is required and authoritative as the navigation candidate. Unsafe, stale, wrong-event, or insufficient links fail safely; the system must not silently switch to homepage/competition discovery.
+
+## 7.1 Structured local-ingress safety
+
+The local machine-to-machine endpoint is a privileged control surface even though it binds loopback.
+
+Required controls:
+
+- loopback-only binding by default;
+- unguessable local bearer capability, never in URL/body/renderer/logs;
+- strict JSON media type and 64 KiB request ceiling;
+- Host validation and rejection of unexpected browser Origin requests/no permissive CORS;
+- bounded freshness, idempotency, request concurrency, and rate;
+- rejected ingress produces zero bookmaker navigation;
+- duplicate ingress cannot create duplicate execution;
+- no endpoint exposes arbitrary navigation, JavaScript evaluation, filesystem/shell access, credentials, stake entry, or wager submission.
+
+Remote/public exposure requires a separate reviewed architecture.
 
 ## 8. Browser/session isolation
 
@@ -87,7 +112,7 @@ The architecture should minimize exposure of personal/session data and avoid sha
 
 ## 9. Logging/privacy
 
-Logs should contain only data necessary for diagnosis. Do not log credentials, MFA values, authentication tokens, full session cookies, or unnecessary personal information.
+Logs should contain only data necessary for diagnosis. Do not log credentials, MFA values, bookmaker authentication tokens, the local-ingress bearer token/Authorization header, full session cookies, raw structured notification bodies by default, or unnecessary personal information.
 
 Prefer normalized matching evidence, state transitions, error codes, sanitized URLs/origins, and redacted diagnostics.
 
@@ -105,6 +130,7 @@ A release is blocked if any known path can:
 - enter stakes or submit/confirm a bet;
 - bypass access controls or anti-bot/geo/rate-limit restrictions;
 - navigate untrusted input to unsafe/unapproved origins;
+- expose the structured ingress on non-loopback interfaces by default or accept it without required local authentication/request bounds;
 - expose sensitive authentication/session data in logs or artifacts.
 
 QA and Security should maintain automated tests/checklists covering these gates.
