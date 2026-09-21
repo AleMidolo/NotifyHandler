@@ -1,6 +1,6 @@
 # Bookmaker adapter contract
 
-Status: **Accepted architecture contract for Milestone 1**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-004**
 
 This specification defines how bookmaker-specific code participates in execution without leaking DOM details into the core application or gaining transaction-submission capabilities.
 
@@ -128,21 +128,33 @@ The gate performs only the single verified selection activation and post-click v
 
 ## 7. Navigation policy
 
-Before every top-level navigation or redirect acceptance:
+Before every top-level notification-derived navigation or redirect acceptance:
 
 - scheme must be `https`;
+- URL userinfo must be empty;
 - origin must be registered to the selected adapter;
-- localhost, loopback, link-local, private/internal-network destinations, `file:`, `data:`, `javascript:`, custom executable schemes, and unrelated domains are rejected;
-- cross-origin redirects require explicit allow-list membership;
-- a redirect/navigation that can stale identity evidence starts a new evidence epoch before any later activation.
+- localhost, loopback, link-local, private/internal-network destinations, unsafe schemes, local files, and unrelated domains are rejected;
+- DNS/private-target defenses must prevent an approved-looking hostname from being used to reach forbidden internal targets;
+- cross-origin redirects/final locations require exact allow-list membership;
+- a redirect/navigation that can stale identity evidence advances the evidence epoch before later activation.
 
-A notification deep link is a navigation candidate, not trusted executable input.
+A notification deep link is a navigation candidate, not trusted executable input and not event identity evidence.
+
+For `notifyhandler.direct-pair.v1`:
+
+- the direct match link is required and is the first navigation candidate;
+- worker/browser validation repeats the core's preflight checks immediately before navigation;
+- after page load, the adapter independently verifies event, context, market, exact line, outcome, and odds;
+- an unsafe, stale, wrong-event, blocked, or insufficient direct link returns structured safe failure;
+- the adapter/worker must not silently replace it with homepage/competition discovery.
+
+Legacy textual input may continue to use an adapter-approved entry point when its target has no deep link, subject to the same origin and matching controls.
 
 ## 8. Required adapter algorithm
 
 For every fresh preparation pass, an adapter must conceptually:
 
-1. validate and open an allowed deep link or approved entry point;
+1. validate and open the target's allowed direct link; use an approved generic entry point only for a legacy target whose contract permits it;
 2. wait for a supported page state;
 3. return `AUTH_REQUIRED` if user authentication is needed;
 4. enumerate event candidates;
@@ -263,6 +275,7 @@ Every adapter implementation must pass the same deterministic contract suite aga
 - changed odds interruption;
 - manual-login interruption;
 - blocked unsafe origin/redirect;
+- structured-v1 wrong/stale direct link with zero generic-discovery fallback;
 - cancellation before selection activation;
 - failed post-click selection verification;
 - absence of stake and bet-submit operations.

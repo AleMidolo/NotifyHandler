@@ -15,7 +15,7 @@ No browser action occurs until the notification and resulting targets satisfy th
 Two compatible input modes are supported by product policy:
 
 1. **Legacy textual notification:** preserve recommended options in source order and use the first recommendation as the authoritative primary option.
-2. **Versioned structured bot notification:** accept the authoritative pair directly as exactly two explicit bookmaker legs, including each leg's deep link when supplied.
+2. **Versioned structured bot notification:** for `notifyhandler.direct-pair.v1`, accept the authoritative pair directly as exactly two explicit bookmaker legs and require one direct match-page link per leg.
 
 The application never asks the user which pair to choose. Either input mode must resolve deterministically to exactly two distinct valid `SelectionTarget` legs. A malformed, ambiguous, unsupported, or same-bookmaker pair fails safely before bookmaker navigation; no alternate pair is silently substituted.
 
@@ -28,7 +28,8 @@ Execution starts automatically as soon as all of the following are true:
 - the authoritative pair (legacy primary recommendation or structured explicit pair) resolves deterministically to exactly two valid, distinct bookmaker legs;
 - both bookmakers have supported adapters;
 - targets contain sufficient identity information for the matching policy;
-- supplied navigation targets pass origin/deep-link safety checks required before use.
+- supplied navigation targets pass origin/deep-link safety checks required before use;
+- structured-v1 requests have passed loopback authentication, media/size bounds, schema, freshness, and idempotency checks.
 
 There is no pre-execution confirmation button, no recommended-option selector, and no requirement that the user approve an execution summary.
 
@@ -56,7 +57,7 @@ Architecture may refine these names while preserving their semantics.
 
 For each leg the adapter should:
 
-1. prefer the supplied direct match deep link when valid/permitted; otherwise use the bookmaker entry point only when the adapter/product flow supports that fallback. A deep link is untrusted navigation input and never counts as event-match evidence;
+1. for structured v1, validate and open the required direct match link with no generic-discovery fallback; for legacy input, use a supplied valid deep link or adapter-approved entry point as permitted. A deep link is untrusted navigation input and never counts as event-match evidence;
 2. wait for an allowed page state;
 3. detect whether manual authentication is required and pause if so;
 4. locate candidate event(s);
@@ -125,10 +126,29 @@ Recovery actions are available after automatic execution has started; they are n
 
 ## 11. Input transports
 
-The first bot-to-desktop integration is a **loopback-only HTTP/webhook transport** using the versioned structured exact-pair contract defined by ARCH-004. It terminates at a transport adapter and feeds the same normalized core/domain path as textual input; it contains no bookmaker execution logic.
+NotifyHandler has a transport boundary above parsing/normalization. Transport code contains no bookmaker DOM, Playwright, matching, or outcome-activation logic.
 
-Telegram, clipboard monitoring, and other integrations may be added later through the same transport boundary.
+Two current input contracts are supported:
 
-The desktop listener must not be exposed to the public Internet by default. A remote surebet service requires a separately designed secure relay/outbound connection.
+- legacy text/manual input -> `specs/notification-format.md`;
+- structured local bot input -> `specs/structured-ingestion-v1.md`.
 
-Any transport that receives a valid notification triggers the same automatic processing path without introducing a confirmation step.
+The first bot-to-desktop transport is a loopback-only HTTP endpoint, conceptually `POST /api/v1/notifications/direct-pair`.
+
+The listener:
+
+- binds `127.0.0.1` by default;
+- requires an unguessable local bearer token;
+- accepts JSON only with a 64 KiB ceiling;
+- rejects unexpected browser Origin requests and invalid Host authority;
+- requires `sentAt` freshness and `notificationId` idempotency;
+- bounds request rate/concurrency;
+- returns sanitized errors/references without waiting for bookmaker execution to finish.
+
+An exact duplicate structured request returns the existing execution reference and never creates a second plan. Reuse of the same id with a different normalized payload is rejected.
+
+Telegram, clipboard monitoring, and other transports may be added later through the same normalization boundary.
+
+The desktop listener must not be exposed to the public Internet by default. A remote surebet service requires a separately designed secure relay/outbound connection or another explicit architecture decision.
+
+Any accepted transport triggers the same automatic two-leg processing path without introducing a confirmation step.

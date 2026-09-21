@@ -1,15 +1,16 @@
 # NotifyHandler architecture
 
-Status: **Accepted baseline for Milestone 1, amended by ARCH-003**
+Status: **Accepted baseline for Milestone 1, amended by ARCH-003 and ARCH-004**
 
-NotifyHandler is a local-first desktop application that receives a surebet notification, deterministically resolves its primary recommendation, and starts two independently prepared bookmaker legs as soon as required validation and navigation-safety checks pass. Authentication, changed-odds acknowledgement where required, stake entry, review, and final bet submission remain manual boundaries.
+NotifyHandler is a local-first desktop application that receives either a legacy textual surebet notification or a versioned structured direct-pair notification, normalizes it into exactly two bookmaker-agnostic targets, and starts two independently prepared bookmaker legs as soon as deterministic validation and navigation-safety checks pass. Authentication, changed-odds acknowledgement where required, stake entry, review, and final bet submission remain manual boundaries.
 
-The runtime decision is recorded in `docs/adr/0001-local-desktop-playwright-runtime.md`. Automatic-start semantics are recorded in `docs/adr/0002-automatic-primary-option-startup.md`. Shared execution contracts are defined by ARCH-002 and amended by ARCH-003.
+The runtime decision is recorded in `docs/adr/0001-local-desktop-playwright-runtime.md`. Automatic-start semantics are recorded in `docs/adr/0002-automatic-primary-option-startup.md`. The loopback structured-ingress and direct-link-first trust decision is recorded in `docs/adr/0003-loopback-structured-direct-pair-ingress.md`. Shared execution contracts are defined by ARCH-002 and amended by ARCH-003/ARCH-004.
 
 ## 1. Runtime model
 
 NotifyHandler uses:
 
+- transport adapters for legacy text/manual input and authenticated loopback structured ingestion;
 - an unprivileged desktop renderer for notification input/observability, execution status, recovery actions, and manual handoff;
 - a trusted local core/main process for transport handoff, domain integration, automatic primary-option resolution, execution-plan construction, automatic two-leg orchestration, state, and typed IPC;
 - a separate browser-automation worker containing the adapter registry, matching policy, navigation policy, and browser gateway;
@@ -66,7 +67,8 @@ Bookmaker-specific DOM knowledge exists only in bookmaker adapters and their fix
 
 Downstream implementation must use these shared contracts:
 
-- `specs/notification-format.md` — transport-neutral normalization, source-order preservation, and primary recommendation semantics;
+- `specs/notification-format.md` — legacy textual normalization, source-order preservation, and primary recommendation semantics;
+- `specs/structured-ingestion-v1.md` — versioned explicit two-leg payload, loopback HTTP trust boundary, idempotency/freshness, and direct-link-first rules;
 - `specs/selection-target.md` — immutable bookmaker-agnostic identity target for one leg;
 - `specs/execution-contract.md` — automatic plan/start trigger, exact two-leg runtime model, states, attempts, evidence epochs, commands, and derived plan status;
 - `specs/bookmaker-adapter-contract.md` — core/worker/adapter interface and restricted browser/selection capability boundary;
@@ -77,24 +79,74 @@ Downstream implementation must use these shared contracts:
 
 If implementation behavior conflicts with these contracts, implementation must change or an explicit architecture change/ADR must be accepted first.
 
-## 4. Automatic notification-to-execution boundary
+## 4. Ingestion-to-execution boundary
 
-The core owns the transition from input receipt to execution startup.
+The core owns the transition from any accepted notification transport to one immutable two-leg execution plan.
 
-For the initial notification contract:
+Two input contracts are supported:
 
-1. a transport delivers one notification to the core/application ingestion boundary;
+### 4.1 Legacy textual notification
+
+1. a transport delivers text to the parser/domain boundary;
 2. parsing and deterministic validation begin immediately;
 3. `recommendedOptions` source order is preserved;
-4. the first recommendation in source order is the **primary recommendation**;
-5. the primary recommendation must resolve deterministically to exactly two valid `SelectionTarget` values for distinct canonical bookmakers;
-6. both bookmakers must have registered adapters and each target must pass pre-navigation validation, including safe/approved navigation candidates;
-7. the core creates one immutable `ExecutionPlan` and starts both legs automatically, preferably concurrently;
-8. the renderer may receive parsed/plan/status updates in parallel, but renderer completion or acknowledgement is not a prerequisite for step 7.
+4. recommendation index `0` is the authoritative primary recommendation;
+5. that recommendation must resolve to exactly two valid `SelectionTarget` values for distinct canonical bookmakers;
+6. existing adapter-availability and navigation-candidate preflight runs;
+7. the core creates one immutable `ExecutionPlan` and starts both legs automatically.
 
-If any preflight condition fails, the core returns a structured safe failure **before bookmaker navigation**. It must not ask the user to choose a recommendation and must not silently fall through to a later recommendation.
+An invalid primary recommendation fails safely. The core does not ask the user to choose another recommendation and does not fall through to index 1+.
 
-A future notification version may define an explicit primary/preferred marker, but that requires a versioned protocol/spec change. It must not be inferred heuristically.
+### 4.2 Structured direct-pair v1
+
+The machine-to-machine contract is `notifyhandler.direct-pair.v1` from `specs/structured-ingestion-v1.md`.
+
+For this version:
+
+1. the request is accepted only through the authenticated, bounded loopback ingress policy;
+2. schema, freshness, idempotency, exact-two-leg, distinct-bookmaker, market, odds, and URL requirements are validated before execution creation;
+3. the explicit two legs are authoritative; there is no `recommendedOptions` chooser or fallback;
+4. each required direct match link is treated as untrusted navigation input and must pass application preflight;
+5. structured normalization produces exactly two immutable `SelectionTarget` values;
+6. the core creates the same `ExecutionPlan` type used by the legacy path;
+7. both legs start automatically, preferably concurrently.
+
+The structured transport is not allowed to call bookmaker adapters directly. Both ingestion modes converge before the worker/adapter boundary.
+
+### 4.3 Loopback HTTP boundary
+
+The first structured transport is a local HTTP endpoint, conceptually:
+
+```text
+POST /api/v1/notifications/direct-pair
+```
+
+Architecture requirements:
+
+- bind to `127.0.0.1` by default; `::1` requires an explicit local listener/configuration;
+- never bind LAN/Internet interfaces by default;
+- require an unguessable local bearer capability of at least 256 bits;
+- keep the token outside renderer state, URLs, payloads, logs, and bookmaker/browser credentials;
+- require JSON and cap request bodies at 64 KiB;
+- reject unexpected browser `Origin` requests and validate the configured loopback `Host`;
+- require bounded freshness and idempotency before execution creation;
+- bound request concurrency/rate so ingress cannot create an unbounded number of browser starts;
+- return sanitized HTTP error/result metadata only.
+
+Remote/public webhook exposure, tunnels, reverse proxies, or Internet relays require a separate architecture/security decision.
+
+### 4.4 Idempotency and replay
+
+`notificationId` is the structured-v1 idempotency key and `sentAt` is required freshness evidence.
+
+Default semantics:
+
+- accept timestamps at most 5 minutes old and at most 60 seconds in the future;
+- same id + same normalized payload hash returns the existing execution reference and never starts another plan;
+- same id + different payload hash is a conflict;
+- retain only a bounded id/hash/execution association, not the full raw notification, for the required duplicate-suppression horizon.
+
+The renderer may observe parsed/plan/status updates, but renderer completion or acknowledgement is never a prerequisite for startup.
 
 ## 5. Renderer boundary
 
@@ -273,15 +325,25 @@ Adding a transaction capability is an architecture-breaking change and release b
 
 ## 15. Navigation and trust boundaries
 
-Notification content, deep links, and bookmaker page content are untrusted.
+Notification content, structured payload fields, deep links, and bookmaker page content are untrusted.
 
-Before the core considers a plan ready to start, each leg must have a supported adapter and a navigation candidate that can be validated under the adapter's origin policy. The worker performs authoritative validation immediately before every top-level navigation and redirect acceptance.
+Before accepting a notification-derived bookmaker navigation:
 
-- scheme must be `https`;
-- origin must be explicitly registered to the selected adapter;
-- unsafe schemes, localhost, loopback/link-local/private internal-network destinations, and unrelated domains are blocked when input-controlled;
-- cross-origin redirects require allow-list validation;
-- navigation/redirect invalidates stale matching evidence.
+- URL must parse successfully;
+- scheme must be exactly `https:`;
+- username/password components must be empty;
+- origin must exactly match an origin registered for the selected adapter;
+- literal or resolved loopback/link-local/private/internal destinations are rejected;
+- unsafe schemes, local files, browser-internal/custom executable schemes, and unrelated domains are blocked;
+- notification-controlled strings are never used as shell commands or arbitrary browser-evaluation source.
+
+Structured-v1 direct match links are validated twice: during core preflight and again by the browser/worker gateway immediately before navigation.
+
+A direct match link is only a navigation/latency hint. It never proves event, competition/time context, market/context, line, outcome, or odds. Those dimensions must still be independently matched in the current evidence epoch.
+
+Redirects and final locations do not inherit trust from the starting URL. Cross-origin/final-origin changes must pass the adapter's exact allowlist, and any navigation that can stale identity evidence advances the evidence epoch before later activation.
+
+For structured v1, an unsafe, stale, wrong-event, blocked, or insufficient direct link produces safe failure. The worker must not silently fall back to generic homepage/competition discovery. Legacy textual input remains governed by its existing adapter navigation behavior.
 
 The renderer never renders untrusted bookmaker HTML.
 
@@ -321,13 +383,18 @@ Exact package manager, Electron/Node/Playwright versions, bundler, installer/sig
 
 ## 19. Architecture completion state
 
-ARCH-001 selected the runtime. ARCH-002 stabilized execution/adapter safety contracts. ARCH-003 removes obsolete pre-execution review/selection/start assumptions and defines deterministic automatic primary-option startup.
+ARCH-001 through ARCH-004 now establish the current runtime and shared contracts:
 
-Current downstream priorities are:
+- ARCH-001 — local desktop + headed Playwright runtime;
+- ARCH-002 — execution/adapter/matching/error contracts;
+- ARCH-003 — deterministic automatic startup;
+- ARCH-004 — versioned structured direct-pair ingestion, authenticated loopback HTTP boundary, idempotency/freshness, and direct-link-first trust semantics.
 
-- APP-002 / #21 — implement notification-to-automatic-two-leg orchestration against this amended contract;
-- QA-001 / #6 — add end-to-end automatic-start and no-fallback regressions plus the remaining safety suite;
-- SEC-001 / #7 — complete threat-model/security hardening for the accepted local runtime and automatic flow;
-- second bookmaker path — provide the second adapter needed for a real two-bookmaker preparation pair.
+Downstream responsibilities are now explicit:
 
-Existing APP-001 preview/selector code may remain as non-blocking observability or tooling, but it must not gate the production valid-notification path.
+- **Application Engineer / APP-005:** implement the loopback transport and `notifyhandler.direct-pair.v1` validator, local bearer lifecycle, bounds/freshness/idempotency, and convergence into the existing automatic two-leg orchestration;
+- **Bookmaker Automation Engineer / BOOK-016:** treat the immutable validated direct match link as the first navigation candidate, revalidate it at the browser boundary, and independently re-establish all identity/odds evidence without generic-discovery fallback for structured v1;
+- **Security & Compliance Engineer / SEC-002:** review listener binding, token lifecycle, Host/Origin policy, replay/idempotency, URL/DNS/redirect defenses, and ingress logging/privacy;
+- **QA / Integration Engineer:** prove legacy and structured inputs converge on the same state/matching/transaction contracts and that rejected ingress produces zero browser navigation.
+
+QA-002 remains blocked until two bookmakers reach narrowly scoped evidence-backed live `Supported` status. Production release remains blocked behind that qualification.
