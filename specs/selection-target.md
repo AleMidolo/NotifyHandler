@@ -1,11 +1,12 @@
 # Selection target specification
 
-Status: **Accepted architecture/domain contract for Milestone 1**
+Status: **Accepted architecture/domain contract for Milestone 1, amended by ARCH-004**
 
-`SelectionTarget` is the immutable, bookmaker-agnostic instruction for one leg of a chosen surebet pair. It describes **what must be selected**, never how a bookmaker DOM is manipulated.
+`SelectionTarget` is the immutable, bookmaker-agnostic instruction for one leg of an accepted surebet execution pair. It describes **what must be selected**, never how a bookmaker DOM is manipulated.
 
 Normative companion contracts:
 
+- `specs/structured-ingestion-v1.md` — structured explicit-pair provenance and required direct-link semantics;
 - `specs/execution-contract.md` — two-leg runtime/state semantics;
 - `specs/bookmaker-adapter-contract.md` — worker/adapter/browser capability boundary;
 - `specs/matching-policy.md` — identity evidence, odds, and activation rules;
@@ -36,10 +37,19 @@ type SelectionTarget = Readonly<{
   }>;
   expectedOdds: DecimalOddsString;
   deepLink?: string; // untrusted navigation candidate until validated
-  provenance: Readonly<{
-    notificationOptionId: string;
-    sourceOfferId: string;
-  }>;
+  provenance: Readonly<
+    | {
+        kind: "legacy-recommendation";
+        notificationOptionId: string;
+        sourceOfferId: string;
+      }
+    | {
+        kind: "structured-direct-pair";
+        schemaVersion: "notifyhandler.direct-pair.v1";
+        notificationId: string;
+        legIndex: 0 | 1;
+      }
+  >;
 }>;
 ```
 
@@ -55,12 +65,13 @@ A target is valid for execution only when:
 - a line is present for every line-based market;
 - outcome/side is explicit;
 - expected odds are valid positive decimal odds;
-- provenance resolves to the user-selected recommended option and source offer;
-- any supplied deep link remains untrusted until runtime origin/scheme validation.
+- provenance resolves either to the legacy primary recommendation/source offer or to one explicit structured-v1 leg;
+- any supplied deep link remains untrusted until runtime origin/scheme validation;
+- structured-v1 provenance requires a direct link; legacy provenance may omit one when its adapter flow permits another approved entry point.
 
-One recommended MVP pair resolves to exactly two valid targets.
+Every accepted execution pair resolves to exactly two valid targets.
 
-Targets are immutable after the execution summary is shown. A different event, bookmaker, market, line, side, or expected odds requires rebuilding/reviewing the plan; an adapter may never mutate a target to make a page candidate fit.
+Targets are immutable once the execution plan is created. A different event, bookmaker, market, line, side, or expected odds requires rebuilding/reviewing the plan; an adapter may never mutate a target to make a page candidate fit.
 
 ## 3. Target vs execution state
 
@@ -186,3 +197,11 @@ Shared tests must prove that:
 - manual login invokes no credential automation;
 - cancellation and stale evidence prevent activation;
 - no adapter/core capability can enter stakes or submit a bet.
+
+## 13. Structured direct-pair provenance
+
+For `notifyhandler.direct-pair.v1`, `provenance.kind` is `structured-direct-pair` and identifies the message plus leg index without inventing a recommendation id.
+
+The direct match link is required input for that source, but it remains a navigation candidate only. It must not be converted into event/market/outcome evidence.
+
+If a structured-v1 direct link is unsafe, stale, wrong-event, blocked by authentication/access behavior that cannot be resumed safely, or insufficient to establish deterministic page evidence, the leg fails safely. The target must not be mutated to a generic bookmaker URL or a different event.
