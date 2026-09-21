@@ -1,15 +1,17 @@
 # Test strategy
 
-Status: **Architecture baseline for Milestone 1, amended by ARCH-003**
+Status: **Architecture baseline for Milestone 1, amended by ARCH-003 and ARCH-004**
 
 The test strategy prioritizes deterministic wrong-selection prevention, automatic notification-to-browser startup correctness, and transaction-boundary enforcement. Routine automated tests must not require bookmaker credentials, live accounts, or real betting transactions.
 
-## 1. Critical end-to-end contract
+## 1. Critical end-to-end contracts
 
-The highest-priority application regression is now:
+Both accepted ingestion contracts must converge on the same two-leg runtime without pre-execution user action.
+
+### 1.1 Legacy text
 
 ```text
-notification received
+text notification
   -> parse/validate
   -> preserve recommendation source order
   -> resolve recommendation[0] as primary
@@ -18,20 +20,36 @@ notification received
   -> automatically dispatch both legs
 ```
 
-The test must prove **zero pre-execution user actions** are required. Parsed preview rendering, target-summary rendering, pair selector state, or a start button must not gate dispatch.
+Required legacy cases include valid automatic primary selection, no renderer/start-button dependency, invalid-primary/no-later-fallback, same-bookmaker rejection, unsupported-bookmaker rejection, and unsafe navigation preflight.
 
-Required automatic-start cases:
+### 1.2 Structured direct-pair v1
 
-1. valid notification -> primary option index 0 is used automatically;
-2. valid notification -> exactly two worker `start` calls occur without user selection/confirmation/start input;
-3. both leg starts are scheduled independently/as concurrently as the test harness permits;
-4. preview/render callback delayed or absent -> startup still occurs;
-5. multiple recommendations -> only the first source-order recommendation is used;
-6. malformed/ambiguous primary recommendation with a valid later recommendation -> safe failure, zero worker starts, no fallback;
-7. same-bookmaker primary -> safe failure, zero worker starts;
-8. unsupported primary bookmaker -> safe failure before any navigation/start;
-9. unsafe/invalid navigation candidate detected in preflight -> safe failure, zero worker starts;
-10. new valid notification after a previous run -> creates a new plan/attempts and does not reuse stale recommendation choice/evidence.
+```text
+authenticated loopback POST
+  -> media/size + schema validation
+  -> freshness + idempotency
+  -> validate explicit two distinct legs
+  -> validate required direct match links
+  -> build the same two SelectionTargets / ExecutionPlan
+  -> automatically dispatch both legs
+```
+
+Required structured cases:
+
+1. valid authenticated request -> exactly one execution and exactly two worker starts;
+2. missing/invalid bearer token -> zero executions/navigation;
+3. non-loopback/invalid Host or unexpected browser Origin -> zero executions/navigation;
+4. wrong media type, malformed JSON, or >64 KiB request -> zero executions/navigation;
+5. stale/future `sentAt` -> zero executions/navigation;
+6. same id + same normalized payload -> same execution reference, zero duplicate starts;
+7. same id + different payload -> conflict, zero new execution;
+8. same-bookmaker/unsupported pair -> semantic failure before navigation;
+9. credential-bearing/off-origin/private/internal direct link -> failure before navigation;
+10. direct link reaches wrong event -> matching failure, not link trust;
+11. blocked/stale/insufficient structured direct link -> no generic-discovery fallback;
+12. delayed/absent renderer observation -> startup still occurs.
+
+Both paths must preserve the same authentication, odds, cancellation, stale-evidence, selection-gate, and transaction-boundary regressions.
 
 ## 2. Test pyramid
 
@@ -140,6 +158,21 @@ Core assertions:
 - source order is not sorted/re-ranked by ROI, bookmaker name, odds, or display order;
 - after dispatch, each leg's state and failures are independent.
 
+## 3.1 Structured-ingress harness requirements
+
+The application/security harness should provide:
+
+- a real loopback-bound test listener or equivalent socket-level boundary test;
+- deterministic local bearer token injection/rotation;
+- Host/Origin controls;
+- request body/media-type bounds;
+- deterministic clock for `sentAt` freshness;
+- bounded idempotency store and payload-hash spy;
+- execution creation and worker-start spies;
+- navigation spy proving rejected requests never reach the worker.
+
+The harness must never require bookmaker credentials or live bookmaker access.
+
 ## 4. Deterministic fixture rules
 
 Fixture content must be sanitized and synthetic or otherwise safe to store in the repository.
@@ -201,6 +234,9 @@ Static/package-boundary tests should also ensure:
 Tests should verify:
 
 - unsafe URL schemes are rejected;
+- structured ingress binds loopback-only by default and rejects unauthenticated/unexpected browser-origin requests;
+- local ingress token/Authorization headers are absent from logs/artifacts;
+- replay/idempotency rules prevent duplicate browser starts;
 - unsupported origins and cross-origin redirects are rejected;
 - private/internal network navigation is rejected when input-controlled;
 - preflight-invalid primary targets create zero browser navigation attempts;
@@ -268,4 +304,6 @@ A change affecting ingestion, primary resolution, matching, adapter behavior, br
 - cancellation can race into a later activation;
 - stake/bet-submit/credential automation becomes reachable;
 - unsafe navigation is possible from untrusted notification data;
+- structured ingress can bind non-loopback by default, accept unauthenticated/oversized/stale/replayed input, or create duplicate execution;
+- structured-v1 direct-link failure can silently fall back to generic discovery;
 - sensitive authentication/session data is written to logs/artifacts.
