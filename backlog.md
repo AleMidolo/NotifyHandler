@@ -20,28 +20,19 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — DEVOPS-009 / #89: Execute SISAL validation on a qualifying external Windows host
-Owner: Release / DevOps Engineer
+### P0 — BOOK-014 / #63: Revalidate SISAL interactively
+Owner: Bookmaker Automation Engineer
 Milestone: 6 — Evidence-backed live bookmaker readiness
-Depends on: completed BOOK-012/#61 and DEVOPS-008/#88.
+Depends on: completed qualifying workstation handoff #89.
 
-Preferred operator flow:
-1. Open prerelease **`book012-sisal-diagnostic-v1`**.
-2. Download `notifyhandler-book012-sisal-f77f99013b6f-win32-x64.zip` and its `.sha256` companion.
-3. Verify ZIP SHA-256 `03d053426b75711aab730d7eeb01b29db88e0d62b0643c768556dd30c9b89439`.
-4. Extract to a fresh writable directory on a normal Windows x64 workstation with headed desktop support and ordinary outbound DNS/HTTPS.
-5. Run `run-sisal-validation.cmd`.
-6. Retain/attach only sanitized `ExplorerSummary.json` to BOOK-014/#63.
+Interpret the actual sanitized BOOK-012 SISAL result now recorded on #63. The explorer ran on the approved origin/path and completed its fixed 10-action budget with `status: BUDGET_EXHAUSTED`, 11 snapshots, final path `/totocalcio`, and `authorizesProductionMapping: false`.
 
-The bundle is diagnostic/non-production, hard-locked to SISAL / `https://www.sisal.it` / `/scommesse-matchpoint/sport/calcio`, preserves the existing BOOK-012 bounded/default-deny behavior, and keeps `authorizesProductionMapping: false`.
+Determine whether the captured evidence establishes the required deterministic pre-activation chain:
+`event → competition/time context → full-match total-corners market → exact numeric line → requested side → displayed odds`.
+
+If the chain is deterministic, mark `Feasible for implementation` and create a separate restricted SISAL live-mapping implementation issue that reuses the existing adapter. If evidence remains genuinely insufficient after this qualifying run, keep the live scope `Blocked` with the exact missing dimensions. Do not increase the explorer budget, guess selectors, weaken matching, or infer support from site reachability.
 
 ## Next in Milestone 6
-
-### P0 after #89 — BOOK-014 / #63: Revalidate SISAL interactively
-Owner: Bookmaker Automation Engineer
-Depends on: actual sanitized qualifying-workstation SISAL result from #89.
-
-Interpret the real BOOK-012 SISAL evidence. Mark `Feasible for implementation` only if the deterministic pre-activation chain is established; otherwise retain `Blocked` with exact missing dimensions. Do not infer feasibility from runner/environment failure.
 
 ### P1 — BOOK-015 / #64: Revalidate BET365 interactively
 Owner: Bookmaker Automation Engineer
@@ -83,6 +74,7 @@ The unsigned alpha channel and diagnostic validation bundle are not substitutes 
 - #71 / DEVOPS-005 — qualifying non-CI Windows ADMIRALBET explorer execution and sanitized result handoff: complete.
 - #62 / BOOK-013 — ADMIRALBET interactive feasibility: `Blocked` for the narrow full-match total-corners scope; PR #68 merged.
 - #88 / DEVOPS-008 — SISAL-specific portable BOOK-012 diagnostic bundle and prerelease: complete.
+- #89 / DEVOPS-009 — qualifying non-CI Windows SISAL explorer execution and sanitized result handoff: complete.
 
 All Milestones 0–5 implementation work remains complete for the unsigned local-preview/alpha channel.
 
