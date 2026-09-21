@@ -308,10 +308,10 @@ export function normalizeDirectPairNotificationV1(
   }
 
   if (normalizedLegs.length === 2) {
-    if (normalizedLegs[0].bookmaker === normalizedLegs[1].bookmaker) {
+    if (normalizedLegs[0]!.bookmaker === normalizedLegs[1]!.bookmaker) {
       errors.push(issue("DUPLICATE_BOOKMAKER", "legs", "The two structured legs must target distinct bookmakers."));
     }
-    if (normalizedLegs[0].outcome === normalizedLegs[1].outcome) {
+    if (normalizedLegs[0]!.outcome === normalizedLegs[1]!.outcome) {
       errors.push(issue("INVALID_OUTCOME", "legs", "The total-corners pair must contain one OVER and one UNDER leg."));
     }
   }
