@@ -4,6 +4,7 @@ import type {
   LegRuntimeState,
   PlanRuntimeStatus,
 } from "../../application/src/index.ts";
+import type { ExecutionPlan } from "../../domain/src/index.ts";
 import {
   createLocalNotifyHandlerRuntime,
   type LocalNotifyHandlerOptions,
@@ -125,6 +126,24 @@ export class DesktopAppController {
 
     // This directly enters the automatic application path. No renderer acknowledgement is awaited.
     await this.runtime.orchestrator.receiveNotification(inputText);
+    return this.getSnapshot();
+  }
+
+  /**
+   * Trusted machine-to-machine ingress convergence point. This method is not
+   * exposed through the renderer preload bridge.
+   */
+  async receiveStructuredPlan(plan: ExecutionPlan): Promise<DesktopSnapshot> {
+    this.latency = {
+      notificationReceivedAtMs: this.nowMs(),
+      planReadyAtMs: null,
+      firstWorkerStartAtMs: null,
+      notificationToFirstWorkerStartMs: null,
+    };
+    this.revision += 1;
+    this.publish();
+
+    await this.runtime.orchestrator.receiveExecutionPlan(plan);
     return this.getSnapshot();
   }
 

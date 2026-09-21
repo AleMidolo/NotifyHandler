@@ -139,10 +139,20 @@ export interface SelectionTarget {
   }>;
   readonly expectedOdds: DecimalString;
   readonly deepLink?: string;
-  readonly provenance: Readonly<{
-    notificationOptionId: string;
-    sourceOfferId: string;
-  }>;
+  readonly provenance: Readonly<
+    | {
+        /** Optional until all legacy fixture constructors are migrated. */
+        kind?: "legacy-recommendation";
+        notificationOptionId: string;
+        sourceOfferId: string;
+      }
+    | {
+        kind: "structured-direct-pair";
+        schemaVersion: "notifyhandler.direct-pair.v1";
+        notificationId: string;
+        legIndex: 0 | 1;
+      }
+  >;
 }
 
 export interface ExecutionPlan {
@@ -876,6 +886,7 @@ function toSelectionTarget(
       expectedOdds: offer.expectedOdds,
       ...(offer.deepLink ? { deepLink: offer.deepLink } : {}),
       provenance: {
+        kind: "legacy-recommendation",
         notificationOptionId: option.id,
         sourceOfferId: offer.id,
       },
@@ -926,8 +937,14 @@ export function buildExecutionPlan(
       ...(!targetB.ok ? targetB.errors : []),
     ]);
   }
+  const sourceOfferA = "sourceOfferId" in targetA.value.provenance
+    ? targetA.value.provenance.sourceOfferId
+    : undefined;
+  const sourceOfferB = "sourceOfferId" in targetB.value.provenance
+    ? targetB.value.provenance.sourceOfferId
+    : undefined;
   if (
-    targetA.value.provenance.sourceOfferId === targetB.value.provenance.sourceOfferId ||
+    (sourceOfferA !== undefined && sourceOfferA === sourceOfferB) ||
     (targetA.value.bookmaker === targetB.value.bookmaker &&
       targetA.value.outcome.side === targetB.value.outcome.side &&
       targetA.value.market.line === targetB.value.market.line)
