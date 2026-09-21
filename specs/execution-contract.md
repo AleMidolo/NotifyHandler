@@ -1,6 +1,6 @@
 # Execution plan and state contract
 
-Status: **Accepted architecture contract for Milestone 1, amended by ARCH-003**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-003 and ARCH-004**
 
 This specification defines the bookmaker-agnostic execution model from receipt of a valid notification through automatic two-leg startup, execution-time interruptions, and manual handoff. It is normative for domain, application, automation, QA, and security implementations.
 
@@ -8,7 +8,7 @@ This specification defines the bookmaker-agnostic execution model from receipt o
 
 An executable `ExecutionPlan`:
 
-- represents the notification's deterministic **primary recommended option**; for the initial contract this is recommendation index `0` in preserved source order;
+- represents exactly one authoritative two-leg source: either the legacy notification's deterministic primary recommendation (index `0` in preserved source order) or the explicit pair in `notifyhandler.direct-pair.v1`;
 - contains exactly two independently addressable legs;
 - contains one immutable `SelectionTarget` per leg;
 - targets two distinct canonical bookmakers;
@@ -21,33 +21,33 @@ A valid plan does **not** require user preview, recommended-option choice, execu
 
 If the primary recommendation is invalid, ambiguous, same-bookmaker, unsupported, or cannot yield exactly two valid targets, execution fails before bookmaker navigation. The system must not silently use a later recommendation.
 
-## 2. Automatic primary-plan construction
+## 2. Authoritative pair construction
 
-The domain/core boundary must preserve recommendation source order and expose deterministic primary resolution.
+There are two accepted sources for plan construction.
 
-Conceptually:
+### 2.1 Legacy textual source
 
-```ts
-type PrimaryPlanResult =
-  | { kind: "READY"; plan: ExecutionPlan }
-  | { kind: "FAILED_SAFE"; failure: SafeFailure };
-```
+For `specs/notification-format.md`:
 
-Equivalent implementation APIs are acceptable. The normal production ingestion path must behave as if it performs:
+1. preserve `recommendedOptions` source order;
+2. use recommendation index `0` as the authoritative primary;
+3. resolve it to exactly two distinct supported bookmaker targets;
+4. fail safely on invalid/ambiguous/same-bookmaker/unsupported primary input;
+5. never fall through to a later recommendation.
 
-```text
-receive notification
-  -> parse/validate
-  -> select recommendedOptions[0] as primary
-  -> resolve exactly two distinct SelectionTarget legs
-  -> validate adapter availability + navigation candidates
-  -> create immutable ExecutionPlan
-  -> automatically dispatch START for both legs
-```
+### 2.2 Structured direct-pair v1 source
 
-There is no UI-selected recommendation id in this path.
+For `specs/structured-ingestion-v1.md`:
 
-An implementation may retain a lower-level API such as `buildExecutionPlan(notification, recommendedOptionId, createdAt)` for tests/tools, but production automatic execution must supply the primary recommendation id deterministically from the normalized notification rather than user input.
+1. validate the authenticated/bounded structured request;
+2. treat `legs[0]` and `legs[1]` as the authoritative pair;
+3. require exactly two distinct supported canonical bookmakers;
+4. require a valid direct match link for each leg;
+5. normalize both legs into immutable `SelectionTarget` values;
+6. fail safely on any schema, freshness, idempotency, semantic, bookmaker, or URL violation;
+7. never synthesize `recommendedOptions` and never substitute another pair.
+
+Both sources produce the same `ExecutionPlan` and runtime state model. Source selection affects only pre-plan normalization/provenance, not bookmaker execution semantics.
 
 ## 3. Conceptual TypeScript contract
 
@@ -94,20 +94,28 @@ The plan's overall status is derived from its two leg states. It is not a mutabl
 
 ## 4. Automatic-start trigger and preflight
 
-Automatic startup is triggered when all of the following are true:
+A plan is dispatched automatically when its source-specific normalization has produced exactly two valid immutable targets and common preflight succeeds.
 
-- parsing/normalization succeeded;
-- primary recommendation resolution succeeded without fallback;
-- the plan contains exactly two valid distinct-bookmaker targets;
-- each target's bookmaker resolves to a registered adapter;
-- each target has sufficient identity data for the matching contract;
-- each supplied/fallback navigation candidate passes non-browser preflight that can be performed before dispatch.
+Common preflight requires:
 
-After these conditions hold, the core must schedule both legs immediately. The preferred implementation dispatches both starts concurrently (for example `Promise.allSettled` or equivalent independent tasks) so one slow launch does not delay the other.
+- two distinct supported bookmaker adapters;
+- required event/market/line/outcome/expected-odds fields;
+- navigation candidates satisfying application-level URL policy;
+- no stale/cancelled prior execution being reused;
+- no renderer/user approval dependency.
 
-Rendering, preview acknowledgement, recommendation selection, execution-summary acknowledgement, or a UI start event must not participate in this trigger.
+Structured v1 additionally requires:
 
-Preflight is defense-in-depth, not a replacement for worker validation. The worker still performs authoritative origin/deep-link/redirect checks immediately before navigation.
+- authenticated loopback request acceptance;
+- supported schema version;
+- request size/media-type policy;
+- accepted `sentAt` freshness;
+- idempotency registration;
+- required direct match links for both legs.
+
+For structured v1, URL failure produces safe failure before worker start. The application must not replace the direct link with a generic bookmaker entry point.
+
+After preflight the core creates the plan and dispatches both legs, preferably concurrently. Worker-level `START` remains an internal lifecycle operation; it is not a renderer/user command.
 
 ## 5. Leg states
 
@@ -330,3 +338,18 @@ Before worker dispatch, deterministic failures use structured plan/input failure
 The system does not ask the user to repair the pair as part of automatic execution and does not try a later recommendation.
 
 After dispatch, worker/adapter failures follow `docs/error-model.md` and preserve independent leg state.
+
+## 17. Structured-v1 direct-link runtime semantics
+
+When a plan originates from `notifyhandler.direct-pair.v1`:
+
+- each leg carries its immutable direct match link as untrusted navigation provenance;
+- the worker/browser gateway revalidates HTTPS, URL userinfo, exact approved origin, private/internal-target policy, and redirects immediately before navigation;
+- successful navigation creates no positive identity evidence by itself;
+- event, competition/time context, market/context, exact line, outcome, and displayed odds must still be matched in the current evidence epoch;
+- a redirect or material navigation invalidates prior evidence;
+- `AUTH_REQUIRED` resume revalidates current origin and, when needed, may reopen only the same validated immutable direct link before a fresh full match pass;
+- `ODDS_CHANGED`, cancellation, stale-event rejection, and activation-gate behavior are unchanged;
+- direct-link failure never authorizes generic-discovery fallback for structured v1.
+
+The HTTP transport's duplicate/idempotency handling is outside the leg state machine: an exact duplicate returns the already-created execution reference and does not create a new attempt or plan.
