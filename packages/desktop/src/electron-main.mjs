@@ -4,6 +4,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createProductionDesktopController, DesktopControllerError } from "./controller.ts";
 import {
+  DEFAULT_DIRECT_PAIR_INGRESS_PORT,
+  loadOrCreateLocalIngressToken,
+  startDirectPairIngressServer,
+} from "./http-ingress.ts";
+import {
   DESKTOP_IPC_CHANNELS,
   DesktopIpcValidationError,
   parseDesktopRecoveryCommand,
@@ -19,6 +24,17 @@ let mainWindow = null;
 let controller = null;
 let unsubscribe = null;
 let handlersRegistered = false;
+let ingressServer = null;
+
+function configuredIngressPort() {
+  const raw = process.env.NOTIFYHANDLER_INGRESS_PORT;
+  if (raw === undefined || raw === "") return DEFAULT_DIRECT_PAIR_INGRESS_PORT;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1024 || value > 65535) {
+    throw new Error("NOTIFYHANDLER_INGRESS_PORT must be an integer between 1024 and 65535.");
+  }
+  return value;
+}
 
 function ipcError(error) {
   if (error instanceof DesktopIpcValidationError || error instanceof DesktopControllerError) {
@@ -74,6 +90,12 @@ function registerIpcHandlers() {
 
 async function createWindow() {
   controller = createProductionDesktopController();
+  const ingressToken = loadOrCreateLocalIngressToken(join(app.getPath("userData"), "direct-pair-ingress-token"));
+  ingressServer = await startDirectPairIngressServer({
+    controller,
+    token: ingressToken,
+    port: configuredIngressPort(),
+  });
   mainWindow = new BrowserWindow({
     width: 1120,
     height: 800,
@@ -121,8 +143,11 @@ async function createWindow() {
     unsubscribe?.();
     unsubscribe = null;
     const closing = controller;
+    const closingIngress = ingressServer;
     controller = null;
+    ingressServer = null;
     mainWindow = null;
+    if (closingIngress !== null) void closingIngress.close();
     if (closing !== null) void closing.close();
   });
 

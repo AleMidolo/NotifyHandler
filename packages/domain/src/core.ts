@@ -139,10 +139,20 @@ export interface SelectionTarget {
   }>;
   readonly expectedOdds: DecimalString;
   readonly deepLink?: string;
-  readonly provenance: Readonly<{
-    notificationOptionId: string;
-    sourceOfferId: string;
-  }>;
+  readonly provenance: Readonly<
+    | {
+        /** Optional until all legacy fixture constructors are migrated. */
+        kind?: "legacy-recommendation";
+        notificationOptionId: string;
+        sourceOfferId: string;
+      }
+    | {
+        kind: "structured-direct-pair";
+        schemaVersion: "notifyhandler.direct-pair.v1";
+        notificationId: string;
+        legIndex: 0 | 1;
+      }
+  >;
 }
 
 export interface ExecutionPlan {

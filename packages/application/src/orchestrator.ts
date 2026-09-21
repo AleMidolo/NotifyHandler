@@ -219,6 +219,55 @@ export class AutomaticExecutionOrchestrator {
     return this.state;
   }
 
+  /**
+   * Structured-ingestion convergence point. Callers must first normalize a
+   * versioned structured payload into an immutable ExecutionPlan. The same
+   * shared preflight, two-leg startup, stale-attempt, and recovery machinery
+   * used by the legacy text path remains authoritative.
+   */
+  async receiveExecutionPlan(
+    plan: ExecutionPlan,
+    sourceLabel = "[structured direct-pair v1]",
+  ): Promise<AutomaticExecutionState> {
+    const previous = this.state.legs;
+    const generation = ++this.generation;
+    this.activeTasks = [];
+    if (previous) {
+      await Promise.allSettled(previous
+        .filter((leg) => leg.state !== "READY_FOR_USER" && leg.state !== "CANCELLED")
+        .map((leg) => this.automation.cancel({ legId: leg.legId, attemptId: leg.attemptId })));
+      if (generation !== this.generation) return this.state;
+    }
+
+    const checked = await this.checkPreflight(plan);
+    if (generation !== this.generation) return this.state;
+    if (!checked.ok) {
+      this.setState({
+        inputText: sourceLabel,
+        notificationId: plan.notificationId,
+        plan,
+        status: "PREFLIGHT_FAILED",
+        parseErrors: [],
+        preflightFailure: checked.failure,
+        legs: null,
+      });
+      return this.state;
+    }
+
+    const legs = runtimePair(plan);
+    this.setState({
+      inputText: sourceLabel,
+      notificationId: plan.notificationId,
+      plan,
+      status: "STARTING",
+      parseErrors: [],
+      preflightFailure: null,
+      legs,
+    });
+    this.activeTasks = this.startTasks(generation, plan);
+    return this.state;
+  }
+
   async waitForIdle(): Promise<AutomaticExecutionState> {
     await Promise.allSettled([...this.activeTasks]);
     return this.state;
