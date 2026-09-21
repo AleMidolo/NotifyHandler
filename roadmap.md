@@ -6,7 +6,7 @@
 - **Alpha delivery track: complete.** GitHub prerelease **`v0.0.0-alpha.1`** is published from source commit `3327bc29078d0ab036453e1deaff1b7094fd29ee` with the portable Windows x64 ZIP and checksum. It is unsigned, non-production, and does not imply live bookmaker support.
 - **Portable live-validation handoff: complete.** DEVOPS-007/#81 published diagnostic prerelease **`book012-admiralbet-diagnostic-v1`** from exact `main` commit `d16e34dec26086497c6b581a77ba26038b34b836`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** The immediate blocker is #71: execute the published ADMIRALBET diagnostic runner on a normal non-CI Windows workstation and return only sanitized evidence.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** DEVOPS-005/#71 is complete with a real sanitized workstation result; BOOK-013/#62 is now the immediate P0 interpretation task.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -55,29 +55,25 @@ Published diagnostic handoff:
 - expected ZIP SHA-256: `ee7bc881b6823fb80f64c51e9bf43732329a5eb1ca3a0987915c0eacabc033de`;
 - launcher: `run-admiralbet-validation.cmd`.
 
-### Current blocker — real non-CI workstation execution
+### Qualifying workstation execution — COMPLETE
 
-**#71 DEVOPS-005 — P0 / READY NOW**
+**#71 DEVOPS-005 — COMPLETE**
 
-Run the published diagnostic bundle on a normal Windows x64 workstation with a headed desktop and ordinary outbound DNS/HTTPS access to `www.admiralbet.it`:
-1. download the ZIP and `.sha256` companion from `book012-admiralbet-diagnostic-v1`;
-2. verify the checksum;
-3. extract to a fresh writable directory;
-4. run `run-admiralbet-validation.cmd`;
-5. retain and attach only `ExplorerSummary.json` to #62 / PR #68.
+A real non-CI Windows workstation executed the published ADMIRALBET diagnostic. The sanitized BOOK-012 result is recorded on #71, #62, and PR #68. It reports `status: BUDGET_EXHAUSTED`, the fixed 10/10 actions, 11 snapshots, and `authorizesProductionMapping: false`.
 
-The bundle is diagnostic/non-production and hard-locked to the approved ADMIRALBET origin. It preserves BOOK-012 classifier, action-budget, safe-stop, privacy, authentication, access-control, and transaction boundaries.
+This completes the execution/handoff requirement only. The result does not itself classify ADMIRALBET, authorize production mapping, or justify increasing the bounded explorer budget.
 
-The autonomous execution container still cannot satisfy the required live network/runtime conditions. Repeating the live run there is not progress and must not change bookmaker status.
+### Current P0 — BOOK-013 interpretation
 
-**Important product rule:** runner/toolchain/DNS/browser-host failure is not bookmaker feasibility evidence. It must not classify a bookmaker `Blocked` or justify relaxing the market/matching policy.
+**#62 BOOK-013 — READY NOW**
+
+The Bookmaker Automation Engineer must interpret the actual explorer result against the deterministic pre-activation chain. PR #68 is now ready to be updated from real BOOK-012 evidence.
 
 ### Interactive evidence order
 
-1. **#71 DEVOPS-005** — execute ADMIRALBET explorer on a qualifying external Windows workstation and return only sanitized evidence.
-2. **#62 BOOK-013** — interpret the actual ADMIRALBET result; PR #68 remains pending until this evidence exists.
-3. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist.
-4. **#64 BOOK-015** — revalidate BET365 if still fewer than two feasible candidates exist.
+1. **#62 BOOK-013** — interpret the actual ADMIRALBET result and classify it only under #62's existing evidence criteria.
+2. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist.
+3. **#64 BOOK-015** — revalidate BET365 if still fewer than two feasible candidates exist.
 
 Interactive feasibility requires:
 `event → competition/time context → full-match total-corners market → exact numeric line → requested side → displayed odds`.
