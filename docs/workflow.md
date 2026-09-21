@@ -2,29 +2,30 @@
 
 ## 1. Notification receipt and parsing
 
-1. A notification transport supplies notification text or structured data.
-2. Transport passes raw content to the core parser without bookmaker-specific behavior.
+1. A notification transport supplies notification text or structured data. The planned local bot integration uses a loopback HTTP/webhook transport with a versioned structured payload.
+2. Transport passes raw/structured content to the core normalization path without bookmaker-specific browser behavior.
 3. Parsing and validation start immediately.
 4. Parser returns either a normalized notification or explicit validation errors.
 5. A normalized interpretation may be displayed for observability, but it does not require user acknowledgement and does not gate execution.
 
 No browser action occurs until the notification and resulting targets satisfy the deterministic validation and navigation-safety contracts. There is no normal preview-approval step.
 
-## 2. Automatic primary-option resolution
+## 2. Automatic execution-pair resolution
 
-1. The parser/domain layer preserves recommended options in notification source order.
-2. The first recommended option is the primary option for the initial MVP contract.
-3. The application resolves that option into exactly two `SelectionTarget` legs automatically.
-4. The application does not ask the user which option to choose.
-5. If the primary option is malformed, ambiguous, same-bookmaker, unsupported, or cannot resolve to exactly two valid legs, processing fails safely before bookmaker navigation. The application does not silently substitute a later recommendation.
+Two compatible input modes are supported by product policy:
 
-Each leg contains the bookmaker, event identity/context, market, line, outcome, expected odds, and optional deep link.
+1. **Legacy textual notification:** preserve recommended options in source order and use the first recommendation as the authoritative primary option.
+2. **Versioned structured bot notification:** accept the authoritative pair directly as exactly two explicit bookmaker legs, including each leg's deep link when supplied.
+
+The application never asks the user which pair to choose. Either input mode must resolve deterministically to exactly two distinct valid `SelectionTarget` legs. A malformed, ambiguous, unsupported, or same-bookmaker pair fails safely before bookmaker navigation; no alternate pair is silently substituted.
+
+Each leg contains bookmaker, event identity/context, market, line, outcome, expected odds, and optional deep link.
 
 ## 3. Automatic pre-execution validation and immediate start
 
 Execution starts automatically as soon as all of the following are true:
 - the notification is valid;
-- the primary recommended option resolves deterministically to exactly two valid, distinct bookmaker legs;
+- the authoritative pair (legacy primary recommendation or structured explicit pair) resolves deterministically to exactly two valid, distinct bookmaker legs;
 - both bookmakers have supported adapters;
 - targets contain sufficient identity information for the matching policy;
 - supplied navigation targets pass origin/deep-link safety checks required before use.
@@ -55,7 +56,7 @@ Architecture may refine these names while preserving their semantics.
 
 For each leg the adapter should:
 
-1. open the supplied deep link when valid/permitted, or navigate to the bookmaker entry point;
+1. prefer the supplied direct match deep link when valid/permitted; otherwise use the bookmaker entry point only when the adapter/product flow supports that fallback. A deep link is untrusted navigation input and never counts as event-match evidence;
 2. wait for an allowed page state;
 3. detect whether manual authentication is required and pause if so;
 4. locate candidate event(s);
@@ -122,8 +123,12 @@ Cancellation should stop further automated actions as soon as practical. Retry/r
 
 Recovery actions are available after automatic execution has started; they are not prerequisites for starting a normal valid notification.
 
-## 11. Future input transports
+## 11. Input transports
 
-Telegram, HTTP/webhooks, clipboard monitoring, and other application integrations should terminate at a transport adapter that produces the same raw/structured input consumed by the core parser. They must not embed bookmaker execution logic.
+The first bot-to-desktop integration is a **loopback-only HTTP/webhook transport** using the versioned structured exact-pair contract defined by ARCH-004. It terminates at a transport adapter and feeds the same normalized core/domain path as textual input; it contains no bookmaker execution logic.
 
-A transport that receives a valid notification should trigger the same automatic processing path without introducing a confirmation step.
+Telegram, clipboard monitoring, and other integrations may be added later through the same transport boundary.
+
+The desktop listener must not be exposed to the public Internet by default. A remote surebet service requires a separately designed secure relay/outbound connection.
+
+Any transport that receives a valid notification triggers the same automatic processing path without introducing a confirmation step.
