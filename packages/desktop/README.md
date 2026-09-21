@@ -33,7 +33,9 @@ When the desktop app is running it also listens on the IPv4 loopback interface o
 
 `POST http://127.0.0.1:43119/api/v1/notifications/direct-pair`
 
-The port may be changed with `NOTIFYHANDLER_INGRESS_PORT`; the bind address is not configurable and remains `127.0.0.1`. A 256-bit local bearer capability is generated on first launch at the Electron user-data path `direct-pair-ingress-token`. The token is for the local NotifyHandler ingress only: do not put it in URLs, payloads, logs, or bookmaker credentials.
+The port may be changed with `NOTIFYHANDLER_INGRESS_PORT`; the bind address is not configurable and remains `127.0.0.1`. A 256-bit local bearer capability is generated on first launch at the Electron user-data path `direct-pair-ingress-token`. The token file is hardened to mode `0600` on POSIX and to a current-user-only ACL on Windows. The token is for the local NotifyHandler ingress only: do not put it in URLs, payloads, logs, or bookmaker credentials.
+
+To rotate the local capability, stop NotifyHandler and restart it once with `NOTIFYHANDLER_ROTATE_INGRESS_TOKEN=1`, then remove that environment variable and update the local sender from the newly written token file. Rotation changes only the local bearer capability; it does not change the structured payload schema or any bookmaker credential.
 
 Example request body:
 
