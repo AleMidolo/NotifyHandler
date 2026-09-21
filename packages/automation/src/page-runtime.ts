@@ -122,7 +122,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   async openAllowed(url: string): Promise<{ readonly ok: boolean }> {
     if (this.cancelled) return { ok: true };
-    if (!this.policy.isAllowed(url) || this.page.isClosed() || this.crashed) return { ok: false };
+    if (this.page.isClosed() || this.crashed || !(await this.isAllowedNetworkTarget(url))) return { ok: false };
 
     this.blockingOperation = true;
     this.invalidateReferences();
@@ -248,7 +248,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       if (topLevelNavigation) {
         const url = request.url();
         this.invalidateReferences();
-        if (!this.policy.isAllowed(url)) {
+        if (!(await this.isAllowedNetworkTarget(url))) {
           await route.abort("blockedbyclient");
           return;
         }
@@ -281,6 +281,12 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
     } catch {
       await route.abort("blockedbyclient").catch(() => undefined);
     }
+  }
+
+  private async isAllowedNetworkTarget(url: string): Promise<boolean> {
+    if (!this.policy.isAllowed(url)) return false;
+    if (this.fixtureRouter !== undefined) return true;
+    return this.policy.isResolvedTargetAllowed(url);
   }
 
   private registerMany(handles: readonly ElementHandle<HTMLElement | SVGElement>[], role: SemanticElementRole): readonly ElementRef[] {
