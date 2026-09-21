@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** DEVOPS-009/#89 is complete with a real sanitized SISAL workstation result; BOOK-014/#63 is now the immediate P0 interpretation task.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** SISAL/BOOK-014 is blocked after interactive feasibility; DEVOPS-011/#97 is complete with a real sanitized BET365 workstation result, and BOOK-015/#64 is now the immediate P0 interpretation task.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -73,27 +73,30 @@ Published:
 - expected SHA-256: `03d053426b75711aab730d7eeb01b29db88e0d62b0643c768556dd30c9b89439`;
 - launcher: `run-sisal-validation.cmd`.
 
-### SISAL qualifying workstation execution — COMPLETE
+### SISAL interactive feasibility — COMPLETE / BLOCKED
 
-**#89 DEVOPS-009 — COMPLETE**
+**#63 BOOK-014 — COMPLETE**
 
-A real non-CI Windows workstation executed the approved SISAL diagnostic. The sanitized BOOK-012 result is recorded on #89 and #63. It reports `status: BUDGET_EXHAUSTED`, fixed 10/10 actions, 11 snapshots, final path `/totocalcio`, and `authorizesProductionMapping: false`.
+The qualifying SISAL BOOK-012 result was interpreted and merged via PR #95. For the narrow pre-match football full-match total-corners scope, SISAL remains **Blocked at interactive live feasibility**. The existing fixture-backed adapter remains Testable; no production live selector mapping was authorized.
 
-This completes the execution/handoff requirement only. The result does not itself classify SISAL, authorize production mapping, or justify increasing the bounded explorer budget.
+### BET365 diagnostic packaging and workstation execution — COMPLETE
 
-### Current P0 — BOOK-014 interpretation
+**#96 DEVOPS-010 — COMPLETE**
+Published **`book012-bet365-diagnostic-v1`** from exact `main` commit `dee0a2c50ce64c195df424c8c4938e0726f70127`.
 
-**#63 BOOK-014 — READY NOW**
+**#97 DEVOPS-011 — COMPLETE**
+A real non-CI Windows workstation executed the approved BET365 diagnostic. The sanitized BOOK-012 result reports `status: BUDGET_EXHAUSTED`, fixed 10/10 actions, 11 snapshots, final path `/hub/it-it/football/football-competitions/bundesliga`, and `authorizesProductionMapping: false`.
 
-The Bookmaker Automation Engineer must interpret the actual SISAL explorer result against the deterministic pre-activation chain:
+This completes execution/handoff only. It does not itself classify BET365 or authorize production mapping.
+
+### Current P0 — BOOK-015 interpretation
+
+**#64 BOOK-015 — READY NOW**
+
+The Bookmaker Automation Engineer must interpret the actual BET365 explorer result against:
 `event → competition/time context → full-match total-corners market → exact numeric line → requested side → displayed odds`.
 
-### Interactive evidence order
-
-1. **#63 BOOK-014** — interpret the actual SISAL result and classify it only under #63's existing evidence criteria.
-2. **#64 BOOK-015** — revalidate BET365 only if fewer than two feasible candidates exist after SISAL.
-
-Feasibility does not require exploratory outcome activation. Selected-state verification remains a later restricted implementation/support gate.
+If #64 is `Feasible for implementation`, create a dedicated restricted live-mapping implementation issue. If #64 is also `Blocked`, Product Coordination must explicitly replan Milestone 6 rather than weaken matching, expand the explorer budget to force a result, or silently change the market target.
 
 ### Implementation and qualification
 
