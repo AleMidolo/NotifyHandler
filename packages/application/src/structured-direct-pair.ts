@@ -143,17 +143,65 @@ function isDecimalOdds(value: string): boolean {
   return integer === "1" && /[1-9]/u.test(fraction);
 }
 
-function parseUtcInstant(value: unknown): string | null {
-  if (typeof value !== "string" || !/Z$/u.test(value)) return null;
+const ISO_INSTANT_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|([+-])(\d{2}):(\d{2}))$/u;
+
+function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) return isLeapYear(year) ? 29 : 28;
+  return [4, 6, 9, 11].includes(month) ? 30 : 31;
+}
+
+function parseStrictIsoInstant(value: unknown, requireUtc: boolean): string | null {
+  if (typeof value !== "string") return null;
+  const match = value.match(ISO_INSTANT_PATTERN);
+  if (match === null) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  const zone = match[8];
+  const offsetHour = match[10] === undefined ? 0 : Number(match[10]);
+  const offsetMinute = match[11] === undefined ? 0 : Number(match[11]);
+
+  if (
+    !Number.isInteger(year)
+    || month < 1
+    || month > 12
+    || day < 1
+    || day > daysInMonth(year, month)
+    || hour < 0
+    || hour > 23
+    || minute < 0
+    || minute > 59
+    || second < 0
+    || second > 59
+    || offsetHour < 0
+    || offsetHour > 14
+    || offsetMinute < 0
+    || offsetMinute > 59
+    || (offsetHour === 14 && offsetMinute !== 0)
+    || (requireUtc && zone !== "Z")
+  ) {
+    return null;
+  }
+
   const milliseconds = Date.parse(value);
   return Number.isFinite(milliseconds) ? new Date(milliseconds).toISOString() : null;
 }
 
+function parseUtcInstant(value: unknown): string | null {
+  return parseStrictIsoInstant(value, true);
+}
+
 function parseOffsetInstant(value: unknown): string | undefined | null {
   if (value === undefined) return undefined;
-  if (typeof value !== "string" || !/(?:Z|[+-]\d{2}:\d{2})$/u.test(value)) return null;
-  const milliseconds = Date.parse(value);
-  return Number.isFinite(milliseconds) ? new Date(milliseconds).toISOString() : null;
+  return parseStrictIsoInstant(value, false);
 }
 
 function forbiddenLiteralHost(hostname: string): boolean {
