@@ -1,6 +1,8 @@
 # Notification format specification
 
-This specification defines the initial textual surebet notification contract and its normalized representation. The parser must remain independent from Telegram, clipboard, webhook, or other transport mechanisms.
+This specification defines the legacy textual surebet notification contract and its normalized representation. The parser must remain independent from Telegram, clipboard, webhook, or other transport mechanisms.
+
+Machine-to-machine explicit two-leg input is defined separately by `specs/structured-ingestion-v1.md`. The structured protocol does not change the source-order primary-recommendation semantics of this legacy format.
 
 ## 1. Representative textual form
 
@@ -185,3 +187,13 @@ The domain implementation should include sanitized fixtures covering:
 - unsupported market and bookmaker cases.
 
 Each accepted variation should be intentional and documented through tests rather than broad fuzzy parsing.
+
+## 9. Relationship to structured direct-pair v1
+
+This textual contract and `notifyhandler.direct-pair.v1` are separate versioned input contracts.
+
+- legacy text preserves `recommendedOptions` and automatically uses index `0`;
+- structured v1 carries exactly two authoritative legs and no recommendation list;
+- structured v1 requires a direct match link for each leg;
+- both paths normalize to the same `SelectionTarget`/`ExecutionPlan` runtime contracts;
+- the application must not reinterpret a structured-v1 request as legacy text when structured validation fails.
