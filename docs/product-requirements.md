@@ -24,7 +24,11 @@ Primary flow:
 ## 3. MVP functional requirements
 
 ### PR-01 Input
-The application shall accept a surebet notification through an input transport. Pasted text may be supported initially, but the core parser shall not depend on the transport so Telegram/webhook/clipboard/application sources can reuse it.
+The application shall accept a surebet notification through an input transport. Pasted text remains supported, and the core parser/domain path must remain transport-independent.
+
+The production integration shall also support a **versioned structured notification** from an upstream surebet bot. That structured form may provide the authoritative execution pair directly as exactly two bookmaker legs, each containing bookmaker identity, requested side/outcome, expected odds, and a bookmaker deep link intended to open the match page, together with the shared event and market identity.
+
+For the local desktop deployment, the first HTTP/webhook transport shall bind to loopback only by default. Public Internet exposure of the desktop listener is not an MVP requirement; a remote bot requires a separately designed secure relay/outbound connection.
 
 Receiving a new valid notification shall trigger processing automatically. The user shall not need to manually start execution after input receipt.
 
@@ -46,12 +50,14 @@ Parsing and validation shall happen immediately after notification receipt. Inva
 
 A normalized preview may be displayed for observability, but it must not gate execution and must not require acknowledgement. No browser action may occur until the deterministic input, target, adapter-availability, and navigation-safety checks required by the contracts have passed.
 
-### PR-04 Automatic recommended-pair resolution
-The application shall not ask the user to choose a recommended option.
+### PR-04 Automatic execution-pair resolution
+The application shall not ask the user to choose a pair.
 
-For the initial notification contract, recommended options are ordered by the notification producer and the first recommended option in source order is the authoritative primary option. The parser/domain layer must preserve this order.
+For the legacy textual notification contract, recommended options are ordered by the notification producer and the first recommended option in source order remains the authoritative primary option. The parser/domain layer must preserve this order.
 
-The primary recommended option must deterministically resolve to exactly two distinct bookmaker legs. If it cannot, execution fails safely before bookmaker navigation. The application must not silently choose a later recommendation as a substitute and must not ask the user which pair to use.
+For the versioned structured bot contract, the producer may provide the authoritative pair directly as exactly two explicit legs. That contract must not require a synthetic recommended-options list or silently replace either leg.
+
+Whichever input form is used, the execution pair must resolve deterministically to exactly two distinct supported bookmaker legs. If it cannot, execution fails safely before bookmaker navigation and the application must not ask the user which pair to use.
 
 ### PR-05 Immediate execution plan
 As soon as PR-03 and PR-04 succeed, the application shall construct the exact two-leg execution plan and start both legs without waiting for user confirmation.
@@ -59,6 +65,8 @@ As soon as PR-03 and PR-04 succeed, the application shall construct the exact tw
 The application may display the normalized notification and exact two targets concurrently with execution status, but this information is informational rather than a pre-execution gate.
 
 Each target includes bookmaker, event, competition/date context, market, line, outcome/side, expected odds, and deep link if available.
+
+When a deep link is supplied and passes pre-navigation safety validation, it is the preferred initial navigation candidate because the upstream bot is expected to link directly to the match page. The link itself is never sufficient event evidence: after navigation the adapter must still independently verify event identity, competition/time context, market, exact line, requested side, and displayed odds.
 
 ### PR-06 Independent leg execution
 Each bookmaker leg shall have independent state and error information. One leg failing must not be represented as failure/success of the other.
@@ -196,15 +204,18 @@ This status must not be interpreted as a live production support claim. The firs
 
 The current product decision is to **retain full-match total corners as the Milestone 6 market target** rather than silently substituting an easier market. The representative use case requires exact market-family, numeric-line, and side identity; generic goal U/O, 1X2, live corner statistics, next-corner products, and editorial references do not satisfy that requirement.
 
-The next evidence strategy is controlled interactive public-browser validation:
+The first controlled interactive public-browser strategy is also exhausted: BOOK-013/014/015 completed bounded qualifying runs for ADMIRALBET, SISAL, and BET365 without establishing the complete deterministic target chain.
 
-1. #61 builds a non-CI headed-browser explorer that may follow same-origin public event/market navigation and expand non-transactional UI while remaining structurally unable to interact with login/auth/CAPTCHA, betting outcomes/odds that add a selection, betslip/stake/submit/payment controls, protected/private APIs, or access-control bypass mechanisms.
-2. #62 revalidates ADMIRALBET first because it exposed the richest public structure.
-3. #63 revalidates SISAL if fewer than two feasible candidates exist.
-4. #64 revalidates BET365 if still needed.
+PRODUCT-015 therefore adopts a **direct-match-link-first** strategy before adding more bookmakers or revising the market scope. The upstream surebet bot will supply exactly two bookmaker legs and a deep link intended to open each match page directly. The project will:
+1. use ARCH-004/#103 to define the versioned structured exact-pair contract, loopback webhook, and deep-link trust boundary;
+2. use BOOK-016/#104 to revalidate SISAL/BET365 from representative real match-page links rather than generic football/competition hubs;
+3. use APP-005/#105 to implement loopback HTTP ingestion after the architecture contract is accepted;
+4. use SEC-002/#106 to harden the ingress and deep-link boundary.
 
-For feasibility, the required evidence is the deterministic **pre-activation** chain:
+For feasibility, the required evidence remains the deterministic **pre-activation** chain:
 `event → competition/time context → full-match total-corners market → exact line → requested side → displayed odds`.
+
+A direct match link is only a preferred navigation candidate. It must pass HTTPS/origin/redirect safety checks and never substitutes for positive page evidence for the event or any later identity dimension.
 
 A `Feasible for implementation` result is not live support. A feasible candidate must then complete a separate restricted adapter/worker live-mapping task with deterministic fixtures, all shared matching/security/cancellation/auth/odds gates, and selected-state verification through the authorized production outcome-selection capability. Exploratory tooling must not activate betting outcomes merely to discover selected-state behavior.
 
