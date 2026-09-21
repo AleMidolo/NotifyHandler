@@ -49,15 +49,17 @@ PRODUCT-015 keeps the full-match total-corners product target and changes the ev
 
 A notification-provided match link remains untrusted input. NotifyHandler must validate HTTPS, exact approved bookmaker origin, URL/redirect safety, and final origin before navigation, and must still independently verify event identity, competition/time context, full-match total-corners market identity, exact line, requested side, and displayed odds. A correct-looking URL never substitutes for page evidence.
 
-The Milestone 6 critical path is now:
+The Milestone 6 work is now split into an autonomous implementation track and an external evidence track:
 
-1. **#103 ARCH-004 — architecture defined:** versioned `notifyhandler.direct-pair.v1`, authenticated loopback ingress, idempotency/freshness, and direct-link-first trust boundary;
-2. **#104 BOOK-016 — immediate P0 after ARCH-004:** revalidate SISAL and BET365 from representative notification-provided direct match links instead of generic football entry pages;
-3. **#105 APP-005 — implementation track:** implement the loopback HTTP transport/validator and converge valid requests into the existing automatic orchestration path;
-4. **#106 SEC-002 — security track:** harden listener/token/replay/URL/DNS/redirect/privacy controls alongside APP-005;
-5. create restricted live-mapping implementation issues only for bookmakers that become `Feasible for implementation` from the direct-link evidence;
+1. **#105 APP-005 — immediate autonomous implementation:** implement the accepted `notifyhandler.direct-pair.v1` loopback HTTP ingress and converge valid requests into the existing automatic two-leg orchestration;
+2. **#109 PRODUCT-016 — external/upstream evidence blocker for BOOK-016:** obtain representative credential-free SISAL and BET365 direct match-page URLs plus their notification context from the actual surebet flow;
+3. **#104 BOOK-016 — ready as soon as #109 evidence exists:** revalidate SISAL/BET365 from those exact direct match links rather than generic football entry pages;
+4. **#106 SEC-002 — security track:** review/harden listener binding, local bearer token, freshness/idempotency/replay, URL/DNS/redirect handling, privacy, and transaction-boundary enforcement once APP-005 has concrete ingress code;
+5. create restricted live-mapping implementation issues only for bookmakers that become `Feasible for implementation` from direct-link evidence;
 6. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
 7. **#46 DEVOPS-003** remains blocked until #45 passes.
+
+ARCH-004/#103 is complete via PR #108. The accepted conceptual endpoint is `POST /api/v1/notifications/direct-pair`, loopback-only by default, bearer-authenticated, strict/bounded JSON, freshness/idempotency protected, and direct-link-first without treating the link itself as matching evidence.
 
 Remote Internet exposure of the desktop webhook is not part of this decision. The default integration is local/loopback; a remote surebet service would require a separately designed secure relay/outbound connection rather than opening the desktop listener to the public Internet.
 
