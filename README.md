@@ -43,18 +43,26 @@ The live-validation tooling is now complete:
 
 The portable bundle is published as GitHub prerelease **`book012-admiralbet-diagnostic-v1`** from exact `main` commit `d16e34dec26086497c6b581a77ba26038b34b836`.
 
-The required external workstation execution is now complete. DEVOPS-005/#71 received a sanitized BOOK-012 result from a real non-CI Windows host and closed successfully. The result reports `status: BUDGET_EXHAUSTED`, 10/10 actions, 11 snapshots, and `authorizesProductionMapping: false`. That establishes a qualifying explorer run only; it does **not** classify ADMIRALBET as feasible, blocked, or supported.
+The ADMIRALBET interactive feasibility step is complete. BOOK-013/#62 consumed the qualifying BOOK-012 workstation result and, under the existing deterministic evidence criteria, classified ADMIRALBET as **Blocked at interactive feasibility** for the narrow pre-match football full-match total-corners scope. PR #68 merged that result. The run reached `/scommesse/calcio` but did not establish selector-level event/competition-time/full-match-total-corners/exact-line/side/bound-odds evidence before the fixed budget ended. No production mapping was authorized.
+
+SISAL/BOOK-014 is now active. DEVOPS-008/#88 reused the reviewed portable-runner pattern without changing BOOK-012 and published SISAL diagnostic prerelease **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
+
+Current SISAL diagnostic handoff:
+- ZIP: `notifyhandler-book012-sisal-f77f99013b6f-win32-x64.zip`;
+- ZIP SHA-256: `03d053426b75711aab730d7eeb01b29db88e0d62b0643c768556dd30c9b89439`;
+- launcher: `run-sisal-validation.cmd`;
+- approved origin/path: `https://www.sisal.it` / `/scommesse-matchpoint/sport/calcio`.
 
 The live-support critical path is now:
 
-1. **#62 BOOK-013** — immediate P0: interpret the actual ADMIRALBET explorer result in PR #68 against the deterministic full-match total-corners evidence requirements;
-2. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist;
-3. **#64 BOOK-015** — revalidate BET365 if still needed;
+1. **#89 DEVOPS-009** — immediate P0 external step: run the SISAL diagnostic on a qualifying non-CI Windows x64 workstation and return only the sanitized `ExplorerSummary.json` to #63;
+2. **#63 BOOK-014** — interpret that actual SISAL result against the deterministic full-match total-corners chain;
+3. **#64 BOOK-015** — revalidate BET365 only if fewer than two feasible candidates exist after SISAL;
 4. implement restricted live mappings only for candidates genuinely proven feasible;
 5. **#45 QA-002** — certify the first two bookmakers that become live `Supported`;
 6. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
 
-The fixed explorer budget being exhausted is evidence for BOOK-013 to interpret, not permission to increase the budget, guess missing selectors, weaken matching, or change bookmaker support status without satisfying #62's acceptance criteria.
+A runner/network/workstation failure remains environment evidence only. The SISAL diagnostic is bounded, non-authorizing, and must not be treated as a support claim merely because the site is reachable or the bundle executes.
 
 Exploratory validation may navigate public event/market UI but must not activate a betting outcome. Outcome activation and selected-state verification remain later restricted implementation/support gates after all deterministic predicates pass.
 
