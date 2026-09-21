@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -99,7 +100,9 @@ class FakeAutomation implements BookmakerAutomationPort {
   }
 }
 
-async function fixture(): Promise<{
+async function fixture(
+  resolveHostname: (hostname: string) => Promise<readonly string[]> = async () => ["93.184.216.34"],
+): Promise<{
   worker: FakeAutomation;
   controller: DesktopAppController;
   server: DirectPairIngressServer;
@@ -107,7 +110,7 @@ async function fixture(): Promise<{
   const worker = new FakeAutomation();
   const orchestrator = new AutomaticExecutionOrchestrator(
     worker,
-    createWorkerExecutionPreflight({ resolveHostname: async () => ["93.184.216.34"] }),
+    createWorkerExecutionPreflight({ resolveHostname }),
     { now: () => new Date(NOW) },
   );
   const controller = new DesktopAppController(
@@ -122,6 +125,27 @@ async function fixture(): Promise<{
     maxRequestsPerMinute: 100,
   });
   return { worker, controller, server };
+}
+
+async function postWithHost(server: DirectPairIngressServer, hostHeader: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest({
+      host: server.host,
+      port: server.port,
+      path: "/api/v1/notifications/direct-pair",
+      method: "POST",
+      headers: {
+        Host: hostHeader,
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + TOKEN,
+      },
+    }, (response) => {
+      response.resume();
+      response.once("end", () => resolve(response.statusCode ?? 0));
+    });
+    request.once("error", reject);
+    request.end(JSON.stringify(payload()));
+  });
 }
 
 async function post(
@@ -141,6 +165,7 @@ test("authenticated structured request converges on the existing two-leg automat
   const { worker, controller, server } = await fixture();
   try {
     const response = await post(server, JSON.stringify(payload()));
+    assert.equal(server.host, "127.0.0.1");
     assert.equal(response.status, 202);
     const body = await response.json() as Record<string, unknown>;
     assert.equal(body.accepted, true);
@@ -197,6 +222,9 @@ test("authentication, JSON/media bounds, and browser-origin policy fail before e
 
     const browserOrigin = await post(server, JSON.stringify(payload()), { origin: "https://example.com" });
     assert.equal(browserOrigin.status, 403);
+
+    const invalidHost = await postWithHost(server, "localhost:" + server.port);
+    assert.equal(invalidHost, 403);
 
     const oversized = await post(server, JSON.stringify({ value: "x".repeat(70_000) }));
     assert.equal(oversized.status, 413);
@@ -300,5 +328,20 @@ test("local ingress token is 256-bit base64url, stable across loads, and explici
     assert.equal(readFileSync(file, "utf8").trim(), rotated);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+
+test("private DNS answer fails structured ingress preflight with zero worker starts", async () => {
+  const { worker, controller, server } = await fixture(async (hostname) =>
+    hostname === "www.sisal.it" ? ["10.0.0.7"] : ["93.184.216.34"]
+  );
+  try {
+    const response = await post(server, JSON.stringify(payload()));
+    assert.equal(response.status, 422);
+    assert.equal(worker.starts.length, 0);
+  } finally {
+    await server.close();
+    await controller.close();
   }
 });
