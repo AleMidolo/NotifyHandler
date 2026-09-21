@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** SISAL/BOOK-014 is blocked after interactive feasibility; DEVOPS-011/#97 is complete with a real sanitized BET365 workstation result, and BOOK-015/#64 is now the immediate P0 interpretation task.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** The generic interactive queue is exhausted with ADMIRALBET, SISAL, and BET365 Blocked for the narrow target scope. PRODUCT-015 adopts a direct-match-link-first strategy; ARCH-004/#103 is the immediate P0.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -89,14 +89,34 @@ A real non-CI Windows workstation executed the approved BET365 diagnostic. The s
 
 This completes execution/handoff only. It does not itself classify BET365 or authorize production mapping.
 
-### Current P0 — BOOK-015 interpretation
+### PRODUCT-015 replan — DIRECT-MATCH-LINK-FIRST
 
-**#64 BOOK-015 — READY NOW**
+BOOK-015/#64 is complete via PR #101 and BET365 remains Blocked at interactive live feasibility for the narrow full-match total-corners scope. Together with BOOK-013 and BOOK-014, this exhausts PRODUCT-005's generic football/competition-navigation validation queue without a feasible live candidate.
 
-The Bookmaker Automation Engineer must interpret the actual BET365 explorer result against:
+The product target **does not change**. Milestone 6 still targets pre-match football full-match total-corners over/under with deterministic event/context/market/line/side/odds evidence.
+
+The strategy changes because the real surebet source supplies the exact two bookmaker legs and a deep link intended to open each match page directly. Generic event discovery is therefore not the production-critical path.
+
+**#103 ARCH-004 — P0 / READY NOW**
+
+Define the versioned structured two-leg ingestion contract, direct-link-first trust/navigation boundary, and loopback HTTP/webhook architecture. Direct links remain untrusted and cannot authorize event identity by themselves.
+
+**#104 BOOK-016 — P0 AFTER #103**
+
+Revalidate SISAL and BET365 from representative notification-provided direct match links. Start at the validated match page, then independently prove:
 `event → competition/time context → full-match total-corners market → exact numeric line → requested side → displayed odds`.
 
-If #64 is `Feasible for implementation`, create a dedicated restricted live-mapping implementation issue. If #64 is also `Blocked`, Product Coordination must explicitly replan Milestone 6 rather than weaken matching, expand the explorer budget to force a result, or silently change the market target.
+Reuse BOOK-012's existing optional approved-origin URL support and default-deny non-transactional interaction boundary where suitable; do not broaden the origin list or activate outcomes during feasibility.
+
+**#105 APP-005 — P1 AFTER #103**
+
+Implement the loopback-only HTTP webhook for the structured exact two-leg payload and feed it into the existing automatic orchestration path.
+
+**#106 SEC-002 — P1 AFTER #103**
+
+Review/harden local webhook authentication/binding/request handling plus notification-provided URL/redirect/origin behavior.
+
+If the direct-link validation yields a feasible bookmaker, create a separate restricted live-mapping implementation issue. If SISAL and BET365 both remain Blocked even from representative real match links, return to Product Coordination for candidate-pool or explicit market-scope reconsideration; do not weaken deterministic matching or force deeper navigation by bypassing controls.
 
 ### Implementation and qualification
 
@@ -144,6 +164,6 @@ Exit criteria include:
 After Milestones 6–7 are stable:
 - additional bookmakers;
 - Telegram ingestion;
-- HTTP/webhook or clipboard/application ingestion;
+- clipboard/application ingestion;
 - richer notification provenance and privacy-preserving diagnostics;
 - macOS/Linux packaging after platform-specific distribution review.

@@ -21,7 +21,9 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 | EPLAY24 | 4 | Blocked (feasibility) | BOOK-010 confirms current ADM concession `16004` maps E-play 24 Ita Limited to `www.eplay24.it`, and public EPLAY24 material confirms football/prematch betting. The accessible betting application is JavaScript-only in the crawl surface and the controlled validation did not establish the exact event → total-corners → line → side → odds → selected-state chain. No adapter is created from insufficient evidence. See `docs/live-validation/eplay24-book-010.md`. |
 | ADMIRALBET | 5 | Blocked (interactive feasibility) | BOOK-013 consumed a qualifying non-CI BOOK-012 run on `www.admiralbet.it`. The explorer reached the approved origin and `/scommesse/calcio`, but exhausted its fixed 10-action budget without exposing selector-level event binding, the full-match total-corners market, exact line, requested side, or bound displayed odds. `authorizesProductionMapping` remained false. See `docs/live-validation/admiralbet-book-013.md`. |
 
-The passive PRODUCT-004 feasibility queue is exhausted. PRODUCT-005 retained the full-match total-corners target and completed controlled interactive revalidation for ADMIRALBET, SISAL, and BET365. All three are Blocked for the narrow live scope after qualifying BOOK-012 runs. Product Coordination must explicitly re-plan Milestone 6 rather than implicitly weakening matching or safety requirements.
+The passive PRODUCT-004 queue and PRODUCT-005 generic interactive queue are both exhausted. ADMIRALBET, SISAL, and BET365 are Blocked for the narrow live scope after qualifying bounded BOOK-012 runs.
+
+PRODUCT-015 retains the full-match total-corners target but changes the next validation path: the upstream surebet bot supplies the exact two bookmaker legs and direct match-page links, so BOOK-016/#104 will validate from those links rather than from generic football/competition entry pages after ARCH-004/#103 defines the trust boundary. Direct links remain untrusted and do not count as event evidence by themselves.
 
 Priorities may change when technical feasibility, permitted access, notification prevalence, or regression complexity provides evidence for a better order.
 
@@ -63,7 +65,7 @@ BOOK-007 attempted the live promotion using only normal public SISAL pages. The 
 
 BOOK-014 consumed the stronger interactive evidence through DEVOPS-009/#89. The qualifying BOOK-012 run started at `/scommesse-matchpoint/sport/calcio`, produced 11 sanitized snapshots, and exhausted its fixed 10-action budget. The sampled eligible controls remained generic/top-level navigation; no deterministic event row, competition/time binding, event-detail path, full-match total-corners market, exact line, requested side, or displayed price bound to that side/line was established before the run ended at `/totocalcio`. `authorizesProductionMapping` remained false.
 
-Therefore the **live pre-match football full-match total-corners scope remains Blocked**, while the existing deterministic fixture-backed adapter remains **Testable**. No live selector mapping or implementation issue is created. `packages/automation` still includes the read-only passive `live:probe:sisal` command, and BOOK-012 remains the controlled interactive evidence collector. See `docs/live-validation/sisal-book-014.md` for the qualifying run and `docs/live-validation/sisal-book-007.md` for the earlier passive record.
+Therefore the **generic-entry live pre-match football full-match total-corners scope remains Blocked**, while the existing deterministic fixture-backed adapter remains **Testable**. This does not yet rule out the production-relevant direct-match-link flow. BOOK-016/#104 will revalidate SISAL from a representative notification-provided match link after ARCH-004 defines the direct-link trust boundary. No live selector mapping or implementation issue is created yet. See `docs/live-validation/sisal-book-014.md` for the qualifying generic-entry run.
 
 ## BET365 fixture-backed scope and live blocker
 
@@ -87,7 +89,7 @@ BOOK-015 consumed the stronger interactive evidence through DEVOPS-011/#97. The 
 
 The run still did not establish deterministic event-to-market navigation or expose the requested **full-match total-corners** market, exact numeric line, requested OVER/UNDER side, or displayed decimal odds bound to that side/line before exhausting the fixed 10-action budget. `authorizesProductionMapping` remained false.
 
-Therefore the **live pre-match football full-match total-corners scope remains Blocked**, while the existing deterministic fixture-backed adapter remains **Testable**. No live selector mapping or implementation issue is created. `packages/automation` still includes the passive `live:probe:bet365` command, and BOOK-012 remains the controlled interactive evidence collector. See `docs/live-validation/bet365-book-015.md` for the qualifying run and `docs/live-validation/bet365-book-008.md` for the earlier passive record.
+Therefore the **generic-entry live pre-match football full-match total-corners scope remains Blocked**, while the existing deterministic fixture-backed adapter remains **Testable**. This does not yet rule out the production-relevant direct-match-link flow. BOOK-016/#104 will revalidate BET365 from a representative notification-provided match link after ARCH-004 defines the direct-link trust boundary. No live selector mapping or implementation issue is created yet. See `docs/live-validation/bet365-book-015.md` for the qualifying generic-entry run.
 
 No protected/private API reverse engineering is part of this integration.
 
@@ -117,7 +119,7 @@ Separate public evidence shows a distinct pre-match `Calci D Angolo` market-fami
 
 Therefore ADMIRALBET is **Blocked at interactive feasibility** for the narrow pre-match football full-match total-corners scope. No production adapter, worker mapping, selector mapping, or implementation issue is created. The result does not claim that ADMIRALBET is generally inaccessible or unsupported for every possible market. See `docs/live-validation/admiralbet-book-013.md`.
 
-PRODUCT-005's interactive queue is exhausted: ADMIRALBET/BOOK-013, SISAL/BOOK-014, and BET365/BOOK-015 are all Blocked for the narrow live full-match total-corners scope after qualifying BOOK-012 runs. Product Coordination must explicitly re-plan Milestone 6. The matching/security contract remains unchanged, and QA-002/#45 plus production release #46 remain blocked.
+PRODUCT-005's generic interactive queue is exhausted. PRODUCT-015/#102 adopts the direct-match-link-first route: ARCH-004/#103 defines the structured exact-pair/webhook/deep-link boundary, BOOK-016/#104 performs direct-link-anchored live evidence collection, APP-005/#105 adds loopback webhook ingestion, and SEC-002/#106 hardens the ingress. The matching/security contract remains unchanged, and QA-002/#45 plus production release #46 remain blocked.
 
 ## Minimum adapter capabilities
 
