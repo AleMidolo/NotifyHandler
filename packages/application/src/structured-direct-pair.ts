@@ -348,7 +348,10 @@ export function normalizeDirectPairNotificationV1(
     line,
     sourceLabel: marketLabel,
   };
-  const legs = [normalizedLegs[0], normalizedLegs[1]] as const;
+  const legs: readonly [DirectPairLegV1, DirectPairLegV1] = [
+    normalizedLegs[0]!,
+    normalizedLegs[1]!,
+  ];
   const canonical: CanonicalDirectPairV1 = {
     schemaVersion: DIRECT_PAIR_SCHEMA_VERSION,
     notificationId,
@@ -359,7 +362,7 @@ export function normalizeDirectPairNotificationV1(
   };
 
   const createdAt = (options.now ?? (() => new Date()))().toISOString();
-  const targets = legs.map((leg, index): SelectionTarget => ({
+  const targetForLeg = (leg: DirectPairLegV1, index: 0 | 1): SelectionTarget => ({
     id: "structured-target-" + (index + 1),
     bookmaker: leg.bookmaker,
     event: canonicalEvent,
@@ -379,9 +382,13 @@ export function normalizeDirectPairNotificationV1(
       kind: "structured-direct-pair",
       schemaVersion: DIRECT_PAIR_SCHEMA_VERSION,
       notificationId,
-      legIndex: index as 0 | 1,
+      legIndex: index,
     },
-  }));
+  });
+  const targets: readonly [SelectionTarget, SelectionTarget] = [
+    targetForLeg(legs[0], 0),
+    targetForLeg(legs[1], 1),
+  ];
 
   const plan: ExecutionPlan = {
     id: "direct-pair:" + notificationId + ":" + Date.parse(sentAt).toString(36),
