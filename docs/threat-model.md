@@ -69,15 +69,21 @@ Controls:
 
 ### Local control surfaces
 
-Any future local HTTP, WebSocket, IPC, extension, or desktop control endpoint is security-sensitive.
+The structured v1 ingress is now a concrete local HTTP control surface. It is security-sensitive even though it binds only to the local machine.
 
 Controls:
-- bind to loopback only unless an explicit architecture decision says otherwise;
-- require an unguessable per-session capability/token for state-changing operations;
-- validate Origin/Host where applicable and reject cross-site browser requests;
+- bind the production listener only to `127.0.0.1`; there is no configurable LAN/WAN bind address;
+- require a 256-bit base64url bearer capability before parsing the request body;
+- store the bearer token in the Electron user-data directory with mode `0600` on POSIX and a current-user-only Windows ACL; ACL hardening fails closed;
+- support explicit token rotation without changing the notification protocol;
+- require the exact configured loopback `Host`, reject any browser `Origin`, and emit no permissive CORS policy;
+- accept only POST + JSON, cap the body at 64 KiB, and bound request rate/concurrency;
+- validate freshness and idempotency before creating browser work;
+- return sanitized execution/error metadata only; never echo Authorization, token, full request bodies, or deep links;
 - do not expose generic browser-evaluation, shell, filesystem, credential, or transaction APIs;
-- never log endpoint tokens or authorization headers;
-- if no local network control surface is required, prefer no listening socket at all.
+- remote webhook exposure, tunnels, reverse proxies, or public listeners remain out of scope and require a new architecture/security decision.
+
+Residual boundary: the local bearer is intended to be readable by the cooperating local sender running as the same OS user. It is not a defense against malware or another fully compromised process already running as that user. Rotation limits credential lifetime after suspected disclosure, but host compromise remains outside this capability's protection model.
 
 ## Primary threats and required mitigations
 
@@ -154,6 +160,8 @@ Mitigations:
 - diagnostic screenshots/traces are off by default for authenticated production sessions unless a dedicated redaction policy is implemented.
 
 ## Navigation policy
+
+For structured direct-pair links, navigation uses defense in depth: worker preflight resolves the approved hostname and fails closed if any answer is loopback, link-local, private, multicast, documentation-only, or otherwise forbidden; the live browser gateway repeats resolved-target validation immediately before top-level navigation and redirects. Fixture-only routes do not perform external DNS because they never reach the network.
 
 Every bookmaker adapter and the browser runtime must enforce all of the following before opening notification-derived URLs:
 
