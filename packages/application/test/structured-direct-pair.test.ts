@@ -108,3 +108,24 @@ test("structured v1 rejects unknown bookmakers and unsafe navigation candidates 
   assert.equal(local.ok, false);
   if (!local.ok) assert.equal(local.errors.some((item) => item.code === "INVALID_DEEP_LINK"), true);
 });
+
+
+test("structured v1 rejects impossible calendar instants instead of normalizing them", () => {
+  const impossibleSentAt = payload();
+  impossibleSentAt.sentAt = "2026-02-31T12:00:00Z";
+  const sentAtResult = normalizeDirectPairNotificationV1(impossibleSentAt, {
+    now: () => new Date("2026-03-03T12:01:00.000Z"),
+  });
+  assert.equal(sentAtResult.ok, false);
+  if (!sentAtResult.ok) {
+    assert.equal(sentAtResult.errors.some((item) => item.code === "INVALID_SENT_AT"), true);
+  }
+
+  const impossibleScheduledAt = payload();
+  impossibleScheduledAt.event.scheduledAt = "2026-02-31T19:00:00+02:00";
+  const eventResult = normalizeDirectPairNotificationV1(impossibleScheduledAt, { now });
+  assert.equal(eventResult.ok, false);
+  if (!eventResult.ok) {
+    assert.equal(eventResult.errors.some((item) => item.code === "INVALID_EVENT"), true);
+  }
+});
