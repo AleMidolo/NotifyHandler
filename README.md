@@ -27,7 +27,7 @@ Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRA
 
 ## Current status
 
-As of 2026-09-16, Milestones 0–5 are complete for the **local unsigned Windows x64 preview/alpha** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified packaging with SBOM/checksums/provenance.
+As of 2026-09-21, Milestones 0–5 are complete for the **local unsigned Windows x64 preview/alpha** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified packaging with SBOM/checksums/provenance.
 
 The first user-testable alpha is published as GitHub prerelease **`v0.0.0-alpha.1`**, built from commit `3327bc29078d0ab036453e1deaff1b7094fd29ee`. It provides a portable Windows x64 ZIP plus checksum and is intentionally **unsigned and non-production**; Windows may show an unsigned-app or SmartScreen warning.
 
@@ -43,17 +43,18 @@ The live-validation tooling is now complete:
 
 The portable bundle is published as GitHub prerelease **`book012-admiralbet-diagnostic-v1`** from exact `main` commit `d16e34dec26086497c6b581a77ba26038b34b836`.
 
-The live-support critical path is now blocked on one real external execution step:
+The required external workstation execution is now complete. DEVOPS-005/#71 received a sanitized BOOK-012 result from a real non-CI Windows host and closed successfully. The result reports `status: BUDGET_EXHAUSTED`, 10/10 actions, 11 snapshots, and `authorizesProductionMapping: false`. That establishes a qualifying explorer run only; it does **not** classify ADMIRALBET as feasible, blocked, or supported.
 
-1. **#71 DEVOPS-005** — on a normal non-CI Windows x64 workstation, download `notifyhandler-book012-admiralbet-d16e34dec260-win32-x64.zip` and its `.sha256` companion from `book012-admiralbet-diagnostic-v1`, verify ZIP SHA-256 `ee7bc881b6823fb80f64c51e9bf43732329a5eb1ca3a0987915c0eacabc033de`, extract to a fresh writable directory, run `run-admiralbet-validation.cmd`, and retain only the sanitized `ExplorerSummary.json`;
-2. **#62 BOOK-013** — interpret that actual ADMIRALBET result; PR #68 remains pending until the evidence exists;
-3. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist;
-4. **#64 BOOK-015** — revalidate BET365 if still needed;
-5. implement restricted live mappings only for candidates genuinely proven feasible;
-6. **#45 QA-002** — certify the first two bookmakers that become live `Supported`;
-7. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
+The live-support critical path is now:
 
-The current autonomous execution container is known not to satisfy #71's live network/runtime requirements, so repeating the same run there does not constitute progress. A runner, DNS, toolchain, or browser-host failure is **not bookmaker evidence** and must not be used to mark a bookmaker `Blocked` or to relax the full-match total-corners target.
+1. **#62 BOOK-013** — immediate P0: interpret the actual ADMIRALBET explorer result in PR #68 against the deterministic full-match total-corners evidence requirements;
+2. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist;
+3. **#64 BOOK-015** — revalidate BET365 if still needed;
+4. implement restricted live mappings only for candidates genuinely proven feasible;
+5. **#45 QA-002** — certify the first two bookmakers that become live `Supported`;
+6. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
+
+The fixed explorer budget being exhausted is evidence for BOOK-013 to interpret, not permission to increase the budget, guess missing selectors, weaken matching, or change bookmaker support status without satisfying #62's acceptance criteria.
 
 Exploratory validation may navigate public event/market UI but must not activate a betting outcome. Outcome activation and selected-state verification remain later restricted implementation/support gates after all deterministic predicates pass.
 
