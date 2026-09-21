@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   chmodSync,
@@ -146,38 +147,100 @@ function responseValidationErrors(result: Extract<DirectPairNormalizationResult,
   }));
 }
 
+function isValidLocalToken(token: string): boolean {
+  return /^[A-Za-z0-9_-]{43}$/u.test(token);
+}
+
 function loadExistingToken(filePath: string): string | null {
   try {
     const token = readFileSync(filePath, "utf8").trim();
-    return token.length >= 43 && token.length <= 256 ? token : null;
+    return isValidLocalToken(token) ? token : null;
   } catch {
     return null;
   }
 }
 
+function currentWindowsUserSid(): string {
+  const result = spawnSync("whoami", ["/user", "/fo", "csv", "/nh"], {
+    encoding: "utf8",
+    windowsHide: true,
+    shell: false,
+  });
+  if (result.error !== undefined || result.status !== 0) {
+    throw new Error("Could not determine the current Windows user SID for ingress-token ACL hardening.");
+  }
+  const sid = result.stdout.match(/S-\d-(?:\d+-)+\d+/u)?.[0];
+  if (sid === undefined) throw new Error("Windows user SID was not present in whoami output.");
+  return sid;
+}
+
 /**
- * Creates a local ingress capability from 256 bits of cryptographic randomness.
- * The token is never exposed through renderer IPC and is written with the most
- * restrictive POSIX mode available to the current platform.
+ * Applies user-only permissions to the local ingress capability.
+ *
+ * POSIX uses mode 0600. Windows removes inherited ACLs and grants full access
+ * only to the current user SID. Failure is fatal so a packaged Windows build
+ * never silently falls back to a broadly readable bearer-token file.
+ */
+export function hardenLocalIngressTokenPermissions(filePath: string): void {
+  if (process.platform !== "win32") {
+    chmodSync(filePath, 0o600);
+    return;
+  }
+
+  const sid = currentWindowsUserSid();
+  const result = spawnSync(
+    "icacls",
+    [filePath, "/inheritance:r", "/grant:r", `*${sid}:F`],
+    { encoding: "utf8", windowsHide: true, shell: false },
+  );
+  if (result.error !== undefined || result.status !== 0) {
+    throw new Error("Could not apply a user-only Windows ACL to the local ingress token.");
+  }
+}
+
+function generateLocalIngressToken(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+function writeLocalIngressToken(filePath: string, token: string, flag: "w" | "wx"): void {
+  mkdirSync(dirname(filePath), { recursive: true, mode: 0o700 });
+  writeFileSync(filePath, token + "\n", { encoding: "utf8", flag, mode: 0o600 });
+  hardenLocalIngressTokenPermissions(filePath);
+}
+
+/**
+ * Creates or loads a 256-bit local ingress capability. The token is never
+ * exposed through renderer IPC. Its file is hardened to the current OS user.
  */
 export function loadOrCreateLocalIngressToken(filePath: string): string {
   const existing = loadExistingToken(filePath);
   if (existing !== null) {
-    try { chmodSync(filePath, 0o600); } catch { /* Windows ACL hardening is a Security follow-up. */ }
+    hardenLocalIngressTokenPermissions(filePath);
     return existing;
   }
 
-  mkdirSync(dirname(filePath), { recursive: true, mode: 0o700 });
-  const token = randomBytes(32).toString("base64url");
+  const token = generateLocalIngressToken();
   try {
-    writeFileSync(filePath, token + "\n", { encoding: "utf8", flag: "wx", mode: 0o600 });
-    try { chmodSync(filePath, 0o600); } catch { /* best effort on non-POSIX filesystems */ }
+    writeLocalIngressToken(filePath, token, "wx");
     return token;
   } catch (error) {
     const raced = loadExistingToken(filePath);
-    if (raced !== null) return raced;
+    if (raced !== null) {
+      hardenLocalIngressTokenPermissions(filePath);
+      return raced;
+    }
     throw error;
   }
+}
+
+/**
+ * Replaces the local ingress capability without changing the HTTP protocol.
+ * Callers must restart/reconfigure the local sender with the new file value.
+ */
+export function rotateLocalIngressToken(filePath: string): string {
+  const token = generateLocalIngressToken();
+  writeLocalIngressToken(filePath, token, "w");
+  return token;
 }
 
 export async function startDirectPairIngressServer(
