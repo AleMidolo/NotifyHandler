@@ -20,38 +20,34 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — ARCH-004 / #103: Define structured direct-pair ingestion and deep-link-first trust boundary
-Owner: Software Architect
-Milestone: 6 — Evidence-backed live bookmaker readiness / ingestion integration
+### P0 — APP-005 / #105: Implement loopback HTTP webhook ingestion
+Owner: Application Engineer
+Milestone: 6/7 ingestion integration
+Depends on: completed ARCH-004/#103.
 
-PRODUCT-005's generic interactive queue is exhausted: ADMIRALBET, SISAL, and BET365 are all Blocked for the narrow live full-match total-corners scope. PRODUCT-015 retains that market target but changes the production-critical navigation assumption: the upstream surebet bot supplies exactly two bookmaker legs and direct match-page links.
+Implement the accepted `notifyhandler.direct-pair.v1` contract and conceptual:
 
-ARCH-004 must define:
-- a versioned structured notification carrying the exact two legs;
-- legacy-text compatibility and explicit-pair semantics;
-- loopback-only HTTP/webhook ingress;
-- deep-link trust/origin/redirect validation;
-- direct-link-first startup without treating the URL itself as event evidence;
-- request/auth/replay/idempotency/error boundaries for downstream implementation.
+`POST /api/v1/notifications/direct-pair`
 
-### P0 after #103 — BOOK-016 / #104: Revalidate from direct match links
+Requirements include loopback-only binding by default, local bearer capability authentication, strict JSON and request bounds, `sentAt` freshness, `notificationId` idempotency, safe Host/Origin behavior, exact two-leg validation, direct-link preflight, and convergence into the existing automatic two-leg orchestration with no confirmation/start gate.
+
+### P0 external evidence — PRODUCT-016 / #109: Supply representative direct match links
+Owner: Product Coordinator / upstream surebet integration
+
+BOOK-016 cannot progress from generic site URLs. Obtain one usable credential-free direct match URL plus complete notification context for SISAL and one for BET365 from the real upstream surebet flow. The samples must not contain credentials, session tokens, cookies, account identifiers, or guessed/reconstructed paths.
+
+### P0 after #109 — BOOK-016 / #104: Revalidate from direct match links
 Owner: Bookmaker Automation Engineer
-Depends on: ARCH-004 and representative sanitized direct match links.
 
-Start from the actual validated match-page URL supplied by the notification instead of spending the bounded explorer budget discovering the event from a generic football hub. Independently prove:
+Run the existing BOOK-012 explorer from each supplied validated match URL and independently prove:
 `event → competition/time context → full-match total-corners market → exact line → requested side → displayed odds`.
 
-Initial focus remains SISAL and BET365 because fixture-backed adapters already exist. The direct link is a navigation hint only; stale/wrong-event/off-origin links fail safely. BOOK-012's non-transactional/default-deny boundary and `authorizesProductionMapping: false` remain intact.
+Do not repeat the generic football-hub experiment and do not broaden explorer capabilities merely because direct-link samples are still missing.
 
-### P1 after #103 — APP-005 / #105: Loopback HTTP webhook ingestion
-Owner: Application Engineer
-
-Implement the versioned local endpoint defined by ARCH-004. A valid structured two-leg request triggers the existing automatic two-leg orchestration immediately, with the supplied validated match links used as preferred initial navigation candidates. Existing textual/manual input remains supported.
-
-### P1 after #103 — SEC-002 / #106: Secure webhook/deep-link ingress
+### P1 after/concurrent with APP-005 — SEC-002 / #106: Secure webhook/deep-link ingress
 Owner: Security & Compliance Engineer
 
-Review loopback binding, local authentication, request bounds/replay, URL/redirect/origin handling, privacy/logging, and transaction-boundary regressions.
+Review and harden concrete ingress implementation for binding, bearer-token handling, request bounds, freshness/replay/idempotency, unsafe URL/DNS/redirect behavior, logging/privacy, and transaction-boundary regressions.
 
 ## Next in Milestone 6
 
@@ -96,6 +92,7 @@ The unsigned alpha channel and diagnostic validation bundle are not substitutes 
 - #96 / DEVOPS-010 — BET365-specific portable BOOK-012 diagnostic bundle and prerelease: complete.
 - #97 / DEVOPS-011 — qualifying non-CI Windows BET365 explorer execution and sanitized result handoff: complete.
 - #64 / BOOK-015 — BET365 interactive live feasibility: `Blocked` for the narrow full-match total-corners scope; PR #101 merged.
+- #103 / ARCH-004 — structured direct-pair ingestion and direct-link trust boundary: complete via PR #108.
 
 All Milestones 0–5 implementation work remains complete for the unsigned local-preview/alpha channel.
 
