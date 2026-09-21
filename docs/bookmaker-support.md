@@ -21,7 +21,7 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 | EPLAY24 | 4 | Blocked (feasibility) | BOOK-010 confirms current ADM concession `16004` maps E-play 24 Ita Limited to `www.eplay24.it`, and public EPLAY24 material confirms football/prematch betting. The accessible betting application is JavaScript-only in the crawl surface and the controlled validation did not establish the exact event → total-corners → line → side → odds → selected-state chain. No adapter is created from insufficient evidence. See `docs/live-validation/eplay24-book-010.md`. |
 | ADMIRALBET | 5 | Blocked (interactive feasibility) | BOOK-013 consumed a qualifying non-CI BOOK-012 run on `www.admiralbet.it`. The explorer reached the approved origin and `/scommesse/calcio`, but exhausted its fixed 10-action budget without exposing selector-level event binding, the full-match total-corners market, exact line, requested side, or bound displayed odds. `authorizesProductionMapping` remained false. See `docs/live-validation/admiralbet-book-013.md`. |
 
-The passive PRODUCT-004 feasibility queue is exhausted. PRODUCT-005 retains the full-match total-corners target and sequences controlled interactive revalidation through ADMIRALBET, SISAL, and BET365. BOOK-013 is now Blocked after a qualifying BOOK-012 run, so SISAL/BOOK-014 is next after independent QA accepts the result. Matching and safety requirements remain unchanged.
+The passive PRODUCT-004 feasibility queue is exhausted. PRODUCT-005 retains the full-match total-corners target and sequences controlled interactive revalidation through ADMIRALBET, SISAL, and BET365. BOOK-013 is Blocked after a qualifying BOOK-012 run and PR #68 is merged. SISAL/BOOK-014 is active; DEVOPS-008/#88 has published the SISAL-specific diagnostic bundle, and DEVOPS-009/#89 is the current qualifying-workstation execution blocker. Matching and safety requirements remain unchanged.
 
 Priorities may change when technical feasibility, permitted access, notification prevalence, or regression complexity provides evidence for a better order.
 
@@ -111,7 +111,7 @@ Separate public evidence shows a distinct pre-match `Calci D Angolo` market-fami
 
 Therefore ADMIRALBET is **Blocked at interactive feasibility** for the narrow pre-match football full-match total-corners scope. No production adapter, worker mapping, selector mapping, or implementation issue is created. The result does not claim that ADMIRALBET is generally inaccessible or unsupported for every possible market. See `docs/live-validation/admiralbet-book-013.md`.
 
-Per PRODUCT-005 sequencing, SISAL/BOOK-014 is next after independent QA accepts BOOK-013. The matching/security contract remains unchanged.
+Per PRODUCT-005 sequencing, SISAL/BOOK-014 is now active after BOOK-013 was accepted and merged. DEVOPS-008/#88 published the SISAL-specific portable diagnostic and DEVOPS-009/#89 must now obtain the qualifying non-CI workstation result. The matching/security contract remains unchanged.
 
 ## Minimum adapter capabilities
 
