@@ -217,7 +217,7 @@ export async function buildPortableValidationBundle(options = {}) {
     recursive: true,
   });
   await cp(
-    join(root, "scripts", "portable-live-explorer.mjs"),
+    join(root, "scripts", "portable-live-explorer-sisal.mjs"),
     join(bundle, "app", "portable-live-explorer.mjs"),
   );
   await cp(

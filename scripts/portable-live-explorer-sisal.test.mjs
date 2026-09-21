@@ -25,6 +25,10 @@ test("portable runner only exposes live SISAL mode and synthetic smoke", () => {
     ["sisal"],
     ["bet365"],
     ["--bookmaker=sisal"],
+    ["--bookmaker=admiralbet"],
+    ["--bookmaker=bet365"],
+    ["--url=https://www.admiralbet.it"],
+    ["--url=https://www.bet365.it"],
     ["--url=https://example.com"],
     ["--synthetic-smoke", "extra"],
   ]) {

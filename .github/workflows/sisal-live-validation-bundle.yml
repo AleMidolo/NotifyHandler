@@ -14,7 +14,7 @@ on:
       - packages/automation/src/navigation-policy.ts
       - packages/automation/src/live-validation/interactive-explorer.ts
       - packages/automation/test/live-explorer-boundary.test.ts
-      - .github/workflows/live-validation-bundle.yml
+      - .github/workflows/sisal-live-validation-bundle.yml
       - .github/sisal-live-validation-bundle.json
       - docs/live-validation/portable-runner-devops-008.md
   workflow_dispatch:
@@ -30,7 +30,7 @@ permissions:
   attestations: write
 
 concurrency:
-  group: live-validation-bundle-${{ github.ref }}
+  group: sisal-live-validation-bundle-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
