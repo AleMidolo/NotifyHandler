@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
   AutomaticExecutionOrchestrator,
@@ -11,6 +14,8 @@ import {
 import { createWorkerExecutionPreflight } from "../../automation/src/index.ts";
 import { DesktopAppController } from "../src/controller.ts";
 import {
+  loadOrCreateLocalIngressToken,
+  rotateLocalIngressToken,
   startDirectPairIngressServer,
   type DirectPairIngressServer,
 } from "../src/http-ingress.ts";
@@ -102,7 +107,7 @@ async function fixture(): Promise<{
   const worker = new FakeAutomation();
   const orchestrator = new AutomaticExecutionOrchestrator(
     worker,
-    createWorkerExecutionPreflight(),
+    createWorkerExecutionPreflight({ resolveHostname: async () => ["93.184.216.34"] }),
     { now: () => new Date(NOW) },
   );
   const controller = new DesktopAppController(
@@ -271,5 +276,29 @@ test("legacy manual text input remains available alongside HTTP structured ingre
     assert.equal(orchestrator.getState().plan?.recommendedOptionId, "option-1");
   } finally {
     await controller.close();
+  }
+});
+
+
+test("local ingress token is 256-bit base64url, stable across loads, and explicitly rotatable", () => {
+  const dir = mkdtempSync(join(tmpdir(), "notifyhandler-ingress-token-"));
+  const file = join(dir, "token");
+  try {
+    const first = loadOrCreateLocalIngressToken(file);
+    const second = loadOrCreateLocalIngressToken(file);
+    assert.match(first, /^[A-Za-z0-9_-]{43}$/u);
+    assert.equal(second, first);
+    assert.equal(readFileSync(file, "utf8").trim(), first);
+
+    if (process.platform !== "win32") {
+      assert.equal(statSync(file).mode & 0o777, 0o600);
+    }
+
+    const rotated = rotateLocalIngressToken(file);
+    assert.match(rotated, /^[A-Za-z0-9_-]{43}$/u);
+    assert.notEqual(rotated, first);
+    assert.equal(readFileSync(file, "utf8").trim(), rotated);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
