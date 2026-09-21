@@ -20,19 +20,38 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — BOOK-015 / #64: Revalidate BET365 interactively
+### P0 — ARCH-004 / #103: Define structured direct-pair ingestion and deep-link-first trust boundary
+Owner: Software Architect
+Milestone: 6 — Evidence-backed live bookmaker readiness / ingestion integration
+
+PRODUCT-005's generic interactive queue is exhausted: ADMIRALBET, SISAL, and BET365 are all Blocked for the narrow live full-match total-corners scope. PRODUCT-015 retains that market target but changes the production-critical navigation assumption: the upstream surebet bot supplies exactly two bookmaker legs and direct match-page links.
+
+ARCH-004 must define:
+- a versioned structured notification carrying the exact two legs;
+- legacy-text compatibility and explicit-pair semantics;
+- loopback-only HTTP/webhook ingress;
+- deep-link trust/origin/redirect validation;
+- direct-link-first startup without treating the URL itself as event evidence;
+- request/auth/replay/idempotency/error boundaries for downstream implementation.
+
+### P0 after #103 — BOOK-016 / #104: Revalidate from direct match links
 Owner: Bookmaker Automation Engineer
-Milestone: 6 — Evidence-backed live bookmaker readiness
-Depends on: completed qualifying workstation handoff #97.
+Depends on: ARCH-004 and representative sanitized direct match links.
 
-Interpret the actual sanitized BOOK-012 BET365 result now recorded on #64. The explorer ran on the approved origin/path, completed its fixed 10-action budget with `status: BUDGET_EXHAUSTED`, produced 11 snapshots, ended at `/hub/it-it/football/football-competitions/bundesliga`, and kept `authorizesProductionMapping: false`.
+Start from the actual validated match-page URL supplied by the notification instead of spending the bounded explorer budget discovering the event from a generic football hub. Independently prove:
+`event → competition/time context → full-match total-corners market → exact line → requested side → displayed odds`.
 
-The evidence includes multiple competition pages and event/time groupings, but BOOK-015 must still establish the complete deterministic pre-activation chain:
-`event → competition/time context → full-match total-corners market → exact numeric line → requested side → displayed odds`.
+Initial focus remains SISAL and BET365 because fixture-backed adapters already exist. The direct link is a navigation hint only; stale/wrong-event/off-origin links fail safely. BOOK-012's non-transactional/default-deny boundary and `authorizesProductionMapping: false` remain intact.
 
-If the chain is deterministic, mark `Feasible for implementation` and create a separate restricted BET365 live-mapping implementation issue reusing the existing adapter. If evidence remains insufficient after this qualifying run, keep the live scope `Blocked` with the exact missing dimensions.
+### P1 after #103 — APP-005 / #105: Loopback HTTP webhook ingestion
+Owner: Application Engineer
 
-If BOOK-015 is also Blocked and fewer than two feasible candidates remain, the next step is a Product Coordinator replan. Do not increase the explorer budget, guess selectors, weaken matching, or silently downgrade the market target.
+Implement the versioned local endpoint defined by ARCH-004. A valid structured two-leg request triggers the existing automatic two-leg orchestration immediately, with the supplied validated match links used as preferred initial navigation candidates. Existing textual/manual input remains supported.
+
+### P1 after #103 — SEC-002 / #106: Secure webhook/deep-link ingress
+Owner: Security & Compliance Engineer
+
+Review loopback binding, local authentication, request bounds/replay, URL/redirect/origin handling, privacy/logging, and transaction-boundary regressions.
 
 ## Next in Milestone 6
 
@@ -76,6 +95,7 @@ The unsigned alpha channel and diagnostic validation bundle are not substitutes 
 - #63 / BOOK-014 — SISAL interactive live feasibility: `Blocked` for the narrow full-match total-corners scope; PR #95 merged.
 - #96 / DEVOPS-010 — BET365-specific portable BOOK-012 diagnostic bundle and prerelease: complete.
 - #97 / DEVOPS-011 — qualifying non-CI Windows BET365 explorer execution and sanitized result handoff: complete.
+- #64 / BOOK-015 — BET365 interactive live feasibility: `Blocked` for the narrow full-match total-corners scope; PR #101 merged.
 
 All Milestones 0–5 implementation work remains complete for the unsigned local-preview/alpha channel.
 
@@ -83,8 +103,8 @@ All Milestones 0–5 implementation work remains complete for the unsigned local
 
 After a live-supported pair and production-release path are stable:
 - additional evidence-backed bookmakers;
-- Telegram ingestion;
-- HTTP/webhook or clipboard/application ingestion;
+- Telegram ingestion and non-local relay integrations;
+- clipboard/application ingestion;
 - richer notification provenance and observability;
 - macOS/Linux packaging after platform-specific distribution review.
 
