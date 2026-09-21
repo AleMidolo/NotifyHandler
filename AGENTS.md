@@ -75,13 +75,15 @@ The ADMIRALBET interactive feasibility track is complete: BOOK-013/#62 was merge
 The SISAL diagnostic packaging track is also complete: DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`. The ZIP SHA-256 is `03d053426b75711aab730d7eeb01b29db88e0d62b0643c768556dd30c9b89439`.
 
 ### Live-readiness track
-DEVOPS-009/#89 is complete: a qualifying non-CI Windows workstation produced the sanitized SISAL BOOK-012 result. The result exhausted the fixed 10-action explorer budget, produced 11 snapshots, ended at `/totocalcio`, and keeps `authorizesProductionMapping: false`; it is evidence to interpret, not a support decision.
+BOOK-014/#63 is complete and SISAL remains **Blocked at interactive live feasibility** for the narrow full-match total-corners scope.
 
-1. **#63 BOOK-014 — immediate P0.** Interpret the actual SISAL explorer result against the required deterministic event/competition-time/full-match-total-corners/exact-line/side/odds chain. Do not increase the bounded explorer budget, guess selectors, or infer support merely because the site was reachable.
-2. **#64 BOOK-015** — revalidate BET365 only if fewer than two feasible candidates exist after SISAL.
-3. Create/execute restricted live-mapping implementation issues only for candidates marked `Feasible for implementation` until two bookmakers are genuinely live `Supported`.
-4. **#45 QA-002** — qualify the first evidence-backed live-supported pair.
-5. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
+DEVOPS-011/#97 is complete: a qualifying non-CI Windows workstation produced the sanitized BET365 BOOK-012 result. The result exhausted the fixed 10-action budget, produced 11 snapshots, reached multiple football competition pages, ended at `/hub/it-it/football/football-competitions/bundesliga`, and keeps `authorizesProductionMapping: false`; it is evidence to interpret, not a support decision.
+
+1. **#64 BOOK-015 — immediate P0.** Interpret the actual BET365 explorer result against the deterministic event/competition-time/full-match-total-corners/exact-line/side/odds chain.
+2. If BET365 is `Feasible for implementation`, create/execute a restricted live-mapping issue reusing the fixture-backed adapter.
+3. If BET365 is also `Blocked`, route to **Product Coordinator / Technical Project Manager** for an explicit Milestone 6 replan. Do not weaken matching, guess selectors, increase the bounded explorer to force support, or silently change scope.
+4. **#45 QA-002** remains blocked until two bookmakers are genuinely live `Supported`.
+5. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 
