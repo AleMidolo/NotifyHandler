@@ -53,16 +53,17 @@ Current SISAL diagnostic handoff:
 - launcher: `run-sisal-validation.cmd`;
 - approved origin/path: `https://www.sisal.it` / `/scommesse-matchpoint/sport/calcio`.
 
+DEVOPS-009/#89 is now complete. A real non-CI Windows workstation produced the qualifying SISAL BOOK-012 result and the sanitized evidence is recorded on #89 and BOOK-014/#63. The result reports `status: BUDGET_EXHAUSTED`, fixed budget 10/10, 11 snapshots, final path `/totocalcio`, and `authorizesProductionMapping: false`. This completes the execution handoff only; it does **not** classify SISAL.
+
 The live-support critical path is now:
 
-1. **#89 DEVOPS-009** — immediate P0 external step: run the SISAL diagnostic on a qualifying non-CI Windows x64 workstation and return only the sanitized `ExplorerSummary.json` to #63;
-2. **#63 BOOK-014** — interpret that actual SISAL result against the deterministic full-match total-corners chain;
-3. **#64 BOOK-015** — revalidate BET365 only if fewer than two feasible candidates exist after SISAL;
-4. implement restricted live mappings only for candidates genuinely proven feasible;
-5. **#45 QA-002** — certify the first two bookmakers that become live `Supported`;
-6. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
+1. **#63 BOOK-014** — immediate P0: interpret the actual SISAL explorer result against the deterministic full-match total-corners evidence requirements;
+2. **#64 BOOK-015** — revalidate BET365 only if fewer than two feasible candidates exist after SISAL;
+3. implement restricted live mappings only for candidates genuinely proven feasible;
+4. **#45 QA-002** — certify the first two bookmakers that become live `Supported`;
+5. **#46 DEVOPS-003** — prepare a signed Windows production candidate only after #45 passes.
 
-A runner/network/workstation failure remains environment evidence only. The SISAL diagnostic is bounded, non-authorizing, and must not be treated as a support claim merely because the site is reachable or the bundle executes.
+The fixed explorer budget being exhausted is evidence for BOOK-014 to interpret, not permission to increase the budget, guess selectors, weaken matching, or change SISAL support status without satisfying #63's acceptance criteria.
 
 Exploratory validation may navigate public event/market UI but must not activate a betting outcome. Outcome activation and selected-state verification remain later restricted implementation/support gates after all deterministic predicates pass.
 
