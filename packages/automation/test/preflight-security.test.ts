@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { ExecutionPlan, SelectionTarget } from "../../domain/src/index.ts";
+import type { Page } from "playwright-core";
+import { domMappingFor } from "../src/dom-mapping.ts";
+import { NavigationPolicy } from "../src/navigation-policy.ts";
+import { createWorkerPageRuntime } from "../src/page-runtime.ts";
 import { createWorkerExecutionPreflight } from "../src/worker-port.ts";
 
 function target(
@@ -69,4 +73,27 @@ test("structured preflight fails closed on DNS resolution failure", async () => 
   }).validate(plan());
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.failure.code, "UNSAFE_OR_UNSUPPORTED_URL");
+});
+
+
+test("browser gateway rejects private DNS before Playwright navigation", async () => {
+  let gotoCalls = 0;
+  const handlers = new Map<string, (...args: unknown[]) => void>();
+  const fakePage = {
+    async route() {},
+    on(name: string, handler: (...args: unknown[]) => void) { handlers.set(name, handler); return fakePage; },
+    isClosed() { return false; },
+    async goto() { gotoCalls += 1; },
+    url() { return "about:blank"; },
+  } as unknown as Page;
+
+  const policy = new NavigationPolicy(["https://www.sisal.it"], async () => ["192.168.1.20"]);
+  const runtime = await createWorkerPageRuntime({
+    page: fakePage,
+    policy,
+    mapping: domMappingFor("sisal"),
+  });
+
+  assert.deepEqual(await runtime.port.openAllowed("https://www.sisal.it/event"), { ok: false });
+  assert.equal(gotoCalls, 0);
 });
