@@ -51,10 +51,10 @@ A notification-provided match link remains untrusted input. NotifyHandler must v
 
 The Milestone 6 critical path is now:
 
-1. **#103 ARCH-004 — immediate P0:** define the versioned structured two-leg notification contract, direct-link-first execution/trust boundary, and loopback HTTP/webhook ingress architecture;
-2. **#104 BOOK-016 — after #103:** revalidate SISAL and BET365 from representative notification-provided direct match links instead of generic football entry pages;
-3. **#105 APP-005 — after #103:** implement loopback-only HTTP webhook ingestion that accepts the exact structured two-leg pair and starts the existing automatic orchestration path;
-4. **#106 SEC-002 — after #103 / alongside #105:** harden local webhook and deep-link ingress;
+1. **#103 ARCH-004 — architecture defined:** versioned `notifyhandler.direct-pair.v1`, authenticated loopback ingress, idempotency/freshness, and direct-link-first trust boundary;
+2. **#104 BOOK-016 — immediate P0 after ARCH-004:** revalidate SISAL and BET365 from representative notification-provided direct match links instead of generic football entry pages;
+3. **#105 APP-005 — implementation track:** implement the loopback HTTP transport/validator and converge valid requests into the existing automatic orchestration path;
+4. **#106 SEC-002 — security track:** harden listener/token/replay/URL/DNS/redirect/privacy controls alongside APP-005;
 5. create restricted live-mapping implementation issues only for bookmakers that become `Feasible for implementation` from the direct-link evidence;
 6. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
 7. **#46 DEVOPS-003** remains blocked until #45 passes.
@@ -71,9 +71,9 @@ The accepted MVP runtime is a local-first desktop application with a TypeScript/
 
 Selection authorization is predicate-based, not a fuzzy confidence score. Event, market/context, exact numeric line, outcome, current origin, odds state, attempt freshness, and cancellation state are independently gated.
 
-The architecture has no pre-execution user-review, pair-selection, confirmation, or renderer-driven start gate. Valid input flows from deterministic parsing to primary-option resolution, shared preflight, and automatic two-leg startup. Preview/target rendering is non-blocking observability.
+The architecture has no pre-execution user-review, pair-selection, confirmation, or renderer-driven start gate. Legacy text uses deterministic recommendation index 0; structured `notifyhandler.direct-pair.v1` carries the authoritative two legs directly. Both converge on the same shared preflight and automatic two-leg startup. Preview/target rendering is non-blocking observability.
 
-See `docs/architecture.md`, `docs/adr/0001-local-desktop-playwright-runtime.md`, and `docs/adr/0002-automatic-primary-option-startup.md` for the accepted runtime and automatic-start decisions.
+See `docs/architecture.md`, `docs/adr/0001-local-desktop-playwright-runtime.md`, `docs/adr/0002-automatic-primary-option-startup.md`, and `docs/adr/0003-loopback-structured-direct-pair-ingress.md` for the accepted runtime, automatic-start, and structured-ingress decisions.
 
 ## Development
 
@@ -98,6 +98,7 @@ Repository documentation and specifications are authoritative. Start with:
 - `docs/architecture.md` — accepted runtime, component boundaries, automatic-start boundary, trust boundaries, and normative contract map;
 - `docs/adr/0001-local-desktop-playwright-runtime.md` — deployment/runtime architecture decision record;
 - `docs/adr/0002-automatic-primary-option-startup.md` — deterministic primary recommendation and automatic two-leg startup decision;
+- `docs/adr/0003-loopback-structured-direct-pair-ingress.md` — authenticated loopback structured ingress and direct-link-first trust decision;
 - `docs/development.md` — reproducible local setup, CI, browser runtime, diagnostics, and release baseline;
 - `docs/release.md` — CI preview, unsigned alpha prerelease, production artifact policy, signing gates, checksums/SBOM/provenance, and rollback;
 - `docs/workflow.md` — end-to-end user/application workflow;
@@ -106,7 +107,8 @@ Repository documentation and specifications are authoritative. Start with:
 - `docs/test-strategy.md` — automatic-start, unit/contract/browser/security/release test strategy;
 - `docs/bookmaker-support.md` — bookmaker rollout, live-support gates, current support status, and live blockers;
 - `docs/live-validation/` — sanitized evidence and live-validation runner documentation;
-- `specs/notification-format.md` — input/normalization and primary-recommendation contract;
+- `specs/notification-format.md` — legacy textual input/normalization and primary-recommendation contract;
+- `specs/structured-ingestion-v1.md` — explicit two-leg structured payload, loopback HTTP, idempotency/freshness, and required direct links;
 - `specs/selection-target.md` — immutable target for one bookmaker leg;
 - `specs/execution-contract.md` — automatic start trigger, exact two-leg state machine, attempts, evidence epochs, and commands;
 - `specs/bookmaker-adapter-contract.md` — worker/adapter interface and restricted browser/selection capability boundary;
