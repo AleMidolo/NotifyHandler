@@ -4,9 +4,10 @@
 
 - **Milestones 0–5: complete for the local-preview MVP.** The repository can build, test, package, and smoke-test an unsigned Windows x64 desktop preview with deterministic synthetic browser coverage.
 - **Alpha delivery track: complete.** GitHub prerelease **`v0.0.0-alpha.1`** is published from source commit `3327bc29078d0ab036453e1deaff1b7094fd29ee` with the portable Windows x64 ZIP and checksum. It is unsigned, non-production, and does not imply live bookmaker support.
-- **Portable live-validation handoff: complete.** DEVOPS-007/#81 published diagnostic prerelease **`book012-admiralbet-diagnostic-v1`** from exact `main` commit `d16e34dec26086497c6b581a77ba26038b34b836`.
+- **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
+- **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** DEVOPS-005/#71 is complete with a real sanitized workstation result; BOOK-013/#62 is now the immediate P0 interpretation task.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** ADMIRALBET is blocked after interactive feasibility; DEVOPS-009/#89 is now the immediate P0 SISAL workstation-execution blocker for BOOK-014/#63.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -55,25 +56,36 @@ Published diagnostic handoff:
 - expected ZIP SHA-256: `ee7bc881b6823fb80f64c51e9bf43732329a5eb1ca3a0987915c0eacabc033de`;
 - launcher: `run-admiralbet-validation.cmd`.
 
-### Qualifying workstation execution — COMPLETE
+### ADMIRALBET interactive feasibility — COMPLETE / BLOCKED
 
-**#71 DEVOPS-005 — COMPLETE**
+**#62 BOOK-013 — COMPLETE**
 
-A real non-CI Windows workstation executed the published ADMIRALBET diagnostic. The sanitized BOOK-012 result is recorded on #71, #62, and PR #68. It reports `status: BUDGET_EXHAUSTED`, the fixed 10/10 actions, 11 snapshots, and `authorizesProductionMapping: false`.
+The qualifying ADMIRALBET BOOK-012 result was interpreted and merged via PR #68. For the narrow pre-match football full-match total-corners scope, ADMIRALBET is **Blocked at interactive feasibility**. The bounded explorer reached the football surface but did not establish the required selector-level event, competition/time, full-match total-corners, exact-line, side, and bound-odds chain. No production mapping was authorized.
 
-This completes the execution/handoff requirement only. The result does not itself classify ADMIRALBET, authorize production mapping, or justify increasing the bounded explorer budget.
+### SISAL diagnostic packaging — COMPLETE
 
-### Current P0 — BOOK-013 interpretation
+**#88 DEVOPS-008 — COMPLETE**
 
-**#62 BOOK-013 — READY NOW**
+Published:
+- prerelease/tag: **`book012-sisal-diagnostic-v1`**;
+- exact source: `f77f99013b6fa4d65b6cab944af34b9d446e73c9`;
+- ZIP: `notifyhandler-book012-sisal-f77f99013b6f-win32-x64.zip`;
+- expected SHA-256: `03d053426b75711aab730d7eeb01b29db88e0d62b0643c768556dd30c9b89439`;
+- launcher: `run-sisal-validation.cmd`.
 
-The Bookmaker Automation Engineer must interpret the actual explorer result against the deterministic pre-activation chain. PR #68 is now ready to be updated from real BOOK-012 evidence.
+### Current blocker — SISAL qualifying workstation execution
+
+**#89 DEVOPS-009 — P0 / READY NOW**
+
+Run the published SISAL diagnostic bundle on a normal non-CI Windows x64 workstation with a headed desktop and ordinary outbound DNS/HTTPS access. Retain only sanitized `ExplorerSummary.json` and record it on BOOK-014/#63.
+
+Environment failure is not SISAL feasibility evidence and must not alter bookmaker status.
 
 ### Interactive evidence order
 
-1. **#62 BOOK-013** — interpret the actual ADMIRALBET result and classify it only under #62's existing evidence criteria.
-2. **#63 BOOK-014** — revalidate SISAL if fewer than two feasible candidates exist.
-3. **#64 BOOK-015** — revalidate BET365 if still fewer than two feasible candidates exist.
+1. **#89 DEVOPS-009** — execute the SISAL explorer on a qualifying external workstation and return sanitized evidence.
+2. **#63 BOOK-014** — interpret the actual SISAL result.
+3. **#64 BOOK-015** — revalidate BET365 only if fewer than two feasible candidates exist after SISAL.
 
 Interactive feasibility requires:
 `event → competition/time context → full-match total-corners market → exact numeric line → requested side → displayed odds`.
