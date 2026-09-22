@@ -121,6 +121,7 @@ function nodes(): NodeState[] {
       attrs: {
         "data-market-family": "total",
         "data-market-context": "corners",
+        "data-market-period": "full_match",
         "data-market-line": "11.5",
       },
     },
