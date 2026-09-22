@@ -1,6 +1,6 @@
 # Test strategy
 
-Status: **Architecture baseline for Milestone 1, amended by ARCH-003, ARCH-004, and ARCH-005**
+Status: **Architecture baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, and ARCH-006**
 
 The test strategy prioritizes deterministic wrong-selection prevention, automatic notification-to-browser startup correctness, and transaction-boundary enforcement. Routine automated tests must not require bookmaker credentials, live accounts, or real betting transactions.
 
@@ -84,7 +84,7 @@ Run without Electron or a browser for:
 - recommendation source-order preservation;
 - deterministic primary recommendation resolution;
 - no-fallback behavior;
-- selection-target validation;
+- selection-target validation, including required market period;
 - primary execution-plan construction;
 - two-distinct-bookmaker invariant;
 - leg state-machine transition guards;
@@ -110,21 +110,23 @@ Required cases:
 3. duplicate event candidates -> ambiguous, no activation;
 4. wrong competition/time context -> no activation;
 5. wrong market family/context -> no activation;
-6. neighboring line -> no activation;
-7. duplicate exact-line candidates that cannot be distinguished -> no activation;
-8. wrong outcome side -> no activation;
-9. changed higher odds -> `ODDS_CHANGED`, no activation before acknowledgement;
-10. changed lower odds -> `ODDS_CHANGED`, no activation before acknowledgement;
-11. acknowledged odds change followed by another price change -> pause again;
-12. unreadable odds -> `ODDS_UNAVAILABLE`, no activation under MVP policy;
-13. manual login page -> `AUTH_REQUIRED`, no credential automation;
-14. resume after manual login -> complete revalidation before activation;
-15. unsafe deep link -> blocked before navigation;
-16. redirect to unapproved origin -> blocked;
-17. cancellation during wait/matching -> no later activation;
-18. post-click selected-state verification failure -> not `READY_FOR_USER`;
-19. stale event from old attempt/evidence epoch -> ignored;
-20. interface/capability audit -> no credential/stake/submit transaction operations.
+6. wrong market period (for example first half with otherwise identical total-corners line/side/odds) -> no activation;
+7. unavailable/ambiguous required period evidence -> no activation;
+8. neighboring line -> no activation;
+9. duplicate exact-line candidates that cannot be distinguished -> no activation;
+10. wrong outcome side -> no activation;
+11. changed higher odds -> `ODDS_CHANGED`, no activation before acknowledgement;
+12. changed lower odds -> `ODDS_CHANGED`, no activation before acknowledgement;
+13. acknowledged odds change followed by another price change -> pause again;
+14. unreadable odds -> `ODDS_UNAVAILABLE`, no activation under MVP policy;
+15. manual login page -> `AUTH_REQUIRED`, no credential automation;
+16. resume after manual login -> complete revalidation before activation;
+17. unsafe deep link -> blocked before navigation;
+18. redirect to unapproved origin -> blocked;
+19. cancellation during wait/matching -> no later activation;
+20. post-click selected-state verification failure -> not `READY_FOR_USER`;
+21. stale event from old attempt/evidence epoch -> ignored;
+22. interface/capability audit -> no credential/stake/submit transaction operations.
 
 ### Browser integration tests
 
@@ -212,7 +214,7 @@ Notification fixtures must include:
 - deep-link/navigation-preflight rejection;
 - valid primary with informational suggested stakes that never enter execution commands.
 
-Browser fixtures should model the minimum page behaviors needed to exercise adapter logic: event lists/cards, market containers, line labels, outcome controls, displayed odds, login-required state, selected-state representation, and allowed/blocked redirects.
+Browser fixtures should model the minimum page behaviors needed to exercise adapter logic: event lists/cards, market containers with deterministic period identity, line labels, outcome controls, displayed odds, login-required state, selected-state representation, and allowed/blocked redirects. Include a first-half near-miss sharing the same family/context/line/side/odds as a full-match target.
 
 Do not store real credentials, authenticated account HTML, cookies, access tokens, or personal data in fixtures. Fixtures should deliberately include near-miss cases rather than only happy paths.
 
@@ -325,6 +327,8 @@ A change affecting ingestion, primary resolution, matching, adapter behavior, br
 - a valid primary does not dispatch exactly two legs;
 - required shared contract tests fail;
 - a near-match fixture can activate a selection;
+- a first-half/other-period market can satisfy a `full_match` target;
+- missing required market-period evidence can be treated as matched;
 - ambiguity can be represented as success;
 - changed odds can be silently ignored;
 - stale evidence can authorize activation;
