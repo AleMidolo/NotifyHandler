@@ -147,6 +147,18 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   async initialize(): Promise<void> {
     await this.page.route("**/*", async (route) => this.handleRoute(route));
+    await this.page.routeWebSocket("**/*", (socket) => {
+      if (this.relayResolution !== undefined) {
+        this.relayResolution.failure = {
+          kind: "FAILED",
+          code: "RELAY_NETWORK_TARGET_BLOCKED",
+          message: "Relay page attempted a WebSocket connection during restricted resolution.",
+        };
+        void socket.close({ code: 1008, reason: "Relay WebSocket blocked" });
+        return;
+      }
+      socket.connectToServer();
+    });
     this.page.on("framenavigated", (frame) => {
       if (frame === this.page.mainFrame()) this.invalidateReferences();
     });
