@@ -5,8 +5,12 @@ import type {
   SelectionActivationGate,
 } from "../../bookmakers/src/contracts.ts";
 import { domMappingFor, type WorkerBookmaker } from "./dom-mapping.ts";
-import { NavigationPolicy } from "./navigation-policy.ts";
-import { createWorkerPageRuntime, type FixtureDocuments } from "./page-runtime.ts";
+import { NavigationPolicy, type HostResolver } from "./navigation-policy.ts";
+import {
+  createWorkerPageRuntime,
+  type FixtureDocuments,
+  type RelayResolutionResult,
+} from "./page-runtime.ts";
 import { createSelectionGate } from "./selection-gate.ts";
 
 export const WORKER_ORIGINS: Readonly<Record<WorkerBookmaker, readonly string[]>> = Object.freeze({
@@ -25,11 +29,17 @@ export interface AttemptCapabilities { readonly browser: BookmakerPagePort; read
 export interface BookmakerLegSession {
   readonly bookmaker: WorkerBookmaker;
   readonly sessionId: string;
+  resolveRelay(options: Readonly<{ relayUrl: string; timeoutMs?: number; signal?: AbortSignal }>): Promise<RelayResolutionResult>;
   createAttemptCapabilities(evidenceEpoch: number, signal?: AbortSignal): AttemptCapabilities;
   cancel(): Promise<void>;
   close(): Promise<void>;
 }
-export interface LaunchBookmakerLegSessionOptions { readonly bookmaker: WorkerBookmaker; readonly headless?: boolean; readonly navigationTimeoutMs?: number; }
+export interface LaunchBookmakerLegSessionOptions {
+  readonly bookmaker: WorkerBookmaker;
+  readonly headless?: boolean;
+  readonly navigationTimeoutMs?: number;
+  readonly resolveHostname?: HostResolver;
+}
 interface InternalLaunchOptions extends LaunchBookmakerLegSessionOptions { readonly fixtureDocuments?: FixtureDocuments; }
 
 function createAttemptBrowser(browser: BookmakerPagePort, isCurrentGeneration: () => boolean): BookmakerPagePort {
@@ -47,10 +57,12 @@ function createAttemptBrowser(browser: BookmakerPagePort, isCurrentGeneration: (
 
 export async function launchSession(options: InternalLaunchOptions): Promise<BookmakerLegSession> {
   const origins = supportedOriginsFor(options.bookmaker);
-  const policy = new NavigationPolicy(origins);
+  const policy = new NavigationPolicy(origins, options.resolveHostname);
+  const relayPolicy = new NavigationPolicy(["https://www.bet-up.it"], options.resolveHostname);
+  const fixturePolicy = new NavigationPolicy([...origins, "https://www.bet-up.it"], options.resolveHostname);
   if (options.fixtureDocuments !== undefined) {
     for (const url of Object.keys(options.fixtureDocuments)) {
-      if (!policy.isAllowed(url)) throw new Error(`Fixture URL must be an approved bookmaker HTTPS URL: ${url}`);
+      if (!fixturePolicy.isAllowed(url)) throw new Error(`Fixture URL must use the approved bookmaker or bet-up relay HTTPS origin: ${url}`);
     }
   }
   const browser = await chromium.launch({ headless: options.headless ?? false });
@@ -69,6 +81,37 @@ export async function launchSession(options: InternalLaunchOptions): Promise<Boo
   return {
     bookmaker: options.bookmaker,
     sessionId,
+    async resolveRelay(resolveOptions): Promise<RelayResolutionResult> {
+      if (closed) return { kind: "FAILED", code: "RELAY_UNRESOLVED", message: "Browser leg session is closed." };
+      detachAbort?.();
+      detachAbort = undefined;
+      const generation = ++attemptGeneration;
+      activeAttemptGeneration = generation;
+      runtime.beginAttempt();
+      const isCurrentGeneration = (): boolean => !closed && activeAttemptGeneration === generation;
+      const signal = resolveOptions.signal;
+      if (signal !== undefined) {
+        const onAbort = (): void => { if (isCurrentGeneration()) runtime.cancelInFlight(); };
+        if (signal.aborted) onAbort();
+        else {
+          signal.addEventListener("abort", onAbort, { once: true });
+          detachAbort = () => signal.removeEventListener("abort", onAbort);
+        }
+      }
+
+      const result = await runtime.resolveRelay({
+        relayUrl: resolveOptions.relayUrl,
+        relayPolicy,
+        bookmakerPolicy: policy,
+        expectedOrigins: origins,
+        knownBookmakerOrigins: Object.values(WORKER_ORIGINS).flat(),
+        timeoutMs: resolveOptions.timeoutMs ?? options.navigationTimeoutMs ?? 5_000,
+      });
+      if (!isCurrentGeneration() || signal?.aborted) {
+        return { kind: "FAILED", code: "RELAY_UNRESOLVED", message: "Relay resolution attempt was superseded or cancelled." };
+      }
+      return result;
+    },
     createAttemptCapabilities(evidenceEpoch: number, signal?: AbortSignal): AttemptCapabilities {
       if (closed) throw new Error("Browser leg session is closed.");
       if (!Number.isSafeInteger(evidenceEpoch) || evidenceEpoch < 0) throw new Error("Evidence epoch must be a non-negative safe integer.");
