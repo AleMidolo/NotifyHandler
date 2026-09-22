@@ -52,6 +52,7 @@ test("BET365 cancellation racing final activation never reports READY_FOR_USER",
     [MARKET.id]: {
       "data-market-family": "total",
       "data-market-context": "corners",
+      "data-market-period": "full_match",
       "data-market-line": "11.50",
     },
     [OUTCOME.id]: {
