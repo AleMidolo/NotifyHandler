@@ -20,28 +20,33 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — ARCH-005 / #119: Define trusted bet-up relay-link resolution
-Owner: Software Architect
+### P0 — SEC-004 / #125: Review bet-up relay resolution boundary
+Owner: Security & Compliance Engineer
 Milestone: 6 — Relay-aware live readiness
 
-Real upstream notifications provide `https://www.bet-up.it/lnk/<signal-uuid>/<bookmaker>` relay URLs, not direct bookmaker-origin links. Define the backwards-compatible protocol/trust boundary before downstream implementation consumes them.
+The relay-aware implementation stack is merged. Review the concrete production path for:
+- exact relay grammar and bookmaker-suffix binding;
+- DNS/private/internal protections on relay and final bookmaker targets;
+- direct relay -> expected bookmaker transition enforcement;
+- intermediary/wrong-bookmaker/loop/challenge/cancellation handling;
+- evidence-epoch reset after arrival;
+- retry/reopen re-resolution;
+- privacy-safe diagnostics;
+- unchanged v1 direct-link and no-transaction boundaries.
 
-The relay contract must bind the suffix to the leg bookmaker, validate relay DNS/origin/path, bound redirect behavior, revalidate every redirect/final location, require the final accepted origin to match the expected bookmaker adapter, and never treat relay resolution as event/market/line/side/odds evidence.
-
-### P0 evidence after #119 — PRODUCT-016 / #109
+### P0 external evidence — PRODUCT-016 / #109
 Owner: Product Coordinator / upstream surebet integration
 
-Representative relay samples for BET365 and SISAL are already recorded from a real signal for `Kosovo - Irlanda`, market `DOPPIA CHANCE`. This proves the upstream URL format but not the current full-match total-corners target.
+The only external evidence still missing is a **current/still-reachable pre-match full-match total-corners O/U** signal emitted by the real upstream surebet flow, preferably covering SISAL and BET365. Existing double-chance and team-corners samples remain valid parser/relay fixtures but are not substitutes.
 
-After ARCH-005 is merged, obtain at least one still-reachable upstream **full-match total-corners** sample for each bookmaker BOOK-016 needs to validate, including exact relay URL, event/context, line, side, and expected odds.
-
-### P0 after #119 + #109 target sample — BOOK-016 / #104
+### P0 after #109 — BOOK-016 / #104
 Owner: Bookmaker Automation Engineer
 
-Validate from the approved relay-aware entry path and independently prove:
-`event → competition/time context → full-match total-corners market → exact line → requested side → displayed odds`.
+Use the merged typed v2 ingestion, restricted BOOK-017 relay resolver, and explicit full-match period matching to validate the real relay path:
 
-Do not reconstruct direct bookmaker URLs and do not repeat generic football-hub discovery.
+`validated bet-up relay -> expected bookmaker -> event -> competition/time -> full-match total-corners -> exact line -> side -> displayed odds`.
+
+Do not repeat generic football-hub discovery and do not treat relay success as positive matching evidence.
 
 ## Next in Milestone 6
 
@@ -87,6 +92,11 @@ The unsigned alpha channel and diagnostic validation bundle are not substitutes 
 - #97 / DEVOPS-011 — qualifying non-CI Windows BET365 explorer execution and sanitized result handoff: complete.
 - #64 / BOOK-015 — BET365 interactive live feasibility: `Blocked` for the narrow full-match total-corners scope; PR #101 merged.
 - #103 / ARCH-004 — structured direct-pair ingestion and direct-link trust boundary: complete via PR #108.
+- #119 / ARCH-005 — trusted bet-up relay architecture / direct-pair v2: complete via PR #122.
+- #128 / ARCH-006 — explicit market-period selection identity: complete.
+- #123 / APP-006 — typed relay-aware direct-pair v2 ingestion: complete via PR #126.
+- #131 / BOOK-018 — full-match period enforcement in SISAL/BET365 matching: complete.
+- #124 / BOOK-017 — restricted bet-up relay resolver: complete via PR #134.
 - #105 / APP-005 — authenticated loopback structured direct-pair ingress: complete via PR #112.
 - #106 / SEC-002 — loopback ingress and direct-link DNS/token hardening: complete via PR #114.
 - #113 / SEC-003 — restart-safe structured-ingress idempotency: complete via PR #115.

@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** Real upstream signals use `bet-up.it` relay URLs rather than direct bookmaker URLs. ARCH-005/#119 is now the immediate P0; #109 is partially satisfied by real BET365/SISAL relay samples but still needs a target-market total-corners example.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** The relay-aware v2 stack is merged. SEC-004/#125 is the immediate autonomous task; PRODUCT-016/#109 is the external evidence blocker for the final BOOK-016/#104 live validation.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -115,31 +115,38 @@ Merged via PR #114. Direct-link preflight/live navigation now fail closed on for
 
 Merged via PR #115. Structured-ingress idempotency is restart-safe through bounded user-only tombstones that persist only id/hash/execution-id/timestamp/state metadata. Raw request bodies, deep links, bearer tokens, cookies/session data, credentials, and transaction data are not persisted.
 
-### PRODUCT-019/020 replan — REAL UPSTREAM RELAY LINKS
+### Relay-aware stack — IMPLEMENTED
 
-Real surebet samples supplied by the user show the upstream bot emits:
-`https://www.bet-up.it/lnk/<signal-uuid>/<bookmaker>`
+The real upstream relay format is now fully represented in the runtime while preserving direct-link v1 safety.
 
-instead of direct bookmaker-origin match URLs.
+Completed:
+- **#119 ARCH-005 / PR #122** — `direct-pair.v2`, typed relay/direct navigation, trusted relay semantics;
+- **#128 ARCH-006** — explicit immutable market period identity;
+- shared domain propagation of `full_match` period;
+- **#123 APP-006 / PR #126** — typed v2 ingestion;
+- **#131 BOOK-018** — SISAL/BET365 period enforcement with first-half/unknown-period safe rejection;
+- **#124 BOOK-017 / PR #134** — restricted worker/browser-gateway `bet-up.it` resolver.
 
-The existing structured v1 contract intentionally rejects such URLs because its initial deep link must already match the selected bookmaker origin. Do not weaken that contract implicitly.
+Relay resolution itself remains non-authorizing navigation metadata. Matching starts only after arrival at the expected bookmaker origin in a fresh evidence epoch.
 
-**#119 ARCH-005 — P0 / READY NOW**
+### Current parallel tracks
 
-Define the relay-aware protocol and trust boundary. Requirements include exact relay origin/path grammar, bookmaker-suffix binding, DNS/private-target checks, bounded redirects, expected-bookmaker final-origin enforcement, evidence-epoch reset after redirect, and sanitized diagnostics. Relay traversal itself is never positive matching evidence.
+**#125 SEC-004 — READY NOW**
 
-**#109 PRODUCT-016 — PARTIALLY SATISFIED**
+Security-review the concrete merged relay path. This work does not depend on live bookmaker evidence.
 
-Real BET365 and SISAL relay samples are recorded for `Kosovo - Irlanda`, `Nations League`, `24/09/2026 20:45`, market `DOPPIA CHANCE`. These samples are useful to validate relay parsing/resolution and wrong-market rejection.
+**#109 PRODUCT-016 — EXTERNAL EVIDENCE BLOCKER**
 
-They do not prove the current Milestone-6 target. After #119, obtain a representative still-reachable upstream signal for pre-match football full-match total-corners O/U covering the bookmaker(s) required by BOOK-016.
+Existing samples prove real relay syntax and include double-chance plus team-corners markets. They do **not** satisfy the current narrow target.
 
-**#104 BOOK-016 — BLOCKED ON #119 + TARGET-MARKET SAMPLE**
+Still required: one current/still-reachable upstream `bet-up.it` signal for pre-match football **full-match total-corners O/U**, with exact event/context/line/side/expected odds for the bookmaker(s) BOOK-016 will validate.
 
-Once both are available, run the relay-aware controlled validation and independently prove:
-`event → competition/time context → full-match total-corners market → exact numeric line → requested side → displayed odds`.
+**#104 BOOK-016 — READY WHEN #109 IS SATISFIED**
 
-Do not infer a direct bookmaker URL from the relay and do not treat redirect success as support.
+Run live relay-aware evidence collection through the merged v2/resolver stack and independently prove:
+`relay -> expected bookmaker -> event -> competition/time context -> full-match total-corners -> exact numeric line -> requested side -> displayed odds`.
+
+If feasible, create a separate restricted live-mapping implementation issue. If the required pair remains blocked, return to Product Coordination for candidate-pool or explicit market-scope reconsideration.
 
 ### Implementation and qualification
 
