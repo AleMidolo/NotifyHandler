@@ -80,7 +80,7 @@ Unsigned alpha/preview artifacts and diagnostic bundles must never be represente
 
 The accepted MVP runtime is a local-first desktop application with a TypeScript/Node.js core and a browser-automation worker using Playwright-controlled headed Chromium. Bookmaker sessions are isolated from the application UI and from the user's everyday browser profile; manual login and final transaction actions remain user-controlled.
 
-Selection authorization is predicate-based, not a fuzzy confidence score. Event, market/context, exact numeric line, outcome, current origin, odds state, attempt freshness, and cancellation state are independently gated.
+Selection authorization is predicate-based, not a fuzzy confidence score. Event, market family/context, **market period**, exact numeric line, outcome, current origin, odds state, attempt freshness, and cancellation state are independently gated. The current executable corners-total target is explicitly `full_match`; first-half or unknown-period markets must fail safely.
 
 The architecture has no pre-execution user-review, pair-selection, confirmation, or renderer-driven start gate. Legacy text uses deterministic recommendation index 0; structured v1/v2 carry the authoritative two legs directly. V1 is direct-bookmaker-only; v2 adds typed direct or `bet-up.it` relay navigation. All paths converge on the same execution/matching/activation contracts.
 
@@ -129,4 +129,4 @@ Repository documentation and specifications are authoritative. Start with:
 
 ## Development principle
 
-Correctness is more important than clicking something. Automatic startup removes unnecessary user delay, but never weakens validation. When event, market, line, side, origin, odds state, freshness, or live mapping evidence is insufficient, the system must fail or pause safely instead of selecting a candidate.
+Correctness is more important than clicking something. Automatic startup removes unnecessary user delay, but never weakens validation. When event, market family/context/period, line, side, origin, odds state, freshness, or live mapping evidence is insufficient, the system must fail or pause safely instead of selecting a candidate.
