@@ -249,16 +249,16 @@ test("relay page public subresource redirect fails closed before the redirected 
       sisal: {
         [relayUrl("sisal")]: {
           kind: "html",
-          body: '<!doctype html><html><body><img src="https://relay-public.example/probe"><div>relay</div></body></html>',
+          body: '<!doctype html><html><body><img src="https://www.bet-up.it/public-subresource"><div>relay</div></body></html>',
         },
-        "https://relay-public.example/probe": {
+        "https://www.bet-up.it/public-subresource": {
           kind: "redirect",
           location: "http://127.0.0.1/private",
         },
       },
     },
     resolveHostname: async (hostname) => {
-      if (hostname === "relay-public.example") {
+      if (hostname === "www.bet-up.it") {
         publicLookups += 1;
         return ["93.184.216.34"];
       }
@@ -273,7 +273,7 @@ test("relay page public subresource redirect fails closed before the redirected 
     assert.equal(last.failure?.activation, "NOT_ATTEMPTED");
     assert.ok(publicLookups >= 1, "public relay subresource must be resolved before redirect handling");
     const diagnostic = JSON.stringify(last);
-    assert.equal(diagnostic.includes("relay-public.example"), false);
+    assert.equal(diagnostic.includes("public-subresource"), false);
     assert.equal(diagnostic.includes("127.0.0.1"), false);
     assert.equal(diagnostic.includes(SIGNAL_ID), false);
   } finally {
