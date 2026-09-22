@@ -101,6 +101,7 @@ Required controls:
 - suffix must map exactly to and agree with the target leg bookmaker;
 - when both legs are relays, signal UUIDs must agree;
 - relay and expected-bookmaker targets must pass fail-closed DNS/private/internal checks;
+- HTTP redirect responses from the relay must not be auto-followed by the browser: the gateway obtains the first response with redirects disabled, validates its `Location` before any destination request, and only then initiates a fresh controlled browser navigation;
 - while relay resolution is active, non-top-level browser requests are intercepted too: only public HTTPS targets without URL credentials and without private/internal DNS answers are permitted; an unsafe relay subresource fails the relay attempt;
 - the only approved cross-origin relay transition is directly to an origin registered for the expected bookmaker;
 - unexpected intermediaries and wrong-bookmaker destinations fail safely;
