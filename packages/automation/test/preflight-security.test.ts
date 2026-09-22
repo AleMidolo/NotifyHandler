@@ -112,6 +112,7 @@ test("browser gateway rejects private DNS before Playwright navigation", async (
   const handlers = new Map<string, (...args: unknown[]) => void>();
   const fakePage = {
     async route() {},
+    async routeWebSocket() {},
     on(name: string, handler: (...args: unknown[]) => void) { handlers.set(name, handler); return fakePage; },
     isClosed() { return false; },
     async goto() { gotoCalls += 1; },
