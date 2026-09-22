@@ -149,6 +149,7 @@ function exactNodes(): NodeState[] {
       attrs: {
         "data-market-family": "total",
         "data-market-context": "corners",
+        "data-market-period": "full_match",
         "data-market-line": "11.50",
       },
     },
@@ -225,6 +226,28 @@ test("fails safely when the target market context is not present", async () => {
   assert.equal(result.kind, "FAILED_SAFE");
   assert.equal(gate.calls, 0);
   if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "MARKET_NOT_FOUND");
+});
+
+test("SISAL rejects first-half corners even when family, context, line, side, and odds match", async () => {
+  const nodes = exactNodes();
+  nodes.find((node) => node.id === "market-1")!.attrs["data-market-period"] = "first_half";
+  const page = new FixturePage(nodes);
+  const gate = new FixtureGate(page);
+  const result = await prepare(page, gate);
+  assert.equal(result.kind, "FAILED_SAFE");
+  assert.equal(gate.calls, 0);
+  if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "MARKET_MISMATCH");
+});
+
+test("SISAL fails safely when market period evidence is unavailable", async () => {
+  const nodes = exactNodes();
+  delete nodes.find((node) => node.id === "market-1")!.attrs["data-market-period"];
+  const page = new FixturePage(nodes);
+  const gate = new FixtureGate(page);
+  const result = await prepare(page, gate);
+  assert.equal(result.kind, "FAILED_SAFE");
+  assert.equal(gate.calls, 0);
+  if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "MARKET_CONTEXT_UNAVAILABLE");
 });
 
 test("changed odds interrupt before activation and accepted odds are rechecked", async () => {
