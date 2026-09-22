@@ -2,8 +2,12 @@ import { spawnSync } from "node:child_process";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import {
   chmodSync,
+  closeSync,
+  fsyncSync,
   mkdirSync,
+  openSync,
   readFileSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -18,10 +22,18 @@ import type { DesktopAppController } from "./controller.ts";
 export const DIRECT_PAIR_INGRESS_PATH = "/api/v1/notifications/direct-pair";
 export const DEFAULT_DIRECT_PAIR_INGRESS_PORT = 43119;
 export const MAX_DIRECT_PAIR_BODY_BYTES = 64 * 1024;
+export const DEFAULT_IDEMPOTENCY_RETENTION_MS = 24 * 60 * 60_000;
+
+const MIN_IDEMPOTENCY_RETENTION_MS = 5 * 60_000;
+const MAX_IDEMPOTENCY_RETENTION_MS = 30 * 24 * 60 * 60_000;
+const MAX_IDEMPOTENCY_RECORDS = 2048;
+const MAX_IDEMPOTENCY_STATE_BYTES = 512 * 1024;
+const IDEMPOTENCY_STATE_VERSION = 1 as const;
 
 export interface DirectPairIngressOptions {
   readonly controller: Pick<DesktopAppController, "receiveStructuredPlan">;
   readonly token: string;
+  readonly idempotencyFilePath: string;
   readonly port?: number;
   readonly now?: () => Date;
   readonly maxBodyBytes?: number;
@@ -37,10 +49,22 @@ export interface DirectPairIngressServer {
   close(): Promise<void>;
 }
 
+type IdempotencyRecordState = "pending" | "accepted";
+
 interface IdempotencyRecord {
   readonly payloadHash: string;
   readonly executionId: string;
-  readonly acceptedAtMs: number;
+  readonly recordedAtMs: number;
+  readonly state: IdempotencyRecordState;
+  readonly recovered: boolean;
+}
+
+interface PersistedIdempotencyRecord {
+  readonly notificationId: string;
+  readonly payloadHash: string;
+  readonly executionId: string;
+  readonly recordedAtMs: number;
+  readonly state: IdempotencyRecordState;
 }
 
 interface PendingRecord {
@@ -254,6 +278,144 @@ export function rotateLocalIngressToken(filePath: string): string {
   return token;
 }
 
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasOnlyObjectKeys(value: Record<string, unknown>, allowed: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  return keys.length === allowed.length && keys.every((key) => allowed.includes(key));
+}
+
+function isValidNotificationId(value: unknown): value is string {
+  return typeof value === "string"
+    && value.length >= 1
+    && value.length <= 128
+    && /^[A-Za-z0-9._:-]+$/u.test(value);
+}
+
+function isValidPayloadHash(value: unknown): value is string {
+  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+}
+
+function isValidExecutionId(value: unknown): value is string {
+  return typeof value === "string"
+    && value.length >= 1
+    && value.length <= 512
+    && /^[\x20-\x7e]+$/u.test(value);
+}
+
+function serializeIdempotencyState(records: ReadonlyMap<string, IdempotencyRecord>): string {
+  if (records.size > MAX_IDEMPOTENCY_RECORDS) {
+    throw new Error("Local ingress idempotency state exceeded the bounded record limit.");
+  }
+
+  const persisted: PersistedIdempotencyRecord[] = [...records.entries()]
+    .sort(([left], [right]) => left.localeCompare(right, "en-US"))
+    .map(([notificationId, record]) => ({
+      notificationId,
+      payloadHash: record.payloadHash,
+      executionId: record.executionId,
+      recordedAtMs: record.recordedAtMs,
+      state: record.state,
+    }));
+  const serialized = JSON.stringify({
+    version: IDEMPOTENCY_STATE_VERSION,
+    records: persisted,
+  }) + "\n";
+  if (Buffer.byteLength(serialized, "utf8") > MAX_IDEMPOTENCY_STATE_BYTES) {
+    throw new Error("Local ingress idempotency state exceeded the bounded file-size limit.");
+  }
+  return serialized;
+}
+
+function persistIdempotencyState(
+  filePath: string,
+  records: ReadonlyMap<string, IdempotencyRecord>,
+): void {
+  const serialized = serializeIdempotencyState(records);
+  mkdirSync(dirname(filePath), { recursive: true, mode: 0o700 });
+  const fd = openSync(filePath, "w", 0o600);
+  try {
+    writeFileSync(fd, serialized, { encoding: "utf8" });
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+  hardenLocalIngressTokenPermissions(filePath);
+}
+
+function loadIdempotencyState(
+  filePath: string,
+  nowMs: number,
+  retentionMs: number,
+): Map<string, IdempotencyRecord> {
+  let raw: string;
+  try {
+    const size = statSync(filePath).size;
+    if (size > MAX_IDEMPOTENCY_STATE_BYTES) {
+      throw new Error("Local ingress idempotency state file is oversized.");
+    }
+    hardenLocalIngressTokenPermissions(filePath);
+    raw = readFileSync(filePath, "utf8");
+  } catch (error) {
+    if ((error as { readonly code?: unknown }).code === "ENOENT") return new Map();
+    throw error;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Local ingress idempotency state is corrupt JSON.");
+  }
+  if (
+    !isPlainObject(parsed)
+    || !hasOnlyObjectKeys(parsed, ["version", "records"])
+    || parsed.version !== IDEMPOTENCY_STATE_VERSION
+    || !Array.isArray(parsed.records)
+    || parsed.records.length > MAX_IDEMPOTENCY_RECORDS
+  ) {
+    throw new Error("Local ingress idempotency state has an invalid schema.");
+  }
+
+  const records = new Map<string, IdempotencyRecord>();
+  let evicted = false;
+  for (const value of parsed.records) {
+    if (
+      !isPlainObject(value)
+      || !hasOnlyObjectKeys(value, ["notificationId", "payloadHash", "executionId", "recordedAtMs", "state"])
+      || !isValidNotificationId(value.notificationId)
+      || !isValidPayloadHash(value.payloadHash)
+      || !isValidExecutionId(value.executionId)
+      || !Number.isSafeInteger(value.recordedAtMs)
+      || (value.recordedAtMs as number) < 0
+      || (value.recordedAtMs as number) > nowMs + 60_000
+      || (value.state !== "pending" && value.state !== "accepted")
+      || records.has(value.notificationId)
+    ) {
+      throw new Error("Local ingress idempotency state contains an invalid record.");
+    }
+
+    const recordedAtMs = value.recordedAtMs as number;
+    if (recordedAtMs <= nowMs - retentionMs) {
+      evicted = true;
+      continue;
+    }
+    records.set(value.notificationId, {
+      payloadHash: value.payloadHash,
+      executionId: value.executionId,
+      recordedAtMs,
+      state: value.state,
+      recovered: true,
+    });
+  }
+
+  if (evicted) persistIdempotencyState(filePath, records);
+  return records;
+}
+
 export async function startDirectPairIngressServer(
   options: DirectPairIngressOptions,
 ): Promise<DirectPairIngressServer> {
@@ -270,9 +432,19 @@ export async function startDirectPairIngressServer(
   const maxBodyBytes = options.maxBodyBytes ?? MAX_DIRECT_PAIR_BODY_BYTES;
   const maxRequestsPerMinute = options.maxRequestsPerMinute ?? 30;
   const maxConcurrentRequests = options.maxConcurrentRequests ?? 4;
-  const retentionMs = options.idempotencyRetentionMs ?? 24 * 60 * 60_000;
+  const retentionMs = options.idempotencyRetentionMs ?? DEFAULT_IDEMPOTENCY_RETENTION_MS;
+  if (
+    !Number.isSafeInteger(retentionMs)
+    || retentionMs < MIN_IDEMPOTENCY_RETENTION_MS
+    || retentionMs > MAX_IDEMPOTENCY_RETENTION_MS
+  ) {
+    throw new Error("Loopback ingress idempotency retention must be between 5 minutes and 30 days.");
+  }
+  if (typeof options.idempotencyFilePath !== "string" || options.idempotencyFilePath.trim().length === 0) {
+    throw new Error("Loopback ingress requires a durable idempotency state file path.");
+  }
   const now = options.now ?? (() => new Date());
-  const accepted = new Map<string, IdempotencyRecord>();
+  const records = loadIdempotencyState(options.idempotencyFilePath, now().getTime(), retentionMs);
   const pending = new Map<string, PendingRecord>();
   let recentRequests: number[] = [];
   let activeRequests = 0;
@@ -280,9 +452,14 @@ export async function startDirectPairIngressServer(
 
   function evict(nowMs: number): void {
     recentRequests = recentRequests.filter((timestamp) => timestamp > nowMs - 60_000);
-    for (const [key, record] of accepted) {
-      if (record.acceptedAtMs <= nowMs - retentionMs) accepted.delete(key);
+    let changed = false;
+    for (const [key, record] of records) {
+      if (record.recordedAtMs <= nowMs - retentionMs) {
+        records.delete(key);
+        changed = true;
+      }
     }
+    if (changed) persistIdempotencyState(options.idempotencyFilePath, records);
   }
 
   async function acceptNew(
@@ -398,25 +575,43 @@ export async function startDirectPairIngressServer(
 
         const key = normalized.value.canonical.notificationId;
         const hash = normalizedPayloadHash(normalized.value.canonical);
-        const prior = accepted.get(key);
+        const prior = records.get(key);
         if (prior !== undefined) {
           if (prior.payloadHash !== hash) {
-            json(response, 409, { accepted: false, error: { code: "IDEMPOTENCY_CONFLICT", message: "notificationId was already used for a different normalized payload." } });
+            json(response, 409, { accepted: false, error: { code: "IDEMPOTENCY_CONFLICT", message: "notificationId was already reserved for a different normalized payload." } });
             return;
           }
-          json(response, 202, {
-            accepted: true,
-            duplicate: true,
-            notificationId: key,
-            executionId: prior.executionId,
-          });
-          return;
-        }
 
-        const inFlight = pending.get(key);
-        if (inFlight !== undefined) {
-          if (inFlight.payloadHash !== hash) {
-            json(response, 409, { accepted: false, error: { code: "IDEMPOTENCY_CONFLICT", message: "notificationId is already being processed with different content." } });
+          if (prior.recovered) {
+            json(response, 409, {
+              accepted: false,
+              error: {
+                code: "IDEMPOTENCY_REPLAY_BLOCKED",
+                message: "notificationId was recorded by an earlier NotifyHandler process; automatic replay is blocked.",
+              },
+            });
+            return;
+          }
+
+          if (prior.state === "accepted") {
+            json(response, 202, {
+              accepted: true,
+              duplicate: true,
+              notificationId: key,
+              executionId: prior.executionId,
+            });
+            return;
+          }
+
+          const inFlight = pending.get(key);
+          if (inFlight === undefined) {
+            json(response, 409, {
+              accepted: false,
+              error: {
+                code: "IDEMPOTENCY_UNCERTAIN",
+                message: "notificationId has an unresolved execution reservation; automatic replay is blocked.",
+              },
+            });
             return;
           }
           const result = await inFlight.result;
@@ -433,7 +628,69 @@ export async function startDirectPairIngressServer(
           return;
         }
 
-        const acceptance = acceptNew(normalized.value);
+        if (records.size >= MAX_IDEMPOTENCY_RECORDS) {
+          json(response, 503, {
+            accepted: false,
+            error: {
+              code: "IDEMPOTENCY_CAPACITY",
+              message: "Durable idempotency capacity is exhausted until retained records expire.",
+            },
+          });
+          return;
+        }
+
+        const reserved: IdempotencyRecord = {
+          payloadHash: hash,
+          executionId: normalized.value.plan.id,
+          recordedAtMs: nowMs,
+          state: "pending",
+          recovered: false,
+        };
+        records.set(key, reserved);
+        try {
+          persistIdempotencyState(options.idempotencyFilePath, records);
+        } catch (error) {
+          records.delete(key);
+          throw error;
+        }
+
+        const acceptance = (async (): Promise<AcceptanceResult> => {
+          const result = await acceptNew(normalized.value);
+          if (result.accepted) {
+            if (result.executionId !== reserved.executionId) {
+              return {
+                accepted: false,
+                status: 503,
+                code: "EXECUTION_ID_MISMATCH",
+                message: "Application execution identity did not match the durable reservation.",
+              };
+            }
+            const acceptedRecord: IdempotencyRecord = {
+              ...reserved,
+              state: "accepted",
+            };
+            records.set(key, acceptedRecord);
+            try {
+              persistIdempotencyState(options.idempotencyFilePath, records);
+            } catch (error) {
+              records.set(key, reserved);
+              throw error;
+            }
+            return result;
+          }
+
+          if (result.status === 422) {
+            records.delete(key);
+            try {
+              persistIdempotencyState(options.idempotencyFilePath, records);
+            } catch (error) {
+              records.set(key, reserved);
+              throw error;
+            }
+          }
+          return result;
+        })();
+
         pending.set(key, { payloadHash: hash, result: acceptance });
         try {
           const result = await acceptance;
@@ -442,11 +699,6 @@ export async function startDirectPairIngressServer(
             return;
           }
 
-          accepted.set(key, {
-            payloadHash: hash,
-            executionId: result.executionId,
-            acceptedAtMs: nowMs,
-          });
           json(response, 202, {
             accepted: true,
             duplicate: false,
