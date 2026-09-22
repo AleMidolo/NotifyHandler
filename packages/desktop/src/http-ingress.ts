@@ -190,24 +190,31 @@ export function hardenLocalIngressTokenPermissions(filePath: string): void {
   const sid = currentWindowsUserSid();
   const script = [
     "$ErrorActionPreference = 'Stop'",
-    "$path = $env:NOTIFYHANDLER_ACL_PATH",
-    "$expectedSid = $env:NOTIFYHANDLER_ACL_SID",
-    "$sid = [System.Security.Principal.SecurityIdentifier]::new($expectedSid)",
-    "$acl = Get-Acl -LiteralPath $path",
-    "$acl.SetAccessRuleProtection($true, $false)",
-    "foreach ($rule in @($acl.Access)) { [void]$acl.RemoveAccessRuleSpecific($rule) }",
-    "$rule = [System.Security.AccessControl.FileSystemAccessRule]::new($sid, [System.Security.AccessControl.FileSystemRights]::FullControl, [System.Security.AccessControl.AccessControlType]::Allow)",
-    "[void]$acl.AddAccessRule($rule)",
-    "Set-Acl -LiteralPath $path -AclObject $acl",
-    "$verify = Get-Acl -LiteralPath $path",
-    "$rules = @($verify.Access)",
-    "if ($rules.Count -ne 1) { throw 'Ingress token ACL must contain exactly one access rule.' }",
-    "$actualSid = $rules[0].IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value",
-    "if ($actualSid -ne $expectedSid) { throw 'Ingress token ACL contains an unexpected principal.' }",
-    "if ($rules[0].AccessControlType -ne [System.Security.AccessControl.AccessControlType]::Allow) { throw 'Ingress token ACL rule must allow access.' }",
-    "if ($rules[0].IsInherited) { throw 'Ingress token ACL rule must be explicit.' }",
-    "if (($rules[0].FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl) -ne [System.Security.AccessControl.FileSystemRights]::FullControl) { throw 'Ingress token ACL must grant full control to the current user.' }",
-  ].join("; ");
+    "$stage = 'INIT'",
+    "try {",
+    "  $path = $env:NOTIFYHANDLER_ACL_PATH",
+    "  $expectedSid = $env:NOTIFYHANDLER_ACL_SID",
+    "  $stage = 'READ_ACL'",
+    "  $acl = Get-Acl -LiteralPath $path",
+    "  $stage = 'REPLACE_DACL'",
+    "  $sddl = 'D:P(A;;FA;;;' + $expectedSid + ')'",
+    "  $acl.SetSecurityDescriptorSddlForm($sddl, [System.Security.AccessControl.AccessControlSections]::Access)",
+    "  $stage = 'APPLY_ACL'",
+    "  Set-Acl -LiteralPath $path -AclObject $acl",
+    "  $stage = 'VERIFY_ACL'",
+    "  $verify = Get-Acl -LiteralPath $path",
+    "  $rules = @($verify.Access)",
+    "  if ($rules.Count -ne 1) { throw 'unexpected access-rule count' }",
+    "  $actualSid = $rules[0].IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value",
+    "  if ($actualSid -ne $expectedSid) { throw 'unexpected access principal' }",
+    "  if ($rules[0].AccessControlType -ne [System.Security.AccessControl.AccessControlType]::Allow) { throw 'unexpected access type' }",
+    "  if ($rules[0].IsInherited) { throw 'access rule remained inherited' }",
+    "  if (($rules[0].FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl) -ne [System.Security.AccessControl.FileSystemRights]::FullControl) { throw 'insufficient access rights' }",
+    "} catch {",
+    "  Write-Output ('NOTIFYHANDLER_ACL_STAGE=' + $stage)",
+    "  exit 1",
+    "}",
+  ].join("\n");
 
   const result = spawnSync(
     "powershell.exe",
@@ -224,7 +231,8 @@ export function hardenLocalIngressTokenPermissions(filePath: string): void {
     },
   );
   if (result.error !== undefined || result.status !== 0) {
-    throw new Error("Could not establish and verify a current-user-only Windows ACL for the local ingress token.");
+    const stage = /NOTIFYHANDLER_ACL_STAGE=([A-Z_]+)/u.exec(result.stdout)?.[1] ?? "PROCESS";
+    throw new Error(`Could not establish and verify a current-user-only Windows ACL for the local ingress token (stage ${stage}).`);
   }
 }
 
