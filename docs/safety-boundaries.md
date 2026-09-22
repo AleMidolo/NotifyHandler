@@ -73,36 +73,49 @@ An odds change must never cause the system to select a different event/market/li
 
 ## 7. Navigation and URL safety
 
-Notification content and direct match links are untrusted input.
+Notification content, direct links, relay links, redirects, and resolved destinations are untrusted.
 
-Before any notification-derived bookmaker navigation:
+### Direct bookmaker navigation
 
-- URL must parse successfully and use exactly `https:`;
-- URL username/password components must be empty;
-- origin must exactly match an adapter-approved bookmaker origin;
-- literal or resolved loopback/link-local/private/internal targets are rejected;
-- unsafe/browser-internal/local-file/custom executable schemes are rejected;
-- redirects and final origins are revalidated;
-- navigation/redirect invalidates matching evidence that may have become stale.
+Direct candidates require:
 
-A direct match link is never evidence that the page contains the requested event/market/line/outcome.
+- HTTPS;
+- empty URL userinfo;
+- exact adapter-approved bookmaker origin;
+- fail-closed DNS/private/internal target validation;
+- redirect/final-origin revalidation.
 
-For `notifyhandler.direct-pair.v1`, each direct link is required and authoritative as the navigation candidate. Unsafe, stale, wrong-event, or insufficient links fail safely; the system must not silently switch to homepage/competition discovery.
+### Bet-up relay navigation
 
-## 7.1 Structured local-ingress safety
+V2 relay support is limited to the reviewed upstream shape:
 
-The local machine-to-machine endpoint is a privileged control surface even though it binds loopback.
+```text
+https://www.bet-up.it/lnk/<signal-uuid>/<bookmaker-suffix>
+```
 
 Required controls:
 
-- loopback-only binding by default;
-- unguessable local bearer capability, never in URL/body/renderer/logs;
-- strict JSON media type and 64 KiB request ceiling;
-- Host validation and rejection of unexpected browser Origin requests/no permissive CORS;
-- bounded freshness, idempotency, request concurrency, and rate;
-- rejected ingress produces zero bookmaker navigation;
-- duplicate ingress cannot create duplicate execution;
-- no endpoint exposes arbitrary navigation, JavaScript evaluation, filesystem/shell access, credentials, stake entry, or wager submission.
+- exact `https://www.bet-up.it` origin;
+- no userinfo, query, or fragment;
+- exact UUID/suffix path grammar;
+- suffix must map exactly to and agree with the target leg bookmaker;
+- when both legs are relays, signal UUIDs must agree;
+- relay and expected-bookmaker targets must pass fail-closed DNS/private/internal checks;
+- the only approved cross-origin relay transition is directly to an origin registered for the expected bookmaker;
+- unexpected intermediaries and wrong-bookmaker destinations fail safely;
+- relay loops/revisits/timeouts are bounded;
+- relay-origin auth/CAPTCHA/consent challenges fail safely rather than being automated or handed off as bookmaker login;
+- successful relay resolution contributes zero event/market/line/outcome/odds evidence.
+
+After expected-bookmaker arrival, normal bookmaker origin/evidence policies resume in a fresh evidence epoch.
+
+A previously resolved final URL is not cached as trusted input for retry/reopen.
+
+### Structured local-ingress safety
+
+The local machine-to-machine endpoint remains a privileged control surface even though it binds loopback.
+
+ARCH-004/SEC hardening controls remain mandatory: loopback-only binding by default, local bearer capability, strict JSON/body bounds, Host/Origin checks, bounded freshness/idempotency/rate/concurrency, restart-safe replay protection, and zero navigation on rejected ingress.
 
 Remote/public exposure requires a separate reviewed architecture.
 
@@ -114,7 +127,7 @@ The architecture should minimize exposure of personal/session data and avoid sha
 
 Logs should contain only data necessary for diagnosis. Do not log credentials, MFA values, bookmaker authentication tokens, the local-ingress bearer token/Authorization header, full session cookies, raw structured notification bodies by default, or unnecessary personal information.
 
-Prefer normalized matching evidence, state transitions, error codes, sanitized URLs/origins, and redacted diagnostics.
+Prefer normalized matching evidence, state transitions, error codes, sanitized URLs/origins, relay navigation kind/hop count, hashed/truncated relay signal identifiers where needed, and redacted diagnostics. Do not log full relay URLs or signal UUIDs by default.
 
 ## 10. Failure and recovery
 
@@ -130,6 +143,8 @@ A release is blocked if any known path can:
 - enter stakes or submit/confirm a bet;
 - bypass access controls or anti-bot/geo/rate-limit restrictions;
 - navigate untrusted input to unsafe/unapproved origins;
+- allow a relay through an unreviewed intermediary or wrong-bookmaker destination;
+- treat relay path/suffix/redirect success as positive selection identity evidence;
 - expose the structured ingress on non-loopback interfaces by default or accept it without required local authentication/request bounds;
 - expose sensitive authentication/session data in logs or artifacts.
 
