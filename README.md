@@ -27,7 +27,7 @@ Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRA
 
 ## Current status
 
-As of 2026-09-21, Milestones 0–5 are complete for the **local unsigned Windows x64 preview/alpha** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified packaging with SBOM/checksums/provenance.
+As of 2026-09-22, Milestones 0–5 are complete for the **local unsigned Windows x64 preview/alpha** path. The repository has a runnable desktop shell, automatic two-leg orchestration, isolated Playwright/Chromium execution, deterministic SISAL/BET365 fixture E2E, security/transaction-boundary coverage, reproducible CI, and verified packaging with SBOM/checksums/provenance.
 
 The first user-testable alpha is published as GitHub prerelease **`v0.0.0-alpha.1`**, built from commit `3327bc29078d0ab036453e1deaff1b7094fd29ee`. It provides a portable Windows x64 ZIP plus checksum and is intentionally **unsigned and non-production**; Windows may show an unsigned-app or SmartScreen warning.
 
@@ -49,17 +49,34 @@ PRODUCT-015 keeps the full-match total-corners product target and changes the ev
 
 A notification-provided match link remains untrusted input. NotifyHandler must validate HTTPS, exact approved bookmaker origin, URL/redirect safety, and final origin before navigation, and must still independently verify event identity, competition/time context, full-match total-corners market identity, exact line, requested side, and displayed odds. A correct-looking URL never substitutes for page evidence.
 
-The Milestone 6 work is now split into an autonomous implementation track and an external evidence track:
+The structured-ingress implementation and security-hardening track is complete:
 
-1. **#105 APP-005 — immediate autonomous implementation:** implement the accepted `notifyhandler.direct-pair.v1` loopback HTTP ingress and converge valid requests into the existing automatic two-leg orchestration;
-2. **#109 PRODUCT-016 — external/upstream evidence blocker for BOOK-016:** obtain representative credential-free SISAL and BET365 direct match-page URLs plus their notification context from the actual surebet flow;
-3. **#104 BOOK-016 — ready as soon as #109 evidence exists:** revalidate SISAL/BET365 from those exact direct match links rather than generic football entry pages;
-4. **#106 SEC-002 — security track:** review/harden listener binding, local bearer token, freshness/idempotency/replay, URL/DNS/redirect handling, privacy, and transaction-boundary enforcement once APP-005 has concrete ingress code;
-5. create restricted live-mapping implementation issues only for bookmakers that become `Feasible for implementation` from direct-link evidence;
-6. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
-7. **#46 DEVOPS-003** remains blocked until #45 passes.
+- **ARCH-004/#103** — structured `notifyhandler.direct-pair.v1` contract and trust boundary, merged via PR #108;
+- **APP-005/#105** — authenticated loopback `POST /api/v1/notifications/direct-pair` implementation, merged via PR #112;
+- **SEC-002/#106** — DNS/private-target validation, local token hardening/rotation, Host/Origin/privacy regressions, merged via PR #114;
+- **SEC-003/#113** — restart-safe bounded idempotency tombstones with user-only persistence and zero sensitive payload storage, merged via PR #115.
 
-ARCH-004/#103 is complete via PR #108. The accepted conceptual endpoint is `POST /api/v1/notifications/direct-pair`, loopback-only by default, bearer-authenticated, strict/bounded JSON, freshness/idempotency protected, and direct-link-first without treating the link itself as matching evidence.
+The sole immediate Milestone 6 blocker is now **PRODUCT-016/#109**: the repository needs representative credential-free direct match-page URLs from the actual surebet flow for **SISAL** and **BET365**, together with the matching notification context. Once those samples exist, **BOOK-016/#104** can start direct-link-anchored validation immediately.
+
+Minimum sample context per bookmaker:
+- canonical bookmaker id;
+- exact public HTTPS direct match URL emitted by the surebet source;
+- event participants;
+- competition when available;
+- scheduled date/time when available;
+- market source label / normalized full-match total-corners meaning;
+- exact line;
+- requested side/outcome;
+- expected odds.
+
+Do not include credentials, cookies, session tokens, account identifiers, or reconstructed/guessed URLs. The direct URL remains navigation input only and never counts as event/market/line/side/odds evidence.
+
+Current Milestone 6 sequence:
+1. **#109 PRODUCT-016 — immediate external evidence blocker**;
+2. **#104 BOOK-016 — run SISAL/BET365 direct-link validation once #109 is satisfied**;
+3. create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`;
+4. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
+5. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 Remote Internet exposure of the desktop webhook is not part of this decision. The default integration is local/loopback; a remote surebet service would require a separately designed secure relay/outbound connection rather than opening the desktop listener to the public Internet.
 
