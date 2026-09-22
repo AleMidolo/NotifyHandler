@@ -276,6 +276,31 @@ test("relay page private-network subresource is blocked and fails the relay atte
   }
 });
 
+test("relay page WebSocket attempts fail closed before any server connection", async () => {
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relayUrl("sisal")]: {
+          kind: "html",
+          body: '<!doctype html><html><body><script>new WebSocket("ws://127.0.0.1:65535/private")</script><div>relay</div></body></html>',
+        },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_NETWORK_TARGET_BLOCKED");
+    assert.equal(last.failure?.activation, "NOT_ATTEMPTED");
+    const diagnostic = JSON.stringify(last);
+    assert.equal(diagnostic.includes("127.0.0.1"), false);
+    assert.equal(diagnostic.includes(SIGNAL_ID), false);
+  } finally {
+    await worker.closeAll();
+  }
+});
+
 test("private final-bookmaker DNS is rejected during relay transition", async () => {
   const destination = finalUrl("sisal", "private-dns");
   const worker = createFixtureAutomationWorker({
