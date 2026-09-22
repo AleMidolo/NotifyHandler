@@ -1,6 +1,6 @@
 # Bookmaker adapter contract
 
-Status: **Accepted architecture contract for Milestone 1, amended by ARCH-004 and ARCH-005**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-004, ARCH-005, and ARCH-006**
 
 This specification defines how bookmaker-specific code participates in execution without leaking DOM details into the core application or gaining transaction-submission capabilities.
 
@@ -296,6 +296,8 @@ Every adapter implementation must pass the same deterministic contract suite aga
 - wrong event;
 - duplicate/ambiguous event;
 - wrong market family/context;
+- wrong market period (for example first half vs `full_match`);
+- unavailable/ambiguous required market-period evidence;
 - neighboring numeric line;
 - wrong outcome;
 - duplicate/ambiguous outcome;
@@ -310,3 +312,21 @@ Every adapter implementation must pass the same deterministic contract suite aga
 - absence of stake and bet-submit operations.
 
 Bookmaker-specific tests may add cases but may not weaken these shared requirements.
+
+
+## 15. Market-period obligation
+
+ARCH-006 makes `SelectionTarget.market.period` a required identity input.
+
+For the current MVP, the only executable canonical value is `full_match`.
+
+Adapters must not mark market evidence `MATCHED` until they have deterministically established:
+
+1. market family;
+2. context/subtype;
+3. market period;
+4. candidate uniqueness for the requested line combination.
+
+Period evidence must come from reviewed bookmaker metadata/labels/container identity or another explicit tested mapping. DOM proximity, section order, matching line, matching side, or matching odds cannot substitute for period evidence.
+
+Shared fixture contracts should expose a deterministic period attribute/label and include a near-miss first-half market with the same family/context/line/side/odds to prove it cannot activate.
