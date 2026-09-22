@@ -20,7 +20,7 @@ Unknown versions are rejected. A v1 payload is never reinterpreted as v2 and a f
 
 ## 2. Payload
 
-V2 preserves the event/market/timing semantics and exactly-two-leg invariant of v1, but replaces each leg's untyped `deepLink` with a typed navigation candidate.
+V2 preserves the event/market/timing semantics and exactly-two-leg invariant of v1, including required `market.period: "full_match"`, but replaces each leg's untyped `deepLink` with a typed navigation candidate.
 
 Conceptually:
 
@@ -131,7 +131,7 @@ Before execution creation the application validates:
 - supported v2 schema;
 - existing freshness/idempotency/request rules from v1/ARCH-004;
 - exactly two distinct supported bookmaker legs;
-- market/outcome/odds semantics;
+- market/outcome/odds semantics, including required full-match market period;
 - navigation candidate type;
 - direct-bookmaker candidate under the existing v1 URL policy, or relay candidate under the exact grammar above;
 - relay suffix/bookmaker binding;
@@ -289,3 +289,12 @@ Structured-v2 tests must include:
 18. cancellation during relay resolution prevents later matching/activation;
 19. diagnostics omit full relay URL/signal UUID and secrets;
 20. zero stake/wager/credential/bypass capability expansion.
+
+
+## 17. Market-period preservation
+
+V2 requires `market.period: "full_match"` for the current protocol and must preserve it into each immutable `SelectionTarget.market.period`.
+
+Relay resolution does not supply or repair market-period evidence. After expected-bookmaker arrival, the adapter must independently establish full-match period before market identity can become `MATCHED`.
+
+A first-half/other-period page candidate remains a normal deterministic market mismatch even if the relay, event, line, side, and odds otherwise look correct.
