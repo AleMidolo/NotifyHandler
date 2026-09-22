@@ -417,6 +417,7 @@ export function normalizeDirectPairNotificationV1(
     market: {
       family: "total",
       context: "corners",
+      period: canonicalMarket.period,
       line,
       sourceLabel: marketLabel,
     },
