@@ -67,7 +67,7 @@ A v1 payload is executable only when all of the following are true:
 - `notificationId` is present, bounded, and valid for idempotency use;
 - `sentAt` is valid and within the configured freshness window;
 - event identity contains two non-empty distinguishable participants;
-- the market is supported and all market-required fields are present;
+- the market is supported and all market-required fields are present, including `period: "full_match"` for the current protocol;
 - exactly two legs are present;
 - the two legs resolve to distinct supported canonical bookmakers;
 - each leg has an explicit outcome/side, expected decimal odds, and direct match link;
@@ -89,7 +89,7 @@ DirectPairNotificationV1
 structured validator / normalizer
         |
         v
-exactly two SelectionTarget values
+exactly two SelectionTarget values (including market.period)
         |
         v
 ExecutionPlan
@@ -443,3 +443,12 @@ V1 keeps its original meaning:
 - v1 failure is never reinterpreted as v2.
 
 Producers that emit relay links must send `notifyhandler.direct-pair.v2` with a typed `betup-relay` navigation candidate.
+
+
+## 18. Market-period preservation
+
+V1 already requires `market.period: "full_match"`. ARCH-006 makes preservation of that value normative.
+
+The v1 normalizer must copy the canonical period into every generated `SelectionTarget.market.period`. Dropping period during plan construction is a contract violation and must fail tests.
+
+Bookmaker matching may not infer `full_match` merely because family/context/line match.

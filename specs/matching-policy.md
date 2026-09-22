@@ -1,6 +1,6 @@
 # Matching, confidence, and odds policy
 
-Status: **Accepted architecture contract for Milestone 1**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-006**
 
 This specification defines the shared evidence model and minimum authorization rules for bookmaker selection preparation. Bookmaker adapters may be stricter, but may not weaken these rules.
 
@@ -78,7 +78,7 @@ Shared text normalization may perform only deterministic transformations such as
 - bookmaker-specific, version-controlled alias mapping;
 - removal of decorative tokens explicitly known not to carry identity.
 
-Normalization must not silently erase identity-bearing numbers, participant tokens, market context, or outcome direction.
+Normalization must not silently erase identity-bearing numbers, participant tokens, market context, market period, or outcome direction.
 
 Aliases that can authorize `MATCHED` must be explicit and tested. Arbitrary edit-distance similarity cannot become an approved alias at runtime.
 
@@ -134,7 +134,8 @@ A market is `MATCHED` only when:
 
 - normalized market family exactly matches the target family or an approved bookmaker alias;
 - any target market context/subtype is also matched;
-- exactly one eligible market container remains for the requested family/context and line combination.
+- the target market period is positively established and matches exactly;
+- exactly one eligible market container remains for the requested family/context/period and line combination.
 
 Examples of distinct identities that must not be merged:
 
@@ -143,6 +144,15 @@ Examples of distinct identities that must not be merged:
 - full match vs first half;
 - regulation time vs including overtime;
 - Asian total vs ordinary over/under where settlement semantics differ.
+
+For the current MVP, `SelectionTarget.market.period` is required and equals `full_match`. The page/fixture mapping must expose enough reviewed evidence to distinguish that period from first-half or another period.
+
+Period evidence may come from deterministic bookmaker metadata, a reviewed market heading/container identity, or another version-controlled mapping. DOM position, visual proximity, identical line/odds, or the absence of an explicit "first half" label are not sufficient by themselves.
+
+- exact target period -> may contribute to `MARKET_MATCHED`;
+- explicitly different period -> `MISMATCHED`;
+- period cannot be established -> `UNAVAILABLE`;
+- multiple unresolved period interpretations -> `AMBIGUOUS`.
 
 A visually nearby or similarly worded market is not sufficient.
 

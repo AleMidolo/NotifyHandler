@@ -1,6 +1,6 @@
 # Selection target specification
 
-Status: **Accepted architecture/domain contract for Milestone 1, amended by ARCH-004 and ARCH-005**
+Status: **Accepted architecture/domain contract for Milestone 1, amended by ARCH-004, ARCH-005, and ARCH-006**
 
 `SelectionTarget` is the immutable, bookmaker-agnostic instruction for one leg of an accepted surebet execution pair. It describes **what must be selected**, never how a bookmaker DOM is manipulated.
 
@@ -29,6 +29,7 @@ type SelectionTarget = Readonly<{
   market: Readonly<{
     family: MarketFamily;
     context?: string;
+    period: MarketPeriod;
     line?: DecimalString;
     sourceLabel: string;
   }>;
@@ -72,6 +73,7 @@ A target is valid for execution only when:
 - `bookmaker` resolves to exactly one supported adapter;
 - both event participants are present after domain normalization;
 - market family/context semantics are explicit;
+- `market.period` is explicit and immutable; for the current MVP executable scope it is `full_match`;
 - a line is present for every line-based market;
 - outcome/side is explicit;
 - expected odds are valid positive decimal odds;
@@ -83,7 +85,7 @@ A target is valid for execution only when:
 
 Every accepted execution pair resolves to exactly two valid targets.
 
-Targets are immutable once the execution plan is created. A different event, bookmaker, market, line, side, or expected odds requires rebuilding/reviewing the plan; an adapter may never mutate a target to make a page candidate fit.
+Targets are immutable once the execution plan is created. A different event, bookmaker, market family/context, market period, line, side, or expected odds requires rebuilding/reviewing the plan; an adapter may never mutate a target to make a page candidate fit.
 
 ## 3. Target vs execution state
 
@@ -106,7 +108,7 @@ Given a target, the adapter must independently establish current-epoch evidence 
 
 1. approved HTTPS origin;
 2. event identity;
-3. market family/context;
+3. market family/context and exact period;
 4. exact line when required;
 5. exact outcome/side;
 6. displayed odds;
@@ -134,19 +136,29 @@ Fuzzy similarity may discover candidates but cannot itself produce `MATCHED`. Ap
 
 When target context exists but the page exposes neither competition nor time, participant names alone are insufficient under the MVP policy.
 
-## 7. Market and line matching
+## 7. Market period and line matching
 
-Market family, optional context, and numeric line are separate identity dimensions.
+Market family, context/subtype, period, and numeric line are separate identity dimensions.
 
-For `U/O CORNER 11.5` + `OVER`:
+`MarketPeriod` is a canonical domain value. For the current executable MVP scope:
+
+```ts
+type MarketPeriod = "full_match";
+```
+
+This narrow enum is intentional. Supporting first-half, second-half, regulation-plus-overtime, or another settlement period requires an explicit domain/spec extension; adapters must never infer or substitute one.
+
+For the current `U/O CORNER 11.5` + `OVER` target:
 
 - total corners is not total goals;
 - match total is not team total;
-- full match is not first half;
+- `full_match` is not first half or another period;
 - 11.5 is not 10.5, 11.0, 12.0, or 12.5;
 - `OVER` is not `UNDER`.
 
-No nearest-line or neighboring-DOM substitution is permitted.
+A market candidate can contribute `MARKET_MATCHED` only when family, context/subtype, and period are all deterministically established for the current evidence epoch. If the target period is not observable under the adapter's reviewed mapping, market identity is `UNAVAILABLE`; an explicitly different period is `MISMATCHED`.
+
+No nearest-line, neighboring-DOM, section-position, or odds-based substitution is permitted.
 
 ## 8. Odds semantics
 
@@ -201,6 +213,8 @@ Shared tests must prove that:
 - an exact target can become `READY_FOR_USER` only after verified selection;
 - wrong/similar event never activates;
 - wrong market never activates;
+- a first-half/other-period market never satisfies a `full_match` target;
+- unavailable period evidence never activates;
 - neighboring line never activates;
 - wrong side never activates;
 - duplicate/ambiguous candidates never activate;

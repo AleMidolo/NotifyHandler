@@ -46,6 +46,7 @@ SurebetNotification
   market:
     family: enum/string
     subtype?: string
+    period: canonical market period
     line?: decimal
     unit/context?: string
     sourceLabel: string
@@ -71,7 +72,7 @@ Exact implementation types are owned by architecture/domain work, but equivalent
 
 A notification is executable only if it can unambiguously yield:
 - event identity (at minimum two distinguishable participants for the initial sports use case);
-- market family/source label;
+- market family/source label and canonical market period;
 - outcome sides offered;
 - canonical bookmaker for each selected offer;
 - expected odds for each selected offer;
@@ -142,8 +143,13 @@ Example:
 may normalize to:
 - family: `total`;
 - context: `corners`;
+- period: `full_match`;
 - line: `11.5`;
 - valid outcomes for this source: `over`, `under`.
+
+For the current legacy grammar, bare `U/O CORNER <line>` is defined by this product protocol as **full-match total corners**. This is not a runtime guess: it is the documented meaning of the only executable legacy corners-total syntax currently supported.
+
+An explicit first-half/second-half/team-period token is not silently stripped and must not normalize to this same target. Such a source is unsupported until its period semantics are added explicitly to the domain/spec/fixtures.
 
 The exact enum taxonomy belongs to domain/architecture work. New aliases/taxonomy entries require fixtures and spec updates.
 
@@ -184,7 +190,8 @@ The domain implementation should include sanitized fixtures covering:
 - ambiguous recommendations;
 - same-bookmaker primary recommendation;
 - comma/dot odds cases if locale support is implemented;
-- unsupported market and bookmaker cases.
+- unsupported market and bookmaker cases;
+- first-half/other-period market labels proving they do not normalize to the current `full_match` target.
 
 Each accepted variation should be intentional and documented through tests rather than broad fuzzy parsing.
 
@@ -197,3 +204,14 @@ This textual contract and `notifyhandler.direct-pair.v1` are separate versioned 
 - structured v1 requires a direct match link for each leg;
 - both paths normalize to the same `SelectionTarget`/`ExecutionPlan` runtime contracts;
 - the application must not reinterpret a structured-v1 request as legacy text when structured validation fails.
+
+
+## 10. Market-period propagation
+
+Every executable normalization path must preserve market period through to `SelectionTarget.market.period`.
+
+- legacy textual `U/O CORNER <line>` -> `full_match`;
+- structured v1/v2 -> preserve the required payload `market.period` value;
+- no application/domain layer may drop period and rely on adapters to infer it later.
+
+A plan missing period is invalid for the current deterministic matching contract.
