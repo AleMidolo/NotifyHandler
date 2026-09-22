@@ -35,6 +35,8 @@ When the desktop app is running it also listens on the IPv4 loopback interface o
 
 The port may be changed with `NOTIFYHANDLER_INGRESS_PORT`; the bind address is not configurable and remains `127.0.0.1`. A 256-bit local bearer capability is generated on first launch at the Electron user-data path `direct-pair-ingress-token`. The token file is hardened to mode `0600` on POSIX and to a current-user-only ACL on Windows. The token is for the local NotifyHandler ingress only: do not put it in URLs, payloads, logs, or bookmaker credentials.
 
+Restart-safe replay protection is persisted separately at `direct-pair-ingress-idempotency.json` in the same Electron user-data directory. Tombstones are retained for 24 hours and store only notification id, normalized payload hash, deterministic execution id, reservation timestamp, and pending/accepted state. The file uses the same current-user-only permission hardening. Raw request bodies, deep links, bearer tokens, bookmaker credentials, cookies, and session data are never persisted there.
+
 To rotate the local capability, stop NotifyHandler and restart it once with `NOTIFYHANDLER_ROTATE_INGRESS_TOKEN=1`, then remove that environment variable and update the local sender from the newly written token file. Rotation changes only the local bearer capability; it does not change the structured payload schema or any bookmaker credential.
 
 Example request body:
@@ -74,4 +76,6 @@ Example request body:
 }
 ```
 
-Send it with `Content-Type: application/json` and `Authorization: Bearer <local-ingress-token>`. The endpoint has a 64 KiB body ceiling, rejects browser-origin/CORS requests, enforces notification freshness and bounded in-process idempotency, and returns only sanitized execution metadata. A valid request enters the existing automatic two-leg preflight/start path immediately; no renderer confirmation is involved. A direct link is only navigation input and never replaces event, market, exact-line, outcome, or odds verification.
+Send it with `Content-Type: application/json` and `Authorization: Bearer <local-ingress-token>`. The endpoint has a 64 KiB body ceiling, rejects browser-origin/CORS requests, enforces notification freshness plus durable bounded idempotency, and returns only sanitized execution metadata. A same-process exact duplicate returns the existing execution reference without a second start. After NotifyHandler restarts, a still-retained exact replay is rejected with `IDEMPOTENCY_REPLAY_BLOCKED` and zero worker starts because prior browser execution state is not restored. Reusing the same id with different normalized content returns `IDEMPOTENCY_CONFLICT`.
+
+A valid new request persists its pending tombstone before entering the existing automatic two-leg preflight/start path; no renderer confirmation is involved. Corrupt durable idempotency state prevents the listener from starting, and expired tombstones are evicted. A direct link is only navigation input and never replaces event, market, exact-line, outcome, or odds verification.
