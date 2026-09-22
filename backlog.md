@@ -20,32 +20,28 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 external evidence — PRODUCT-016 / #109: Supply representative direct match links
+### P0 — ARCH-005 / #119: Define trusted bet-up relay-link resolution
+Owner: Software Architect
+Milestone: 6 — Relay-aware live readiness
+
+Real upstream notifications provide `https://www.bet-up.it/lnk/<signal-uuid>/<bookmaker>` relay URLs, not direct bookmaker-origin links. Define the backwards-compatible protocol/trust boundary before downstream implementation consumes them.
+
+The relay contract must bind the suffix to the leg bookmaker, validate relay DNS/origin/path, bound redirect behavior, revalidate every redirect/final location, require the final accepted origin to match the expected bookmaker adapter, and never treat relay resolution as event/market/line/side/odds evidence.
+
+### P0 evidence after #119 — PRODUCT-016 / #109
 Owner: Product Coordinator / upstream surebet integration
-Milestone: 6 — Evidence-backed live bookmaker readiness
 
-All structured-ingress implementation and production-hardening work is complete. BOOK-016 now depends only on real direct-match evidence from the upstream surebet flow.
+Representative relay samples for BET365 and SISAL are already recorded from a real signal for `Kosovo - Irlanda`, market `DOPPIA CHANCE`. This proves the upstream URL format but not the current full-match total-corners target.
 
-Provide one usable credential-free direct match sample for SISAL and one for BET365. Each sample must include:
-- bookmaker canonical id;
-- exact public HTTPS match URL emitted by the upstream surebet source;
-- event participants;
-- competition when supplied;
-- scheduled date/time when supplied;
-- market source label / normalized full-match total-corners meaning;
-- exact numeric line;
-- requested side/outcome;
-- expected odds.
+After ARCH-005 is merged, obtain at least one still-reachable upstream **full-match total-corners** sample for each bookmaker BOOK-016 needs to validate, including exact relay URL, event/context, line, side, and expected odds.
 
-Do not include credentials, cookies, session tokens, account identifiers, or guessed/reconstructed URLs. The URL is navigation input only.
-
-### P0 after #109 — BOOK-016 / #104: Revalidate from direct match links
+### P0 after #119 + #109 target sample — BOOK-016 / #104
 Owner: Bookmaker Automation Engineer
 
-Run the existing BOOK-012 explorer from each supplied validated match URL and independently prove:
+Validate from the approved relay-aware entry path and independently prove:
 `event → competition/time context → full-match total-corners market → exact line → requested side → displayed odds`.
 
-Do not repeat the generic football-hub experiment and do not broaden explorer capabilities merely because direct-link samples are missing.
+Do not reconstruct direct bookmaker URLs and do not repeat generic football-hub discovery.
 
 ## Next in Milestone 6
 
