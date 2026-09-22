@@ -121,7 +121,7 @@ function target(overrides: Partial<SelectionTarget> = {}): SelectionTarget {
       scheduledAt: "2026-09-12T19:00:00.000Z",
       sourceDisplay: "Real Madrid - Rayo Vallecano",
     },
-    market: { family: "total", context: "corners", line: "11.5", sourceLabel: "U/O CORNER 11.5" },
+    market: { family: "total", context: "corners", period: "full_match", line: "11.5", sourceLabel: "U/O CORNER 11.5" },
     outcome: { side: "under", sourceLabel: "UNDER" },
     expectedOdds: "1.80",
     deepLink: "https://www.bet365.it/#/AC/B1/C1/D100/Efixture/",
