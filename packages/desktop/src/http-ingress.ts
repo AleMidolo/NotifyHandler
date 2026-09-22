@@ -188,13 +188,43 @@ export function hardenLocalIngressTokenPermissions(filePath: string): void {
   }
 
   const sid = currentWindowsUserSid();
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    "$path = $env:NOTIFYHANDLER_ACL_PATH",
+    "$expectedSid = $env:NOTIFYHANDLER_ACL_SID",
+    "$sid = New-Object System.Security.Principal.SecurityIdentifier($expectedSid)",
+    "$acl = Get-Acl -LiteralPath $path",
+    "$acl.SetAccessRuleProtection($true, $false)",
+    "foreach ($rule in @($acl.Access)) { [void]$acl.RemoveAccessRuleSpecific($rule) }",
+    "$rule = New-Object System.Security.AccessControl.FileSystemAccessRule($sid, [System.Security.AccessControl.FileSystemRights]::FullControl, [System.Security.AccessControl.AccessControlType]::Allow)",
+    "[void]$acl.AddAccessRule($rule)",
+    "Set-Acl -LiteralPath $path -AclObject $acl",
+    "$verify = Get-Acl -LiteralPath $path",
+    "$rules = @($verify.Access)",
+    "if ($rules.Count -ne 1) { throw 'Ingress token ACL must contain exactly one access rule.' }",
+    "$actualSid = $rules[0].IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value",
+    "if ($actualSid -ne $expectedSid) { throw 'Ingress token ACL contains an unexpected principal.' }",
+    "if ($rules[0].AccessControlType -ne [System.Security.AccessControl.AccessControlType]::Allow) { throw 'Ingress token ACL rule must allow access.' }",
+    "if ($rules[0].IsInherited) { throw 'Ingress token ACL rule must be explicit.' }",
+    "if (($rules[0].FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl) -ne [System.Security.AccessControl.FileSystemRights]::FullControl) { throw 'Ingress token ACL must grant full control to the current user.' }",
+  ].join("; ");
+
   const result = spawnSync(
-    "icacls",
-    [filePath, "/inheritance:r", "/grant:r", `*${sid}:F`],
-    { encoding: "utf8", windowsHide: true, shell: false },
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script],
+    {
+      encoding: "utf8",
+      windowsHide: true,
+      shell: false,
+      env: {
+        ...process.env,
+        NOTIFYHANDLER_ACL_PATH: filePath,
+        NOTIFYHANDLER_ACL_SID: sid,
+      },
+    },
   );
   if (result.error !== undefined || result.status !== 0) {
-    throw new Error("Could not apply a user-only Windows ACL to the local ingress token.");
+    throw new Error("Could not establish and verify a current-user-only Windows ACL for the local ingress token.");
   }
 }
 
