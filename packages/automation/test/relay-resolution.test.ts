@@ -13,6 +13,7 @@ import type { BookmakerLegSession } from "../src/session.ts";
 type Bookmaker = "sisal" | "bet365";
 const SIGNAL_ID = "11111111-2222-4333-8444-555555555555";
 const RELAY_ORIGIN = "https://www.bet-up.it";
+const RELAY_FIXTURE_TIMEOUT_MS = 2_000;
 
 function relayUrl(bookmaker: Bookmaker): string {
   return `${RELAY_ORIGIN}/lnk/${SIGNAL_ID}/${bookmaker}`;
@@ -125,7 +126,7 @@ for (const bookmaker of ["sisal", "bet365"] as const) {
     const worker = createFixtureAutomationWorker({
       fixtures: { [bookmaker]: validFixtures(bookmaker) },
       navigationTimeoutMs: 1_000,
-      relayResolutionTimeoutMs: 100,
+      relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
     });
     try {
       const result = await events(worker.start(request(bookmaker)));
@@ -149,7 +150,7 @@ test("relay metadata cannot satisfy event identity after correct SISAL arrival",
         },
       },
     },
-    relayResolutionTimeoutMs: 100,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const result = await events(worker.start(request("sisal")));
@@ -168,13 +169,16 @@ test("unexpected third-party relay intermediary is blocked before matching", asy
         [relayUrl("sisal")]: { kind: "redirect", location: "https://tracker.example/intermediate" },
       },
     },
-    relayResolutionTimeoutMs: 50,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const last = terminal(await events(worker.start(request("sisal"))));
     assert.equal(last.state, "FAILED_SAFE");
     assert.equal(last.failure?.code, "RELAY_INTERMEDIARY_BLOCKED");
     assert.equal(last.failure?.activation, "NOT_ATTEMPTED");
+    const diagnostic = JSON.stringify(last);
+    assert.equal(diagnostic.includes(SIGNAL_ID), false);
+    assert.equal(diagnostic.includes(relayUrl("sisal")), false);
   } finally {
     await worker.closeAll();
   }
@@ -187,7 +191,7 @@ test("relay resolving to another registered bookmaker fails as wrong final bookm
         [relayUrl("sisal")]: { kind: "redirect", location: finalUrl("bet365", "wrong-bookmaker") },
       },
     },
-    relayResolutionTimeoutMs: 50,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const last = terminal(await events(worker.start(request("sisal"))));
@@ -206,7 +210,7 @@ test("relay revisit exceeds the one-transition budget", async () => {
         [relay]: { kind: "redirect", location: relay },
       },
     },
-    relayResolutionTimeoutMs: 50,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const last = terminal(await events(worker.start(request("sisal"))));
@@ -227,12 +231,110 @@ test("relay-origin challenge is a relay safe failure, not AUTH_REQUIRED", async 
         },
       },
     },
-    relayResolutionTimeoutMs: 25,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const last = terminal(await events(worker.start(request("sisal"))));
     assert.equal(last.state, "FAILED_SAFE");
     assert.equal(last.failure?.code, "RELAY_CHALLENGE_UNSUPPORTED");
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("relay page public subresource redirect fails closed before the redirected target can be requested", async () => {
+  let publicLookups = 0;
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relayUrl("sisal")]: {
+          kind: "html",
+          body: '<!doctype html><html><body><img src="https://www.bet-up.it/public-subresource"><div>relay</div></body></html>',
+        },
+        "https://www.bet-up.it/public-subresource": {
+          kind: "redirect",
+          location: "http://127.0.0.1/private",
+        },
+      },
+    },
+    resolveHostname: async (hostname) => {
+      if (hostname === "www.bet-up.it") {
+        publicLookups += 1;
+        return ["93.184.216.34"];
+      }
+      return ["93.184.216.34"];
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_NETWORK_TARGET_BLOCKED");
+    assert.equal(last.failure?.activation, "NOT_ATTEMPTED");
+    assert.ok(publicLookups >= 1, "public relay subresource must be resolved before redirect handling");
+    const diagnostic = JSON.stringify(last);
+    assert.equal(diagnostic.includes("public-subresource"), false);
+    assert.equal(diagnostic.includes("127.0.0.1"), false);
+    assert.equal(diagnostic.includes(SIGNAL_ID), false);
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("relay page private-network subresource is blocked and fails the relay attempt", async () => {
+  let privateLookups = 0;
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relayUrl("sisal")]: {
+          kind: "html",
+          body: '<!doctype html><html><body><img src="https://relay-private.example/probe"><div>relay</div></body></html>',
+        },
+      },
+    },
+    resolveHostname: async (hostname) => {
+      if (hostname === "relay-private.example") {
+        privateLookups += 1;
+        return ["10.20.30.40"];
+      }
+      return ["93.184.216.34"];
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_NETWORK_TARGET_BLOCKED");
+    assert.equal(last.failure?.activation, "NOT_ATTEMPTED");
+    assert.ok(privateLookups >= 1, "relay subresource hostname must be resolved through the private-target policy");
+    const diagnostic = JSON.stringify(last);
+    assert.equal(diagnostic.includes("relay-private.example"), false);
+    assert.equal(diagnostic.includes(SIGNAL_ID), false);
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("relay page WebSocket attempts fail closed before any server connection", async () => {
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relayUrl("sisal")]: {
+          kind: "html",
+          body: '<!doctype html><html><body><script>new WebSocket("ws://127.0.0.1:65535/private")</script><div>relay</div></body></html>',
+        },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_NETWORK_TARGET_BLOCKED");
+    assert.equal(last.failure?.activation, "NOT_ATTEMPTED");
+    const diagnostic = JSON.stringify(last);
+    assert.equal(diagnostic.includes("127.0.0.1"), false);
+    assert.equal(diagnostic.includes(SIGNAL_ID), false);
   } finally {
     await worker.closeAll();
   }
@@ -248,7 +350,7 @@ test("private final-bookmaker DNS is rejected during relay transition", async ()
       },
     },
     resolveHostname: async (hostname) => hostname === "www.sisal.it" ? ["127.0.0.1"] : ["93.184.216.34"],
-    relayResolutionTimeoutMs: 50,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const last = terminal(await events(worker.start(request("sisal"))));
@@ -277,7 +379,7 @@ test("retry re-resolves the immutable relay instead of trusting the previous fin
         [correct]: { kind: "html", body: fixtureHtml("sisal", "over", "2.08") },
       },
     },
-    relayResolutionTimeoutMs: 100,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const first = terminal(await events(worker.start(request("sisal", "attempt-1"))));
@@ -308,7 +410,7 @@ test("manual bookmaker auth resume does not revisit the relay origin", async () 
         ],
       },
     },
-    relayResolutionTimeoutMs: 100,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const first = terminal(await events(worker.start(request("sisal", "attempt-auth"))));
@@ -330,7 +432,7 @@ test("successful relay resolution revokes later relay-origin navigation from att
   try {
     const resolution = await session.resolveRelay({
       relayUrl: relayUrl("sisal"),
-      timeoutMs: 100,
+      timeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
       signal: new AbortController().signal,
     });
     assert.equal(resolution.kind, "RESOLVED");

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --experimental-strip-types --test test/navigation-policy.test.ts test/preflight-security.test.ts test/capability-boundary.test.ts test/live-probe-boundary.test.ts test/live-explorer-boundary.test.ts",
-    "test:browser": "node --experimental-strip-types --test test/browser-integration.test.ts test/attempt-revocation.test.ts",
+    "test:browser": "node --experimental-strip-types --test test/browser-integration.test.ts test/attempt-revocation.test.ts test/relay-resolution.test.ts",
     "live:probe:sisal": "node --experimental-strip-types src/live-validation/sisal-public-probe.ts",
     "live:probe:bet365": "node --experimental-strip-types src/live-validation/bet365-public-probe.ts",
     "live:probe:lottomatica": "node --experimental-strip-types src/live-validation/lottomatica-public-probe.ts",

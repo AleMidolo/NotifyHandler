@@ -135,20 +135,31 @@ export class NavigationPolicy {
     );
   }
 
-  async isResolvedTargetAllowed(rawUrl: string): Promise<boolean> {
-    if (!this.isAllowed(rawUrl)) return false;
-    let hostname: string;
+  async isResolvedPublicHttpsTarget(rawUrl: string): Promise<boolean> {
+    let parsed: URL;
     try {
-      hostname = new URL(rawUrl).hostname;
+      parsed = new URL(rawUrl);
     } catch {
+      return false;
+    }
+    if (
+      parsed.protocol !== "https:"
+      || parsed.username !== ""
+      || parsed.password !== ""
+      || isInternalHostname(parsed.hostname)
+    ) {
       return false;
     }
 
     try {
-      const addresses = await this.resolveHostname(hostname);
+      const addresses = await this.resolveHostname(parsed.hostname);
       return addresses.length > 0 && addresses.every((address) => !isInternalHostname(address));
     } catch {
       return false;
     }
+  }
+
+  async isResolvedTargetAllowed(rawUrl: string): Promise<boolean> {
+    return this.isAllowed(rawUrl) && this.isResolvedPublicHttpsTarget(rawUrl);
   }
 }

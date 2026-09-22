@@ -102,15 +102,20 @@ Mitigations:
 - enforce exactly two distinct bookmaker legs for the primary option;
 - bound future transport/request sizes at ingestion.
 
-### Malicious redirect
+### Malicious redirect and relay content
 
-Threat: an approved deep link redirects to another origin, login phishing page, local service, or unsupported scheme.
+Threat: an approved direct link or bet-up relay redirects to another origin, login phishing page, local service, unsupported scheme, or a compromised relay page attempts subresource requests against loopback/private/internal services.
 
 Mitigations:
 - check final/current origin before matching;
-- treat cross-origin redirect as `BLOCKED_REDIRECT` and stop;
-- re-run origin and target validation after manual login, refresh, retry, reopen, or navigation;
-- the browser runtime should block unsafe schemes and private/internal network destinations independently of adapter logic.
+- direct-bookmaker redirects remain constrained by the existing bookmaker navigation policy;
+- typed bet-up relay navigation permits only the exact validated relay URL followed by a direct top-level transition to the expected bookmaker origin; intermediary and wrong-bookmaker destinations fail safely;
+- relay HTTP redirects are terminated at the gateway with automatic redirect following disabled; the `Location` target is validated before any destination request and an approved target is re-issued as a fresh interceptable browser navigation;
+- relay origin and expected-bookmaker top-level targets are re-resolved through the fail-closed private/internal DNS policy;
+- while relay resolution is active, every intercepted non-top-level network request must be public HTTPS without URL credentials and must resolve only to non-private/non-internal addresses; an unsafe relay subresource aborts the request and fails the relay attempt;
+- relay loops/revisits, unsupported relay challenges, and unresolved timeouts fail before matching or activation;
+- retry/reopen re-resolve the immutable relay rather than trusting a previously resolved final URL;
+- re-run origin and target validation after manual login, refresh, retry, reopen, or navigation.
 
 ### Compromised bookmaker content
 
@@ -182,6 +187,8 @@ Every bookmaker adapter and the browser runtime must enforce all of the followin
 Adapters should prefer a small explicit set of canonical bookmaker origins. Broad suffix rules such as `*.example.com` require separate security review because subdomain ownership and takeover risk differ by bookmaker.
 
 ## Logging and privacy policy
+
+Relay-resolution failures and worker events must not include the full relay URL or signal UUID. Relay diagnostics are limited to typed kind, normalized bookmaker id/suffix, bounded transition count, sanitized origin/path category, failure code, and optionally a one-way truncated signal hash when explicitly needed.
 
 Permitted diagnostics include:
 - normalized bookmaker ID;
