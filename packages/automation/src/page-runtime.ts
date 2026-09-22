@@ -40,6 +40,20 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function htmlAttribute(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function controlledRedirectDocument(url: string): string {
+  return '<!doctype html><html><head><meta http-equiv="refresh" content="0;url='
+    + htmlAttribute(url)
+    + '"></head><body></body></html>';
+}
+
 class FixtureRouter {
   private readonly indices = new Map<string, number>();
   private readonly documents: FixtureDocuments;
@@ -402,9 +416,25 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
           }
           if (fixture.kind === "html") {
             await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: fixture.body });
+          } else if (this.relayResolution !== undefined && url === this.relayResolution.relayUrl) {
+            const candidate = await this.validateRelayDestinationCandidate(this.relayResolution, fixture.location);
+            if (!candidate.ok) {
+              await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: "<!doctype html><html><body></body></html>" });
+              return;
+            }
+            await route.fulfill({
+              status: 200,
+              contentType: "text/html; charset=utf-8",
+              body: controlledRedirectDocument(candidate.href),
+            });
           } else {
-            await route.fulfill({ status: fixture.status ?? 302, headers: { location: fixture.location } });
+            await route.fulfill({ status: fixture.status ?? 302, headers: { location: fixture.location }, body: "" });
           }
+          return;
+        }
+
+        if (this.relayResolution !== undefined && url === this.relayResolution.relayUrl) {
+          await this.fulfillRelayEntry(route);
           return;
         }
       }
@@ -415,6 +445,77 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       }
       await route.continue();
     } catch {
+      await route.abort("blockedbyclient").catch(() => undefined);
+    }
+  }
+
+  private async validateRelayDestinationCandidate(
+    active: ActiveRelayResolution,
+    rawUrl: string,
+  ): Promise<{ readonly ok: true; readonly href: string } | { readonly ok: false }> {
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl, active.relayUrl);
+    } catch {
+      active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay navigation produced a malformed top-level URL." };
+      return { ok: false };
+    }
+
+    if (parsed.origin === active.relayOrigin) {
+      active.failure = { kind: "FAILED", code: "RELAY_REDIRECT_LIMIT", message: "Relay origin was revisited before bookmaker arrival." };
+      return { ok: false };
+    }
+
+    if (active.expectedOrigins.has(parsed.origin)) {
+      if (!(await active.bookmakerPolicy.isResolvedTargetAllowed(parsed.href))) {
+        active.failure = { kind: "FAILED", code: "RELAY_NETWORK_TARGET_BLOCKED", message: "Bookmaker destination failed network-target validation." };
+        return { ok: false };
+      }
+      return { ok: true, href: parsed.href };
+    }
+
+    if (active.knownBookmakerOrigins.has(parsed.origin)) {
+      active.failure = { kind: "FAILED", code: "RELAY_WRONG_FINAL_BOOKMAKER", message: "Relay reached a bookmaker different from the leg target." };
+      return { ok: false };
+    }
+
+    active.failure = { kind: "FAILED", code: "RELAY_INTERMEDIARY_BLOCKED", message: "Relay attempted to navigate through an unreviewed intermediary origin." };
+    return { ok: false };
+  }
+
+  private async fulfillRelayEntry(route: Route): Promise<void> {
+    const active = this.relayResolution;
+    if (active === undefined) {
+      await route.abort("blockedbyclient");
+      return;
+    }
+
+    try {
+      const response = await route.fetch({ maxRedirects: 0, timeout: this.navigationTimeoutMs });
+      const status = response.status();
+      if (status >= 300 && status < 400) {
+        const location = response.headers()["location"];
+        if (location === undefined) {
+          active.failure = { kind: "FAILED", code: "RELAY_UNRESOLVED", message: "Relay returned a redirect without a destination." };
+          await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: "<!doctype html><html><body></body></html>" });
+          return;
+        }
+        const candidate = await this.validateRelayDestinationCandidate(active, location);
+        if (!candidate.ok) {
+          await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: "<!doctype html><html><body></body></html>" });
+          return;
+        }
+        await route.fulfill({
+          status: 200,
+          contentType: "text/html; charset=utf-8",
+          body: controlledRedirectDocument(candidate.href),
+        });
+        return;
+      }
+
+      await route.fulfill({ response });
+    } catch {
+      active.failure = { kind: "FAILED", code: "RELAY_UNRESOLVED", message: "Relay entry request could not be resolved safely." };
       await route.abort("blockedbyclient").catch(() => undefined);
     }
   }
@@ -444,27 +545,10 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       return true;
     }
 
-    if (parsed.origin === active.relayOrigin) {
-      active.failure = { kind: "FAILED", code: "RELAY_REDIRECT_LIMIT", message: "Relay origin was revisited before bookmaker arrival." };
-      return false;
-    }
-
-    if (active.expectedOrigins.has(parsed.origin)) {
-      if (!(await active.bookmakerPolicy.isResolvedTargetAllowed(parsed.href))) {
-        active.failure = { kind: "FAILED", code: "RELAY_NETWORK_TARGET_BLOCKED", message: "Bookmaker destination failed network-target validation." };
-        return false;
-      }
-      active.phase = "ARRIVED";
-      return true;
-    }
-
-    if (active.knownBookmakerOrigins.has(parsed.origin)) {
-      active.failure = { kind: "FAILED", code: "RELAY_WRONG_FINAL_BOOKMAKER", message: "Relay reached a bookmaker different from the leg target." };
-      return false;
-    }
-
-    active.failure = { kind: "FAILED", code: "RELAY_INTERMEDIARY_BLOCKED", message: "Relay attempted to navigate through an unreviewed intermediary origin." };
-    return false;
+    const candidate = await this.validateRelayDestinationCandidate(active, parsed.href);
+    if (!candidate.ok) return false;
+    active.phase = "ARRIVED";
+    return true;
   }
 
   private async detectRelayChallenge(): Promise<boolean> {
