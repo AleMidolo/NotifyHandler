@@ -202,22 +202,37 @@ export class SisalAdapter implements BookmakerAdapter {
 
     const markets = await ctx.browser.query({ kind: "market-candidate", within: eventRef });
     const familyContextMatches: ElementRef[] = [];
+    const periodMatches: ElementRef[] = [];
     const exactLineMatches: ElementRef[] = [];
+    let periodUnavailable = false;
     for (const market of markets) {
       const family = await attr(ctx, market, "data-market-family");
       const context = await attr(ctx, market, "data-market-context");
       if (!exactText(target.market.family, family) || !exactText(target.market.context, context)) continue;
       familyContextMatches.push(market);
+
+      const period = await attr(ctx, market, "data-market-period");
+      if (period === null) {
+        periodUnavailable = true;
+        continue;
+      }
+      if (!exactText(target.market.period, period)) continue;
+      periodMatches.push(market);
+
       const line = await attr(ctx, market, "data-market-line");
       if (line !== null && sameDecimal(target.market.line, line)) exactLineMatches.push(market);
     }
     if (familyContextMatches.length === 0) return failure(ctx, "MARKET_NOT_FOUND", "MARKET", "Requested SISAL market family/context was not found.");
+    if (periodMatches.length === 0) {
+      if (periodUnavailable) return failure(ctx, "MARKET_CONTEXT_UNAVAILABLE", "MARKET", "Requested SISAL market period evidence was unavailable.");
+      return failure(ctx, "MARKET_MISMATCH", "MARKET", "Requested SISAL market period did not match; period substitution is not allowed.");
+    }
     if (exactLineMatches.length === 0) return failure(ctx, "LINE_MISMATCH", "LINE", "Requested SISAL market line was not available; neighboring lines are not accepted.");
     if (exactLineMatches.length > 1) return failure(ctx, "LINE_AMBIGUOUS", "LINE", "Multiple SISAL market candidates matched the exact requested line.");
 
     const marketRef = exactLineMatches[0]!;
     snapshot = withEvidence(snapshot, {
-      market: matched("MARKET_MATCHED", `${normalizeIdentityText(target.market.family)}|${normalizeIdentityText(target.market.context)}`, [marketRef.id]),
+      market: matched("MARKET_MATCHED", `${normalizeIdentityText(target.market.family)}|${normalizeIdentityText(target.market.context)}|${normalizeIdentityText(target.market.period)}`, [marketRef.id]),
       line: matched("LINE_MATCHED", target.market.line, [await attr(ctx, marketRef, "data-market-line") ?? ""]),
     });
     observer.onEvidence?.(snapshot);

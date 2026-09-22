@@ -132,6 +132,7 @@ function target(): SelectionTarget {
     market: {
       family: "total",
       context: "corners",
+      period: "full_match",
       line: "11.5",
       sourceLabel: "U/O CORNER 11.5",
     },
@@ -161,6 +162,7 @@ function exactNodes(): NodeState[] {
       attrs: {
         "data-market-family": "total",
         "data-market-context": "corners",
+        "data-market-period": "full_match",
         "data-market-line": "11.50",
       },
     },
@@ -231,6 +233,30 @@ test("event time outside the shared 15-minute tolerance cannot activate", async 
   if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "EVENT_MISMATCH");
 });
 
+test("first-half period near-miss cannot activate even with the same corners line", async () => {
+  const nodes = exactNodes();
+  find(nodes, "market-1").attrs["data-market-period"] = "first_half";
+  const page = new QaFixturePage(nodes);
+  const gate = new QaGate(page);
+  const result = await prepare(page, gate);
+
+  assert.equal(result.kind, "FAILED_SAFE");
+  assert.equal(gate.calls, 0);
+  if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "MARKET_MISMATCH");
+});
+
+test("missing market period evidence is non-authorizing", async () => {
+  const nodes = exactNodes();
+  delete find(nodes, "market-1").attrs["data-market-period"];
+  const page = new QaFixturePage(nodes);
+  const gate = new QaGate(page);
+  const result = await prepare(page, gate);
+
+  assert.equal(result.kind, "FAILED_SAFE");
+  assert.equal(gate.calls, 0);
+  if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "MARKET_CONTEXT_UNAVAILABLE");
+});
+
 test("duplicate exact-line market candidates are ambiguous and never activate", async () => {
   const nodes = exactNodes();
   nodes.push({
@@ -240,6 +266,7 @@ test("duplicate exact-line market candidates are ambiguous and never activate", 
     attrs: {
       "data-market-family": "total",
       "data-market-context": "corners",
+      "data-market-period": "full_match",
       "data-market-line": "11.5",
     },
   });

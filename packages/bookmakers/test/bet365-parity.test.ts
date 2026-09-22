@@ -124,6 +124,7 @@ function exactNodes(): NodeState[] {
       attrs: {
         "data-market-family": "total",
         "data-market-context": "corners",
+        "data-market-period": "full_match",
         "data-market-line": "11.5",
       },
     },
@@ -147,7 +148,7 @@ function target(): SelectionTarget {
       scheduledAt: "2026-09-12T19:00:00.000Z",
       sourceDisplay: "Real Madrid - Rayo Vallecano",
     },
-    market: { family: "total", context: "corners", line: "11.5", sourceLabel: "U/O CORNER 11.5" },
+    market: { family: "total", context: "corners", period: "full_match", line: "11.5", sourceLabel: "U/O CORNER 11.5" },
     outcome: { side: "over", sourceLabel: "OVER" },
     expectedOdds: "2.08",
     deepLink: "https://www.bet365.it/fixture",
@@ -204,6 +205,7 @@ test("BET365 rejects duplicate exact-line candidates as ambiguous", async () => 
     attrs: {
       "data-market-family": "total",
       "data-market-context": "corners",
+      "data-market-period": "full_match",
       "data-market-line": "11.50",
     },
   });

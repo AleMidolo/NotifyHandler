@@ -26,6 +26,7 @@ function fixtureHtml(bookmaker: Bookmaker, options: Readonly<{
   competition?: string;
   scheduledAt?: string;
   marketContext?: string;
+  marketPeriod?: string;
   line?: string;
   outcomeSide?: string;
   odds?: string;
@@ -42,6 +43,7 @@ function fixtureHtml(bookmaker: Bookmaker, options: Readonly<{
   const competition = options.competition ?? "La Liga";
   const scheduledAt = options.scheduledAt ?? "2026-09-12T19:05:00.000Z";
   const marketContext = options.marketContext ?? "corners";
+  const marketPeriod = options.marketPeriod ?? "full_match";
   const line = options.line ?? "11.5";
   const outcomeSide = options.outcomeSide ?? "over";
   const odds = options.odds ?? "2.08";
@@ -59,6 +61,7 @@ function fixtureHtml(bookmaker: Bookmaker, options: Readonly<{
       <div ${role}="market" ${replaceHandler}
         data-market-family="total"
         data-market-context="${marketContext}"
+        data-market-period="${marketPeriod}"
         data-market-line="${line}">
         <button ${role}="outcome" data-outcome-side="${outcomeSide}" data-odds="${odds}" aria-pressed="false" ${selectedHandler}>OVER</button>
       </div>
@@ -81,6 +84,7 @@ function target(bookmaker: Bookmaker, deepLink: string): SelectionTarget {
     market: {
       family: "total",
       context: "corners",
+      period: "full_match",
       line: "11.5",
       sourceLabel: "U/O CORNER 11.5",
     },
@@ -164,6 +168,31 @@ for (const item of [
     try {
       assert.equal(result.kind, "FAILED_SAFE");
       if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "MARKET_NOT_FOUND");
+    } finally {
+      await session.close();
+    }
+  });
+
+  test(`${item.bookmaker}: first-half market period fails before selection activation`, async () => {
+    const { result, session } = await prepare(item.bookmaker, {
+      [item.url]: { kind: "html", body: fixtureHtml(item.bookmaker, { marketPeriod: "first_half" }) },
+    });
+    try {
+      assert.equal(result.kind, "FAILED_SAFE");
+      if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "MARKET_MISMATCH");
+    } finally {
+      await session.close();
+    }
+  });
+
+  test(`${item.bookmaker}: missing market period evidence fails before selection activation`, async () => {
+    const body = fixtureHtml(item.bookmaker).replace(' data-market-period="full_match"', "");
+    const { result, session } = await prepare(item.bookmaker, {
+      [item.url]: { kind: "html", body },
+    });
+    try {
+      assert.equal(result.kind, "FAILED_SAFE");
+      if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "MARKET_CONTEXT_UNAVAILABLE");
     } finally {
       await session.close();
     }

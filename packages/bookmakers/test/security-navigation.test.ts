@@ -77,6 +77,7 @@ function target(deepLink: string): SelectionTarget {
     market: {
       family: "total",
       context: "corners",
+      period: "full_match",
       line: "11.5",
       sourceLabel: "U/O CORNER 11.5",
     },

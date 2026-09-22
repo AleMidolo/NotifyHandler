@@ -28,6 +28,7 @@ function selectionTarget(): SelectionTarget {
     market: {
       family: "total",
       context: "corners",
+      period: "full_match",
       line: "11.5",
       sourceLabel: "U/O CORNER 11.5",
     },
@@ -51,6 +52,7 @@ test("BET365 cancellation racing final activation never reports READY_FOR_USER",
     [MARKET.id]: {
       "data-market-family": "total",
       "data-market-context": "corners",
+      "data-market-period": "full_match",
       "data-market-line": "11.50",
     },
     [OUTCOME.id]: {

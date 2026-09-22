@@ -121,6 +121,7 @@ function nodes(): NodeState[] {
       attrs: {
         "data-market-family": "total",
         "data-market-context": "corners",
+        "data-market-period": "full_match",
         "data-market-line": "11.5",
       },
     },
@@ -144,7 +145,7 @@ function target(bookmaker: "sisal" | "bet365", deepLink: string): SelectionTarge
       scheduledAt: "2026-09-12T19:00:00.000Z",
       sourceDisplay: "Real Madrid - Rayo Vallecano",
     },
-    market: { family: "total", context: "corners", line: "11.5", sourceLabel: "U/O CORNER 11.5" },
+    market: { family: "total", context: "corners", period: "full_match", line: "11.5", sourceLabel: "U/O CORNER 11.5" },
     outcome: { side: "over", sourceLabel: "OVER" },
     expectedOdds: "2.08",
     deepLink,

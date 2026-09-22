@@ -27,6 +27,7 @@ const SAFE_ATTRIBUTES = new Set([
   "data-event-scheduled-at",
   "data-market-family",
   "data-market-context",
+  "data-market-period",
   "data-market-line",
   "data-outcome-side",
   "data-odds",
