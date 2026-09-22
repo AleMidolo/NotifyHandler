@@ -6,6 +6,7 @@ import { createProductionDesktopController, DesktopControllerError } from "./con
 import {
   DEFAULT_DIRECT_PAIR_INGRESS_PORT,
   loadOrCreateLocalIngressToken,
+  rotateLocalIngressToken,
   startDirectPairIngressServer,
 } from "./http-ingress.ts";
 import {
@@ -25,6 +26,13 @@ let controller = null;
 let unsubscribe = null;
 let handlersRegistered = false;
 let ingressServer = null;
+
+function shouldRotateIngressToken() {
+  const raw = process.env.NOTIFYHANDLER_ROTATE_INGRESS_TOKEN;
+  if (raw === undefined || raw === "") return false;
+  if (raw === "1") return true;
+  throw new Error("NOTIFYHANDLER_ROTATE_INGRESS_TOKEN must be unset or exactly 1.");
+}
 
 function configuredIngressPort() {
   const raw = process.env.NOTIFYHANDLER_INGRESS_PORT;
@@ -90,7 +98,10 @@ function registerIpcHandlers() {
 
 async function createWindow() {
   controller = createProductionDesktopController();
-  const ingressToken = loadOrCreateLocalIngressToken(join(app.getPath("userData"), "direct-pair-ingress-token"));
+  const ingressTokenPath = join(app.getPath("userData"), "direct-pair-ingress-token");
+  const ingressToken = shouldRotateIngressToken()
+    ? rotateLocalIngressToken(ingressTokenPath)
+    : loadOrCreateLocalIngressToken(ingressTokenPath);
   ingressServer = await startDirectPairIngressServer({
     controller,
     token: ingressToken,

@@ -11,6 +11,7 @@ import type {
   SafeFailure,
 } from "../../bookmakers/src/contracts.ts";
 import type { WorkerBookmaker } from "./dom-mapping.ts";
+import { NavigationPolicy, type HostResolver } from "./navigation-policy.ts";
 import {
   launchBookmakerLegSession,
   supportedOriginsFor,
@@ -119,6 +120,10 @@ export type SessionLauncher = (
   options: LaunchBookmakerLegSessionOptions,
 ) => Promise<BookmakerLegSession>;
 
+export interface WorkerExecutionPreflightOptions {
+  readonly resolveHostname?: HostResolver;
+}
+
 export interface BookmakerAutomationWorkerOptions {
   readonly headless?: boolean;
   readonly navigationTimeoutMs?: number;
@@ -192,20 +197,25 @@ function validTarget(target: SelectionTarget): boolean {
     && target.expectedOdds.trim().length > 0;
 }
 
-function safeDeepLink(target: SelectionTarget, bookmaker: WorkerBookmaker): boolean {
-  if (target.deepLink === undefined) return true;
+async function safeDeepLink(
+  target: SelectionTarget,
+  bookmaker: WorkerBookmaker,
+  options: WorkerExecutionPreflightOptions,
+): Promise<boolean> {
+  if (target.deepLink === undefined) return target.provenance.kind !== "structured-direct-pair";
   try {
-    const url = new URL(target.deepLink);
-    return url.protocol === "https:"
-      && url.username === ""
-      && url.password === ""
-      && supportedOriginsFor(bookmaker).includes(url.origin);
+    const policy = new NavigationPolicy(supportedOriginsFor(bookmaker), options.resolveHostname);
+    if (!policy.isAllowed(target.deepLink)) return false;
+    if (target.provenance.kind !== "structured-direct-pair") return true;
+    return policy.isResolvedTargetAllowed(target.deepLink);
   } catch {
     return false;
   }
 }
 
-export function createWorkerExecutionPreflight(): WorkerExecutionPreflightPort {
+export function createWorkerExecutionPreflight(
+  options: WorkerExecutionPreflightOptions = {},
+): WorkerExecutionPreflightPort {
   return {
     async validate(plan): Promise<WorkerPreflightResult> {
       if (plan.legs.length !== 2) {
@@ -222,7 +232,7 @@ export function createWorkerExecutionPreflight(): WorkerExecutionPreflightPort {
         if (!validTarget(leg.target)) {
           return { ok: false, failure: { code: "INVALID_SELECTION_TARGET", message: `Selection target ${leg.target.id} is missing required identity data.`, legId: leg.id } };
         }
-        if (!safeDeepLink(leg.target, bookmaker)) {
+        if (!(await safeDeepLink(leg.target, bookmaker, options))) {
           return { ok: false, failure: { code: "UNSAFE_OR_UNSUPPORTED_URL", message: `Selection target ${leg.target.id} contains an unapproved navigation candidate.`, legId: leg.id } };
         }
       }
