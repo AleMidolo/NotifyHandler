@@ -99,12 +99,14 @@ function registerIpcHandlers() {
 async function createWindow() {
   controller = createProductionDesktopController();
   const ingressTokenPath = join(app.getPath("userData"), "direct-pair-ingress-token");
+  const ingressIdempotencyPath = join(app.getPath("userData"), "direct-pair-ingress-idempotency.json");
   const ingressToken = shouldRotateIngressToken()
     ? rotateLocalIngressToken(ingressTokenPath)
     : loadOrCreateLocalIngressToken(ingressTokenPath);
   ingressServer = await startDirectPairIngressServer({
     controller,
     token: ingressToken,
+    idempotencyFilePath: ingressIdempotencyPath,
     port: configuredIngressPort(),
   });
   mainWindow = new BrowserWindow({
