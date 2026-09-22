@@ -242,6 +242,45 @@ test("relay-origin challenge is a relay safe failure, not AUTH_REQUIRED", async 
   }
 });
 
+test("relay page public subresource redirect fails closed before the redirected target can be requested", async () => {
+  let publicLookups = 0;
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relayUrl("sisal")]: {
+          kind: "html",
+          body: '<!doctype html><html><body><img src="https://relay-public.example/probe"><div>relay</div></body></html>',
+        },
+        "https://relay-public.example/probe": {
+          kind: "redirect",
+          location: "http://127.0.0.1/private",
+        },
+      },
+    },
+    resolveHostname: async (hostname) => {
+      if (hostname === "relay-public.example") {
+        publicLookups += 1;
+        return ["93.184.216.34"];
+      }
+      return ["93.184.216.34"];
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_NETWORK_TARGET_BLOCKED");
+    assert.equal(last.failure?.activation, "NOT_ATTEMPTED");
+    assert.ok(publicLookups >= 1, "public relay subresource must be resolved before redirect handling");
+    const diagnostic = JSON.stringify(last);
+    assert.equal(diagnostic.includes("relay-public.example"), false);
+    assert.equal(diagnostic.includes("127.0.0.1"), false);
+    assert.equal(diagnostic.includes(SIGNAL_ID), false);
+  } finally {
+    await worker.closeAll();
+  }
+});
+
 test("relay page private-network subresource is blocked and fails the relay attempt", async () => {
   let privateLookups = 0;
   const worker = createFixtureAutomationWorker({
