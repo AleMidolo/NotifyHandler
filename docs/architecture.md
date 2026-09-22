@@ -1,6 +1,6 @@
 # NotifyHandler architecture
 
-Status: **Accepted baseline for Milestone 1, amended by ARCH-003, ARCH-004, and ARCH-005**
+Status: **Accepted baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, and ARCH-006**
 
 NotifyHandler is a local-first desktop application that receives either a legacy textual surebet notification or a versioned structured direct-pair notification, normalizes it into exactly two bookmaker-agnostic targets, and starts two independently prepared bookmaker legs as soon as deterministic validation and navigation-safety checks pass. Authentication, changed-odds acknowledgement where required, stake entry, review, and final bet submission remain manual boundaries.
 
@@ -278,9 +278,9 @@ NotifyHandler never receives/types credentials, reads password-manager secrets, 
 
 Selection authorization is predicate-based, not score-based.
 
-Required identity dimensions are independently classified as `NOT_CHECKED`, `MATCHED`, `MISMATCHED`, `AMBIGUOUS`, or `UNAVAILABLE`. Only `MATCHED` authorizes a required identity dimension.
+Required identity dimensions are independently classified as `NOT_CHECKED`, `MATCHED`, `MISMATCHED`, `AMBIGUOUS`, or `UNAVAILABLE`. Only `MATCHED` authorizes a required identity dimension. Market identity includes family, context/subtype, and explicit market period; current executable targets require `period: "full_match"`.
 
-Fuzzy similarity may help discover candidates but cannot itself authorize selection. Approved aliases must be deterministic/version-controlled/tested. Exact numeric line matching uses decimal-safe semantics with no nearest-line tolerance.
+Fuzzy similarity may help discover candidates but cannot itself authorize selection. Approved aliases must be deterministic/version-controlled/tested. Exact numeric line matching uses decimal-safe semantics with no nearest-line tolerance. A first-half/other-period market can never satisfy a `full_match` target, even when line, side, and odds are identical.
 
 See `specs/matching-policy.md` for normative rules.
 
@@ -409,18 +409,21 @@ Exact package manager, Electron/Node/Playwright versions, bundler, installer/sig
 
 ## 19. Architecture completion state
 
-ARCH-001 through ARCH-005 now establish the current runtime and shared contracts:
+ARCH-001 through ARCH-006 now establish the current runtime and shared contracts:
 
 - ARCH-001 — local desktop + headed Playwright runtime;
 - ARCH-002 — execution/adapter/matching/error contracts;
 - ARCH-003 — deterministic automatic startup;
 - ARCH-004 — versioned structured direct-pair ingestion, authenticated loopback HTTP boundary, idempotency/freshness, and direct-bookmaker trust semantics;
-- ARCH-005 — `direct-pair.v2`, typed navigation candidates, and restricted `bet-up.it` relay resolution.
+- ARCH-005 — `direct-pair.v2`, typed navigation candidates, and restricted `bet-up.it` relay resolution;
+- ARCH-006 — explicit market-period identity propagated from input through SelectionTarget and required by adapter market matching.
 
 Downstream responsibilities are now explicit:
 
-- **Application Engineer:** add v2 payload/typed-navigation validation while preserving v1 semantics and the existing hardened loopback transport;
-- **Bookmaker Automation Engineer / BOOK-016:** add/use the shared restricted relay resolver, then collect evidence only after expected-bookmaker arrival and independently re-establish all identity/odds evidence;
+- **Notification & Domain Engineer:** add canonical `MarketPeriod`, normalize current legacy `U/O CORNER <line>` to `full_match`, and propagate period into SelectionTarget;
+- **Application Engineer:** preserve structured v1/v2 `market.period` in generated SelectionTargets while adding v2 typed navigation;
+- **Bookmaker Automation Engineer:** require deterministic period evidence in SISAL/BET365 market matching and fixtures before `MARKET_MATCHED`;
+- **Bookmaker Automation Engineer / BOOK-016:** after the shared relay resolver and period-matching implementation, collect evidence only after expected-bookmaker arrival and independently re-establish event/market-period/line/side/odds evidence;
 - **Security & Compliance Engineer:** review relay DNS/request interception, direct-transition enforcement, challenge behavior, redirect/final-origin checks, and diagnostics/privacy;
 - **QA / Integration Engineer:** prove legacy and structured inputs converge on the same state/matching/transaction contracts and that rejected ingress produces zero browser navigation.
 
