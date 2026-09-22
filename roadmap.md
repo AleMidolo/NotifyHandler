@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** ARCH-004/#103 is complete. APP-005/#105 is the immediate autonomous implementation task, while PRODUCT-016/#109 is the external evidence blocker for BOOK-016/#104.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** ARCH-004/#103, APP-005/#105, SEC-002/#106, and SEC-003/#113 are complete. PRODUCT-016/#109 is now the sole immediate blocker for BOOK-016/#104.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -101,26 +101,32 @@ The strategy changes because the real surebet source supplies the exact two book
 
 PR #108 defines `notifyhandler.direct-pair.v1`, the conceptual loopback-only `POST /api/v1/notifications/direct-pair` endpoint, local bearer authentication, bounded JSON, freshness/idempotency semantics, direct-link validation, and no generic-discovery fallback for structured v1.
 
-### Parallel work after ARCH-004
+### Structured ingress and hardening — COMPLETE
 
-**#105 APP-005 — P0 / READY NOW**
+**#105 APP-005 — COMPLETE**
 
-Implement the local structured-ingress endpoint and converge accepted exact two-leg requests into the existing immutable SelectionTarget / ExecutionPlan / automatic two-leg orchestration path. This work does not require live bookmaker samples.
+Merged via PR #112. The desktop now exposes the accepted loopback-only structured direct-pair ingress and converges valid requests into the existing immutable two-leg execution path.
 
-**#109 PRODUCT-016 — P0 EXTERNAL EVIDENCE BLOCKER**
+**#106 SEC-002 — COMPLETE**
 
-Obtain representative credential-free notification-provided direct match links plus event/competition/time/market/line/side/odds context for SISAL and BET365 from the actual upstream surebet flow. Do not invent, guess, or reconstruct the URLs from generic site navigation.
+Merged via PR #114. Direct-link preflight/live navigation now fail closed on forbidden DNS/private targets; local bearer storage/rotation, Host/Origin behavior, privacy, and zero-navigation security regressions are hardened.
 
-**#104 BOOK-016 — READY WHEN #109 EVIDENCE EXISTS**
+**#113 SEC-003 — COMPLETE**
+
+Merged via PR #115. Structured-ingress idempotency is restart-safe through bounded user-only tombstones that persist only id/hash/execution-id/timestamp/state metadata. Raw request bodies, deep links, bearer tokens, cookies/session data, credentials, and transaction data are not persisted.
+
+### Current P0 — external direct-link evidence
+
+**#109 PRODUCT-016 — READY / BLOCKING BOOK-016**
+
+Obtain one real credential-free notification-provided direct match sample for SISAL and one for BET365 from the actual surebet source, each with matching event/competition/time/market/line/side/odds context. Do not invent, guess, or reconstruct the URLs.
+
+**#104 BOOK-016 — READY WHEN #109 IS SATISFIED**
 
 Use those exact direct links as BOOK-012 start URLs and independently prove:
 `event → competition/time context → full-match total-corners market → exact numeric line → requested side → displayed odds`.
 
 Re-running BOOK-012 from generic football hubs is explicitly not progress.
-
-**#106 SEC-002 — AFTER/ALONGSIDE APP-005**
-
-Review and harden the concrete ingress implementation and direct-link boundary.
 
 If direct-link validation yields a feasible bookmaker, create a separate restricted live-mapping implementation issue. If SISAL and BET365 remain Blocked even from representative real match links, return to Product Coordination for candidate-pool or explicit market-scope reconsideration; do not weaken deterministic matching.
 
