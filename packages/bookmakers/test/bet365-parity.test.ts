@@ -124,6 +124,7 @@ function exactNodes(): NodeState[] {
       attrs: {
         "data-market-family": "total",
         "data-market-context": "corners",
+        "data-market-period": "full_match",
         "data-market-line": "11.5",
       },
     },
@@ -204,6 +205,7 @@ test("BET365 rejects duplicate exact-line candidates as ambiguous", async () => 
     attrs: {
       "data-market-family": "total",
       "data-market-context": "corners",
+      "data-market-period": "full_match",
       "data-market-line": "11.50",
     },
   });
