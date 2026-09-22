@@ -392,9 +392,10 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
     try {
       if (!topLevelNavigation && this.relayResolution !== undefined) {
-        const allowed = await this.relayResolution.relayPolicy.isResolvedPublicHttpsTarget(request.url());
+        const active = this.relayResolution;
+        const allowed = await active.relayPolicy.isResolvedPublicHttpsTarget(request.url());
         if (!allowed) {
-          this.relayResolution.failure = {
+          active.failure = {
             kind: "FAILED",
             code: "RELAY_NETWORK_TARGET_BLOCKED",
             message: "Relay page attempted a non-public or otherwise unsafe network request.",
@@ -402,6 +403,49 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
           await route.abort("blockedbyclient");
           return;
         }
+
+        if (this.fixtureRouter !== undefined) {
+          const fixture = this.fixtureRouter.next(request.url());
+          if (fixture === undefined) {
+            await route.abort("blockedbyclient");
+            return;
+          }
+          if ((fixture.delayMs ?? 0) > 0) await delay(fixture.delayMs ?? 0);
+          if (fixture.kind === "redirect") {
+            active.failure = {
+              kind: "FAILED",
+              code: "RELAY_NETWORK_TARGET_BLOCKED",
+              message: "Relay subresource attempted an HTTP redirect during restricted resolution.",
+            };
+            await route.abort("blockedbyclient");
+            return;
+          }
+          await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: fixture.body });
+          return;
+        }
+
+        try {
+          const response = await route.fetch({ maxRedirects: 0, timeout: this.navigationTimeoutMs });
+          const status = response.status();
+          if (status >= 300 && status < 400) {
+            active.failure = {
+              kind: "FAILED",
+              code: "RELAY_NETWORK_TARGET_BLOCKED",
+              message: "Relay subresource attempted an HTTP redirect during restricted resolution.",
+            };
+            await route.abort("blockedbyclient");
+            return;
+          }
+          await route.fulfill({ response });
+        } catch {
+          active.failure = {
+            kind: "FAILED",
+            code: "RELAY_NETWORK_TARGET_BLOCKED",
+            message: "Relay subresource could not be fetched without unsafe redirect behavior.",
+          };
+          await route.abort("blockedbyclient").catch(() => undefined);
+        }
+        return;
       }
 
       if (topLevelNavigation) {
