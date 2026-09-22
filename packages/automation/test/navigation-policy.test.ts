@@ -44,3 +44,20 @@ test("internal hostname classifier rejects mapped IPv4, IPv6 multicast, and docu
     assert.equal(isInternalHostname(host), true, host);
   }
 });
+
+
+test("public-target DNS check can validate relay subresources without widening approved navigation origins", async () => {
+  const policy = new NavigationPolicy(["https://www.bet-up.it"], async (hostname) => {
+    if (hostname === "cdn.example") return ["93.184.216.34"];
+    if (hostname === "private.example") return ["192.168.50.8"];
+    return [];
+  });
+
+  assert.equal(await policy.isResolvedPublicHttpsTarget("https://cdn.example/asset.js"), true);
+  assert.equal(await policy.isResolvedPublicHttpsTarget("https://private.example/pixel"), false);
+  assert.equal(await policy.isResolvedPublicHttpsTarget("http://cdn.example/asset.js"), false);
+  assert.equal(await policy.isResolvedPublicHttpsTarget("https://user@cdn.example/asset.js"), false);
+
+  assert.equal(policy.isAllowed("https://cdn.example/asset.js"), false);
+  assert.equal(await policy.isResolvedTargetAllowed("https://cdn.example/asset.js"), false);
+});
