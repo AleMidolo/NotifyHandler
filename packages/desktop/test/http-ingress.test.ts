@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -104,11 +104,16 @@ class FakeAutomation implements BookmakerAutomationPort {
 
 async function fixture(
   resolveHostname: (hostname: string) => Promise<readonly string[]> = async () => ["93.184.216.34"],
+  idempotencyFilePath?: string,
 ): Promise<{
   worker: FakeAutomation;
   controller: DesktopAppController;
   server: DirectPairIngressServer;
 }> {
+  const ownedStateDir = idempotencyFilePath === undefined
+    ? mkdtempSync(join(tmpdir(), "notifyhandler-ingress-idempotency-"))
+    : null;
+  const statePath = idempotencyFilePath ?? join(ownedStateDir!, "state.json");
   const worker = new FakeAutomation();
   const orchestrator = new AutomaticExecutionOrchestrator(
     worker,
@@ -119,14 +124,32 @@ async function fixture(
     { orchestrator, async close() {} },
     { nowMs: () => NOW.getTime() },
   );
-  const server = await startDirectPairIngressServer({
-    controller,
-    token: TOKEN,
-    port: 0,
-    now: () => new Date(NOW),
-    maxRequestsPerMinute: 100,
-  });
-  return { worker, controller, server };
+
+  try {
+    const rawServer = await startDirectPairIngressServer({
+      controller,
+      token: TOKEN,
+      idempotencyFilePath: statePath,
+      port: 0,
+      now: () => new Date(NOW),
+      maxRequestsPerMinute: 100,
+    });
+    const server: DirectPairIngressServer = {
+      ...rawServer,
+      async close(): Promise<void> {
+        try {
+          await rawServer.close();
+        } finally {
+          if (ownedStateDir !== null) rmSync(ownedStateDir, { recursive: true, force: true });
+        }
+      },
+    };
+    return { worker, controller, server };
+  } catch (error) {
+    await controller.close();
+    if (ownedStateDir !== null) rmSync(ownedStateDir, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 async function postWithHost(server: DirectPairIngressServer, hostHeader: string): Promise<number> {
@@ -207,6 +230,130 @@ test("exact duplicate is idempotent while a changed payload with the same id con
   } finally {
     await server.close();
     await controller.close();
+  }
+});
+
+test("durable idempotency blocks restart replay and same-id mutation without storing request secrets", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "notifyhandler-ingress-restart-"));
+  const stateFile = join(dir, "idempotency.json");
+  let firstContext: Awaited<ReturnType<typeof fixture>> | null = null;
+  let secondContext: Awaited<ReturnType<typeof fixture>> | null = null;
+  try {
+    firstContext = await fixture(undefined, stateFile);
+    const first = await post(firstContext.server, JSON.stringify(payload()));
+    assert.equal(first.status, 202);
+    const firstBody = await first.json() as Record<string, unknown>;
+    assert.equal(firstBody.accepted, true);
+    assert.equal(firstContext.worker.starts.length, 2);
+    await firstContext.server.close();
+    await firstContext.controller.close();
+    firstContext = null;
+
+    const persisted = readFileSync(stateFile, "utf8");
+    const parsed = JSON.parse(persisted) as {
+      version: number;
+      records: Array<Record<string, unknown>>;
+    };
+    assert.equal(parsed.version, 1);
+    assert.equal(parsed.records.length, 1);
+    assert.deepEqual(Object.keys(parsed.records[0] ?? {}).sort(), [
+      "executionId",
+      "notificationId",
+      "payloadHash",
+      "recordedAtMs",
+      "state",
+    ]);
+    assert.equal(parsed.records[0]?.state, "accepted");
+    assert.equal(persisted.includes(TOKEN), false);
+    assert.equal(persisted.includes("www.sisal.it"), false);
+    assert.equal(persisted.includes("www.bet365.it"), false);
+    assert.equal(persisted.includes("Real Madrid"), false);
+    if (process.platform !== "win32") {
+      assert.equal(statSync(stateFile).mode & 0o777, 0o600);
+    }
+
+    secondContext = await fixture(undefined, stateFile);
+    const replay = await post(secondContext.server, JSON.stringify(payload()));
+    assert.equal(replay.status, 409);
+    const replayBody = await replay.json() as {
+      error?: { code?: unknown };
+    };
+    assert.equal(replayBody.error?.code, "IDEMPOTENCY_REPLAY_BLOCKED");
+    assert.equal(secondContext.worker.starts.length, 0);
+
+    const changed = payload();
+    changed.legs[0].expectedOdds = "3.00";
+    const conflict = await post(secondContext.server, JSON.stringify(changed));
+    assert.equal(conflict.status, 409);
+    const conflictBody = await conflict.json() as {
+      error?: { code?: unknown };
+    };
+    assert.equal(conflictBody.error?.code, "IDEMPOTENCY_CONFLICT");
+    assert.equal(secondContext.worker.starts.length, 0);
+  } finally {
+    if (firstContext !== null) {
+      await firstContext.server.close();
+      await firstContext.controller.close();
+    }
+    if (secondContext !== null) {
+      await secondContext.server.close();
+      await secondContext.controller.close();
+    }
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("corrupt durable idempotency state fails closed before the listener starts", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "notifyhandler-ingress-corrupt-"));
+  const stateFile = join(dir, "idempotency.json");
+  try {
+    writeFileSync(stateFile, "{not-json", { encoding: "utf8", mode: 0o600 });
+    await assert.rejects(
+      fixture(undefined, stateFile),
+      /idempotency state is corrupt JSON/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("stale durable idempotency tombstones are evicted on startup", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "notifyhandler-ingress-stale-"));
+  const stateFile = join(dir, "idempotency.json");
+  let firstContext: Awaited<ReturnType<typeof fixture>> | null = null;
+  let secondContext: Awaited<ReturnType<typeof fixture>> | null = null;
+  try {
+    firstContext = await fixture(undefined, stateFile);
+    const first = await post(firstContext.server, JSON.stringify(payload()));
+    assert.equal(first.status, 202);
+    await firstContext.server.close();
+    await firstContext.controller.close();
+    firstContext = null;
+
+    const state = JSON.parse(readFileSync(stateFile, "utf8")) as {
+      version: number;
+      records: Array<Record<string, unknown>>;
+    };
+    assert.equal(state.records.length, 1);
+    state.records[0]!.recordedAtMs = 0;
+    writeFileSync(stateFile, JSON.stringify(state) + "\n", { encoding: "utf8", mode: 0o600 });
+
+    secondContext = await fixture(undefined, stateFile);
+    const pruned = JSON.parse(readFileSync(stateFile, "utf8")) as {
+      records: Array<Record<string, unknown>>;
+    };
+    assert.equal(pruned.records.length, 0);
+    assert.equal(secondContext.worker.starts.length, 0);
+  } finally {
+    if (firstContext !== null) {
+      await firstContext.server.close();
+      await firstContext.controller.close();
+    }
+    if (secondContext !== null) {
+      await secondContext.server.close();
+      await secondContext.controller.close();
+    }
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
