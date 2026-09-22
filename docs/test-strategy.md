@@ -1,6 +1,6 @@
 # Test strategy
 
-Status: **Architecture baseline for Milestone 1, amended by ARCH-003 and ARCH-004**
+Status: **Architecture baseline for Milestone 1, amended by ARCH-003, ARCH-004, and ARCH-005**
 
 The test strategy prioritizes deterministic wrong-selection prevention, automatic notification-to-browser startup correctness, and transaction-boundary enforcement. Routine automated tests must not require bookmaker credentials, live accounts, or real betting transactions.
 
@@ -51,6 +51,29 @@ Required structured cases:
 
 Both paths must preserve the same authentication, odds, cancellation, stale-evidence, selection-gate, and transaction-boundary regressions.
 
+### 1.3 Structured direct-pair v2 relay navigation
+
+Relay-aware regressions must prove that navigation resolution and identity matching remain separate:
+
+1. v1 direct-bookmaker payload still behaves unchanged;
+2. valid v2 `bookmaker-direct` uses the existing direct policy;
+3. valid `https://www.bet-up.it/lnk/<uuid>/<expected-suffix>` relay passes syntax preflight;
+4. malformed path/userinfo/query/fragment is rejected before worker navigation;
+5. suffix/bookmaker mismatch is rejected before worker navigation;
+6. two relay legs with different signal UUIDs are rejected before worker navigation;
+7. relay DNS/private/internal target rejection produces zero bookmaker matching;
+8. valid relay -> expected bookmaker origin begins matching in a fresh evidence epoch;
+9. relay -> unexpected third-party intermediary is blocked;
+10. relay -> wrong bookmaker is blocked;
+11. relay loop/revisit/transition budget fails safely;
+12. relay challenge/auth wall is a relay failure, not `AUTH_REQUIRED`;
+13. expected bookmaker arrival + wrong event fails through ordinary event matching;
+14. relay metadata never marks event/market/line/outcome/odds as `MATCHED`;
+15. cancellation during relay resolution prevents later matching/activation;
+16. retry/reopen re-resolves the original relay and does not trust a cached final URL;
+17. diagnostics omit full relay URL and full signal UUID;
+18. no credential/MFA/CAPTCHA/stake/wager/bypass capability is added.
+
 ## 2. Test pyramid
 
 ### Pure unit tests
@@ -72,6 +95,8 @@ Run without Electron or a browser for:
 - text normalization and approved alias mappings;
 - matching-policy authorization predicate;
 - URL/origin validation;
+- v2 relay grammar/suffix/signal consistency;
+- typed navigation candidate normalization;
 - error/recoverability mapping.
 
 ### Shared adapter contract tests
@@ -109,6 +134,7 @@ Use Playwright against local fixture servers/pages to verify:
 - automatic start request opens the intended isolated browser session without a renderer start action;
 - headed/headless-compatible adapter behavior where applicable;
 - origin/redirect policy;
+- restricted relay resolution, intermediary blocking, wrong-bookmaker rejection, and fresh-evidence handoff;
 - login interruption and resume state handling without real credentials;
 - independent two-leg browser sessions;
 - cancellation/cleanup;
@@ -238,6 +264,7 @@ Tests should verify:
 - local ingress token/Authorization headers are absent from logs/artifacts;
 - replay/idempotency rules prevent duplicate browser starts;
 - unsupported origins and cross-origin redirects are rejected;
+- relay resolution allows only the reviewed direct transition to the expected bookmaker and blocks private/internal resolved targets;
 - private/internal network navigation is rejected when input-controlled;
 - preflight-invalid primary targets create zero browser navigation attempts;
 - diagnostics redact/omit cookies, tokens, authorization headers, and credential values;
@@ -306,4 +333,6 @@ A change affecting ingestion, primary resolution, matching, adapter behavior, br
 - unsafe navigation is possible from untrusted notification data;
 - structured ingress can bind non-loopback by default, accept unauthenticated/oversized/stale/replayed input, or create duplicate execution;
 - structured-v1 direct-link failure can silently fall back to generic discovery;
+- v1 semantics are silently widened to relay origins;
+- v2 relay can traverse an unreviewed intermediary/wrong bookmaker or authorize positive identity evidence;
 - sensitive authentication/session data is written to logs/artifacts.
