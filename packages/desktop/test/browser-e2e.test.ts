@@ -9,14 +9,15 @@ const SISAL_URL = "https://www.sisal.it/__notifyhandler_fixture/app-e2e";
 const BET365_URL = "https://www.bet365.it/__notifyhandler_fixture/app-e2e";
 type FixtureBookmaker = "sisal" | "bet365";
 
-function fixtureHtml(bookmaker: FixtureBookmaker, side: "over" | "under", odds: string, options: Readonly<{ auth?: boolean; participantB?: string; marketContext?: string; line?: string; verifySelection?: boolean }> = {}): string {
+function fixtureHtml(bookmaker: FixtureBookmaker, side: "over" | "under", odds: string, options: Readonly<{ auth?: boolean; participantB?: string; marketContext?: string; marketPeriod?: string; line?: string; verifySelection?: boolean }> = {}): string {
   const role = `data-nh-${bookmaker}-role`;
   if (options.auth) return `<!doctype html><html><body><div ${role}="auth">Manual login required</div></body></html>`;
   const participantB = options.participantB ?? "Rayo Vallecano";
   const marketContext = options.marketContext ?? "corners";
+  const marketPeriod = options.marketPeriod ?? "full_match";
   const line = options.line ?? "11.5";
   const selectedHandler = options.verifySelection === false ? "" : `onclick="this.setAttribute('aria-pressed','true')"`;
-  return `<!doctype html><html><body><section ${role}="event" data-event-participant-a="Real Madrid" data-event-participant-b="${participantB}" data-event-competition="La Liga" data-event-scheduled-at="2026-09-12T19:05:00.000Z"><div ${role}="market" data-market-family="total" data-market-context="${marketContext}" data-market-line="${line}"><button ${role}="outcome" data-outcome-side="${side}" data-odds="${odds}" aria-pressed="false" ${selectedHandler}>${side.toUpperCase()}</button></div></section></body></html>`;
+  return `<!doctype html><html><body><section ${role}="event" data-event-participant-a="Real Madrid" data-event-participant-b="${participantB}" data-event-competition="La Liga" data-event-scheduled-at="2026-09-12T19:05:00.000Z"><div ${role}="market" data-market-family="total" data-market-context="${marketContext}" data-market-period="${marketPeriod}" data-market-line="${line}"><button ${role}="outcome" data-outcome-side="${side}" data-odds="${odds}" aria-pressed="false" ${selectedHandler}>${side.toUpperCase()}</button></div></section></body></html>`;
 }
 
 function docs(bookmaker: FixtureBookmaker, side: "over" | "under", odds: string, options: Parameters<typeof fixtureHtml>[3] = {}): FixtureDocuments {
