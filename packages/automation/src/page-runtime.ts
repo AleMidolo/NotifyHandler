@@ -360,7 +360,9 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   private async handleRoute(route: Route): Promise<void> {
     const request = route.request();
-    const topLevelNavigation = request.isNavigationRequest() && request.frame() === this.page.mainFrame();
+    const mainFrameRequest = request.frame() === this.page.mainFrame();
+    const topLevelNavigation = mainFrameRequest
+      && (request.isNavigationRequest() || request.resourceType() === "document");
 
     try {
       if (!topLevelNavigation && this.relayResolution !== undefined) {
