@@ -22,7 +22,7 @@ function target(
       scheduledAt: "2026-09-21T17:00:00.000Z",
       sourceDisplay: "Real Madrid - Rayo Vallecano",
     },
-    market: { family: "total", context: "corners", line: "11.5", sourceLabel: "U/O CORNER 11.5" },
+    market: { family: "total", context: "corners", period: "full_match", line: "11.5", sourceLabel: "U/O CORNER 11.5" },
     outcome: { side: legIndex === 0 ? "over" : "under", sourceLabel: legIndex === 0 ? "OVER" : "UNDER" },
     expectedOdds: legIndex === 0 ? "2.90" : "1.61",
     deepLink,
@@ -96,4 +96,89 @@ test("browser gateway rejects private DNS before Playwright navigation", async (
 
   assert.deepEqual(await runtime.port.openAllowed("https://www.sisal.it/event"), { ok: false });
   assert.equal(gotoCalls, 0);
+});
+
+
+function v2Target(
+  bookmaker: "sisal" | "bet365",
+  legIndex: 0 | 1,
+  navigation: SelectionTarget["navigation"],
+): SelectionTarget {
+  return {
+    id: "v2-target-" + bookmaker,
+    bookmaker,
+    event: {
+      participantA: "Real Madrid",
+      participantB: "Rayo Vallecano",
+      competition: "La Liga",
+      scheduledAt: "2026-09-21T17:00:00.000Z",
+      sourceDisplay: "Real Madrid - Rayo Vallecano",
+    },
+    market: { family: "total", context: "corners", period: "full_match", line: "11.5", sourceLabel: "U/O CORNER 11.5" },
+    outcome: { side: legIndex === 0 ? "over" : "under" },
+    expectedOdds: legIndex === 0 ? "2.90" : "1.61",
+    ...(navigation === undefined ? {} : { navigation }),
+    provenance: {
+      kind: "structured-direct-pair",
+      schemaVersion: "notifyhandler.direct-pair.v2",
+      notificationId: "security-v2-001",
+      legIndex,
+    },
+  };
+}
+
+test("v2 direct navigation uses the same resolved-origin preflight without deepLink projection", async () => {
+  const value: ExecutionPlan = {
+    id: "plan-v2-direct",
+    notificationId: "security-v2-001",
+    recommendedOptionId: "direct-pair-v2",
+    createdAt: "2026-09-22T12:00:00.000Z",
+    legs: [
+      { id: "leg-sisal", target: v2Target("sisal", 0, { kind: "BOOKMAKER_DIRECT", url: "https://www.sisal.it/event" }) },
+      { id: "leg-bet365", target: v2Target("bet365", 1, { kind: "BOOKMAKER_DIRECT", url: "https://www.bet365.it/event" }) },
+    ],
+  };
+  const result = await createWorkerExecutionPreflight({
+    resolveHostname: async () => ["93.184.216.34"],
+  }).validate(value);
+  assert.deepEqual(result, { ok: true });
+  assert.equal(value.legs[0].target.deepLink, undefined);
+});
+
+test("v2 relay navigation fails closed until the shared BOOK-017 resolver is present", async () => {
+  const signalId = "11111111-2222-4333-8444-555555555555";
+  const value: ExecutionPlan = {
+    id: "plan-v2-relay",
+    notificationId: "security-v2-relay-001",
+    recommendedOptionId: "direct-pair-v2",
+    createdAt: "2026-09-22T12:00:00.000Z",
+    legs: [
+      {
+        id: "leg-sisal",
+        target: v2Target("sisal", 0, {
+          kind: "BETUP_RELAY",
+          url: "https://www.bet-up.it/lnk/" + signalId + "/sisal",
+          signalId,
+          bookmaker: "sisal",
+        }),
+      },
+      {
+        id: "leg-bet365",
+        target: v2Target("bet365", 1, {
+          kind: "BETUP_RELAY",
+          url: "https://www.bet-up.it/lnk/" + signalId + "/bet365",
+          signalId,
+          bookmaker: "bet365",
+        }),
+      },
+    ],
+  };
+  const result = await createWorkerExecutionPreflight({
+    resolveHostname: async () => ["93.184.216.34"],
+  }).validate(value);
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.failure.code, "UNSAFE_OR_UNSUPPORTED_URL");
+    assert.equal(result.failure.legId, "leg-sisal");
+  }
 });

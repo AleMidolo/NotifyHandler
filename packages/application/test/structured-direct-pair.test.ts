@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DIRECT_PAIR_SCHEMA_VERSION,
+  DIRECT_PAIR_SCHEMA_VERSION_V2,
+  normalizeDirectPairNotification,
   normalizeDirectPairNotificationV1,
+  normalizeDirectPairNotificationV2,
 } from "../src/structured-direct-pair.ts";
 
 const now = () => new Date("2026-09-21T13:02:00.000Z");
@@ -129,5 +132,187 @@ test("structured v1 rejects impossible calendar instants instead of normalizing 
   assert.equal(eventResult.ok, false);
   if (!eventResult.ok) {
     assert.equal(eventResult.errors.some((item) => item.code === "INVALID_EVENT"), true);
+  }
+});
+
+
+function payloadV2() {
+  const signal = "11111111-2222-4333-8444-555555555555";
+  return {
+    schemaVersion: DIRECT_PAIR_SCHEMA_VERSION_V2,
+    notificationId: "surebet-20260922-v2-001",
+    sentAt: "2026-09-22T12:20:00.000Z",
+    event: {
+      participantA: "Kosovo",
+      participantB: "Irlanda",
+      competition: "Nations League",
+      scheduledAt: "2026-09-24T20:45:00+02:00",
+    },
+    market: {
+      family: "total",
+      context: "corners",
+      period: "full_match",
+      line: "10.5",
+      sourceLabel: "U/O CORNER 10.5",
+    },
+    legs: [
+      {
+        bookmaker: "sisal",
+        outcome: "over",
+        expectedOdds: "2.10",
+        navigation: {
+          kind: "betup-relay",
+          url: "https://www.bet-up.it/lnk/" + signal + "/sisal",
+        },
+      },
+      {
+        bookmaker: "bet365",
+        outcome: "under",
+        expectedOdds: "1.90",
+        navigation: {
+          kind: "betup-relay",
+          url: "https://www.bet-up.it/lnk/" + signal + "/bet365",
+        },
+      },
+    ],
+  };
+}
+
+const nowV2 = () => new Date("2026-09-22T12:22:00.000Z");
+
+test("structured v2 normalizes typed bet-up relay navigation without projecting it to deepLink", () => {
+  const result = normalizeDirectPairNotificationV2(payloadV2(), { now: nowV2 });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+
+  assert.equal(result.value.plan.recommendedOptionId, "direct-pair-v2");
+  const first = result.value.plan.legs[0].target;
+  const second = result.value.plan.legs[1].target;
+  assert.equal(first.deepLink, undefined);
+  assert.deepEqual(first.navigation, {
+    kind: "BETUP_RELAY",
+    url: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/sisal",
+    signalId: "11111111-2222-4333-8444-555555555555",
+    bookmaker: "sisal",
+  });
+  assert.equal(second.navigation?.kind, "BETUP_RELAY");
+  assert.deepEqual(first.provenance, {
+    kind: "structured-direct-pair",
+    schemaVersion: DIRECT_PAIR_SCHEMA_VERSION_V2,
+    notificationId: "surebet-20260922-v2-001",
+    legIndex: 0,
+  });
+});
+
+test("structured v2 supports typed direct-bookmaker candidates and exact schema dispatch", () => {
+  const value = payloadV2();
+  value.legs[0].navigation = {
+    kind: "bookmaker-direct",
+    url: "https://www.sisal.it/scommesse-matchpoint/sport/calcio/event/fixture",
+  };
+  value.legs[1].navigation = {
+    kind: "bookmaker-direct",
+    url: "https://www.bet365.it/#/AC/B1/C1/D100/Efixture/",
+  };
+
+  const direct = normalizeDirectPairNotificationV2(value, { now: nowV2 });
+  assert.equal(direct.ok, true);
+  if (direct.ok) {
+    assert.deepEqual(direct.value.plan.legs.map((leg) => leg.target.navigation?.kind), [
+      "BOOKMAKER_DIRECT",
+      "BOOKMAKER_DIRECT",
+    ]);
+    assert.equal(direct.value.plan.legs[0].target.deepLink, undefined);
+  }
+
+  const dispatched = normalizeDirectPairNotification(value, { now: nowV2 });
+  assert.equal(dispatched.ok, true);
+  if (dispatched.ok) assert.equal(dispatched.value.canonical.schemaVersion, DIRECT_PAIR_SCHEMA_VERSION_V2);
+
+  const unknown = { ...value, schemaVersion: "notifyhandler.direct-pair.v99" };
+  const rejected = normalizeDirectPairNotification(unknown, { now: nowV2 });
+  assert.equal(rejected.ok, false);
+  if (!rejected.ok) assert.equal(rejected.errors.some((item) => item.code === "UNSUPPORTED_SCHEMA_VERSION"), true);
+});
+
+test("structured v2 rejects malformed relay grammar and bookmaker binding before execution", () => {
+  const cases: Array<{ mutate(value: ReturnType<typeof payloadV2>): void; code: string }> = [
+    {
+      mutate(value) { value.legs[0].navigation.url += "?token=nope"; },
+      code: "INVALID_RELAY_URL",
+    },
+    {
+      mutate(value) { value.legs[0].navigation.url += "#fragment"; },
+      code: "INVALID_RELAY_URL",
+    },
+    {
+      mutate(value) { value.legs[0].navigation.url = "https://user:secret@www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/sisal"; },
+      code: "INVALID_RELAY_URL",
+    },
+    {
+      mutate(value) { value.legs[0].navigation.url = "https://www.bet-up.it/lnk/not-a-uuid/sisal"; },
+      code: "INVALID_RELAY_URL",
+    },
+    {
+      mutate(value) { value.legs[0].navigation.url = "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/unknown"; },
+      code: "UNKNOWN_RELAY_SUFFIX",
+    },
+    {
+      mutate(value) { value.legs[0].navigation.url = "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365"; },
+      code: "RELAY_BOOKMAKER_MISMATCH",
+    },
+    {
+      mutate(value) { value.legs[1].navigation.url = "https://www.bet-up.it/lnk/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/bet365"; },
+      code: "RELAY_SIGNAL_MISMATCH",
+    },
+  ];
+
+  for (const { mutate, code } of cases) {
+    const value = payloadV2();
+    mutate(value);
+    const result = normalizeDirectPairNotificationV2(value, { now: nowV2 });
+    assert.equal(result.ok, false, code);
+    if (!result.ok) assert.equal(result.errors.some((item) => item.code === code), true, code);
+  }
+});
+
+test("structured v2 rejects suffix/direct-origin mismatches, unsupported workers, and v2-to-v1 fallback", () => {
+  const wrongDirect = payloadV2();
+  wrongDirect.legs[0].navigation = {
+    kind: "bookmaker-direct",
+    url: "https://www.bet365.it/wrong-bookmaker",
+  };
+  const direct = normalizeDirectPairNotificationV2(wrongDirect, { now: nowV2 });
+  assert.equal(direct.ok, false);
+  if (!direct.ok) assert.equal(direct.errors.some((item) => item.code === "INVALID_NAVIGATION"), true);
+
+  const unsupported = payloadV2();
+  unsupported.legs[0].bookmaker = "lottomatica";
+  unsupported.legs[0].navigation.url = "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/lottomatica";
+  const worker = normalizeDirectPairNotificationV2(unsupported, { now: nowV2 });
+  assert.equal(worker.ok, false);
+  if (!worker.ok) assert.equal(worker.errors.some((item) => item.code === "UNSUPPORTED_BOOKMAKER"), true);
+
+  const oldShape = payload();
+  const invalidV2 = { ...oldShape, schemaVersion: DIRECT_PAIR_SCHEMA_VERSION_V2 };
+  const noFallback = normalizeDirectPairNotification(invalidV2, { now });
+  assert.equal(noFallback.ok, false);
+  if (!noFallback.ok) assert.equal(noFallback.errors.some((item) => item.code === "INVALID_LEGS" || item.code === "INVALID_NAVIGATION"), true);
+});
+
+
+test("structured v2 preserves full-match period in the immutable selection target", () => {
+  const result = normalizeDirectPairNotificationV2(payloadV2(), {
+    now: () => new Date("2026-09-22T12:20:30.000Z"),
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+
+  for (const leg of result.value.plan.legs) {
+    assert.equal(
+      leg.target.market.period,
+      "full_match",
+      "full-match vs first-half is an identity dimension and must survive structured normalization",
+    );
   }
 });

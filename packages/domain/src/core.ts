@@ -119,6 +119,18 @@ export interface SurebetNotification {
   readonly recommendedOptions: readonly RecommendedOption[];
 }
 
+export type NavigationTarget =
+  | Readonly<{
+      kind: "BOOKMAKER_DIRECT";
+      url: string;
+    }>
+  | Readonly<{
+      kind: "BETUP_RELAY";
+      url: string;
+      signalId: string;
+      bookmaker: BookmakerId;
+    }>;
+
 export interface SelectionTarget {
   readonly id: string;
   readonly bookmaker: BookmakerId;
@@ -141,6 +153,8 @@ export interface SelectionTarget {
     sourceLabel?: string;
   }>;
   readonly expectedOdds: DecimalString;
+  readonly navigation?: NavigationTarget;
+  /** Deprecated v1/legacy compatibility projection. V2 uses navigation. */
   readonly deepLink?: string;
   readonly provenance: Readonly<
     | {
@@ -151,7 +165,7 @@ export interface SelectionTarget {
       }
     | {
         kind: "structured-direct-pair";
-        schemaVersion: "notifyhandler.direct-pair.v1";
+        schemaVersion: "notifyhandler.direct-pair.v1" | "notifyhandler.direct-pair.v2";
         notificationId: string;
         legIndex: 0 | 1;
       }

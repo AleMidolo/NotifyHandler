@@ -13,9 +13,9 @@ import {
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { dirname } from "node:path";
 import {
-  normalizeDirectPairNotificationV1,
-  type CanonicalDirectPairV1,
-  type DirectPairNormalizationResult,
+  normalizeDirectPairNotification,
+  type StructuredDirectPairCanonical,
+  type StructuredDirectPairNormalizationResult,
 } from "../../application/src/index.ts";
 import type { DesktopAppController } from "./controller.ts";
 
@@ -159,11 +159,11 @@ function readBoundedBody(request: IncomingMessage, maxBytes: number): Promise<Bo
   });
 }
 
-function normalizedPayloadHash(payload: CanonicalDirectPairV1): string {
+function normalizedPayloadHash(payload: StructuredDirectPairCanonical): string {
   return createHash("sha256").update(JSON.stringify(payload), "utf8").digest("hex");
 }
 
-function responseValidationErrors(result: Extract<DirectPairNormalizationResult, { ok: false }>) {
+function responseValidationErrors(result: Extract<StructuredDirectPairNormalizationResult, { ok: false }>) {
   return result.errors.map((item) => ({
     code: item.code,
     field: item.field,
@@ -463,7 +463,7 @@ export async function startDirectPairIngressServer(
   }
 
   async function acceptNew(
-    normalized: Extract<DirectPairNormalizationResult, { ok: true }>["value"],
+    normalized: Extract<StructuredDirectPairNormalizationResult, { ok: true }>["value"],
   ): Promise<AcceptanceResult> {
     try {
       const snapshot = await options.controller.receiveStructuredPlan(normalized.plan);
@@ -560,13 +560,13 @@ export async function startDirectPairIngressServer(
           return;
         }
 
-        const normalized = normalizeDirectPairNotificationV1(parsed, { now });
+        const normalized = normalizeDirectPairNotification(parsed, { now });
         if (!normalized.ok) {
           json(response, 422, {
             accepted: false,
             error: {
               code: "INVALID_NOTIFICATION",
-              message: "Structured notification violates the v1 contract.",
+              message: "Structured notification violates the declared direct-pair contract.",
               issues: responseValidationErrors(normalized),
             },
           });

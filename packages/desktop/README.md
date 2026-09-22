@@ -79,3 +79,53 @@ Example request body:
 Send it with `Content-Type: application/json` and `Authorization: Bearer <local-ingress-token>`. The endpoint has a 64 KiB body ceiling, rejects browser-origin/CORS requests, enforces notification freshness plus durable bounded idempotency, and returns only sanitized execution metadata. A same-process exact duplicate returns the existing execution reference without a second start. After NotifyHandler restarts, a still-retained exact replay is rejected with `IDEMPOTENCY_REPLAY_BLOCKED` and zero worker starts because prior browser execution state is not restored. Reusing the same id with different normalized content returns `IDEMPOTENCY_CONFLICT`.
 
 A valid new request persists its pending tombstone before entering the existing automatic two-leg preflight/start path; no renderer confirmation is involved. Corrupt durable idempotency state prevents the listener from starting, and expired tombstones are evicted. A direct link is only navigation input and never replaces event, market, exact-line, outcome, or odds verification.
+
+
+### Relay-aware v2 payloads
+
+The same loopback endpoint also accepts `notifyhandler.direct-pair.v2`. V2 replaces each leg's `deepLink` with an explicit `navigation` object. A producer that carries the real upstream bet-up relay shape uses:
+
+```json
+{
+  "schemaVersion": "notifyhandler.direct-pair.v2",
+  "notificationId": "surebet-relay-example",
+  "sentAt": "2026-09-22T12:20:00.000Z",
+  "event": {
+    "participantA": "Example A",
+    "participantB": "Example B",
+    "competition": "Example competition",
+    "scheduledAt": "2026-09-22T20:45:00+02:00"
+  },
+  "market": {
+    "family": "total",
+    "context": "corners",
+    "period": "full_match",
+    "line": "10.5",
+    "sourceLabel": "U/O CORNER 10.5"
+  },
+  "legs": [
+    {
+      "bookmaker": "sisal",
+      "outcome": "over",
+      "expectedOdds": "2.10",
+      "navigation": {
+        "kind": "betup-relay",
+        "url": "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/sisal"
+      }
+    },
+    {
+      "bookmaker": "bet365",
+      "outcome": "under",
+      "expectedOdds": "1.90",
+      "navigation": {
+        "kind": "betup-relay",
+        "url": "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365"
+      }
+    }
+  ]
+}
+```
+
+A v2 `bookmaker-direct` navigation candidate must already use the exact approved origin for the selected supported bookmaker. A `betup-relay` candidate must use the exact `https://www.bet-up.it/lnk/<uuid>/<suffix>` grammar, contain no userinfo/query/fragment, bind its suffix to the leg bookmaker, and share the signal UUID when both legs are relays.
+
+V1 remains frozen and is never reinterpreted as v2. Failed v2 input never falls back to v1. Relay resolution itself is intentionally **not** implemented in the application layer; APP-006 carries the immutable typed relay to the worker boundary, where execution fails closed until the restricted shared BOOK-017 resolver is available.

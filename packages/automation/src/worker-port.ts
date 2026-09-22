@@ -202,15 +202,31 @@ async function safeDeepLink(
   bookmaker: WorkerBookmaker,
   options: WorkerExecutionPreflightOptions,
 ): Promise<boolean> {
-  if (target.deepLink === undefined) return target.provenance.kind !== "structured-direct-pair";
+  if (target.navigation?.kind === "BETUP_RELAY") {
+    // APP-006 carries the typed relay immutably, but BOOK-017 owns the only
+    // authorized resolver. Until that resolver is installed, preflight fails
+    // closed rather than falling back to a generic bookmaker entry point.
+    return false;
+  }
+
+  const candidate = target.navigation?.kind === "BOOKMAKER_DIRECT"
+    ? target.navigation.url
+    : target.deepLink;
+  if (candidate === undefined) return target.provenance.kind !== "structured-direct-pair";
+
   try {
     const policy = new NavigationPolicy(supportedOriginsFor(bookmaker), options.resolveHostname);
-    if (!policy.isAllowed(target.deepLink)) return false;
+    if (!policy.isAllowed(candidate)) return false;
     if (target.provenance.kind !== "structured-direct-pair") return true;
-    return policy.isResolvedTargetAllowed(target.deepLink);
+    return policy.isResolvedTargetAllowed(candidate);
   } catch {
     return false;
   }
+}
+
+function adapterTarget(target: SelectionTarget): SelectionTarget {
+  if (target.navigation?.kind !== "BOOKMAKER_DIRECT") return target;
+  return { ...target, deepLink: target.navigation.url };
 }
 
 export function createWorkerExecutionPreflight(
@@ -342,6 +358,18 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
       return;
     }
 
+    if (request.target.navigation?.kind === "BETUP_RELAY") {
+      yield workerEvent(request, "FAILED_SAFE", { failure: {
+        code: "RELAY_RESOLVER_UNAVAILABLE",
+        stage: "NAVIGATION",
+        message: "Bet-up relay navigation requires the restricted shared relay resolver.",
+        recoverability: "REOPEN",
+        activation: "NOT_ATTEMPTED",
+        evidenceEpoch: request.evidenceEpoch,
+      } });
+      return;
+    }
+
     let slot: LegSlot;
     try {
       slot = await this.sessionFor(request.legId, bookmaker, options.replaceSession, !(options.requireExistingSession ?? false));
@@ -390,7 +418,7 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
         selectionGate: capabilities.selectionGate,
         ...(options.acknowledgedObservedOdds === undefined ? {} : { acknowledgedObservedOdds: options.acknowledgedObservedOdds }),
       };
-      result = await adapterFor(bookmaker).prepare(context, request.target, {}, controller.signal);
+      result = await adapterFor(bookmaker).prepare(context, adapterTarget(request.target), {}, controller.signal);
     } catch (error) {
       if (controller.signal.aborted || this.cancelledAttempts.has(key)) {
         this.cancelledAttempts.delete(key);
