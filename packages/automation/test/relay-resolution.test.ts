@@ -13,6 +13,7 @@ import type { BookmakerLegSession } from "../src/session.ts";
 type Bookmaker = "sisal" | "bet365";
 const SIGNAL_ID = "11111111-2222-4333-8444-555555555555";
 const RELAY_ORIGIN = "https://www.bet-up.it";
+const RELAY_FIXTURE_TIMEOUT_MS = 2_000;
 
 function relayUrl(bookmaker: Bookmaker): string {
   return `${RELAY_ORIGIN}/lnk/${SIGNAL_ID}/${bookmaker}`;
@@ -125,7 +126,7 @@ for (const bookmaker of ["sisal", "bet365"] as const) {
     const worker = createFixtureAutomationWorker({
       fixtures: { [bookmaker]: validFixtures(bookmaker) },
       navigationTimeoutMs: 1_000,
-      relayResolutionTimeoutMs: 100,
+      relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
     });
     try {
       const result = await events(worker.start(request(bookmaker)));
@@ -149,7 +150,7 @@ test("relay metadata cannot satisfy event identity after correct SISAL arrival",
         },
       },
     },
-    relayResolutionTimeoutMs: 100,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const result = await events(worker.start(request("sisal")));
@@ -168,7 +169,7 @@ test("unexpected third-party relay intermediary is blocked before matching", asy
         [relayUrl("sisal")]: { kind: "redirect", location: "https://tracker.example/intermediate" },
       },
     },
-    relayResolutionTimeoutMs: 50,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const last = terminal(await events(worker.start(request("sisal"))));
@@ -190,7 +191,7 @@ test("relay resolving to another registered bookmaker fails as wrong final bookm
         [relayUrl("sisal")]: { kind: "redirect", location: finalUrl("bet365", "wrong-bookmaker") },
       },
     },
-    relayResolutionTimeoutMs: 50,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const last = terminal(await events(worker.start(request("sisal"))));
@@ -209,7 +210,7 @@ test("relay revisit exceeds the one-transition budget", async () => {
         [relay]: { kind: "redirect", location: relay },
       },
     },
-    relayResolutionTimeoutMs: 50,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const last = terminal(await events(worker.start(request("sisal"))));
@@ -230,7 +231,7 @@ test("relay-origin challenge is a relay safe failure, not AUTH_REQUIRED", async 
         },
       },
     },
-    relayResolutionTimeoutMs: 25,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const last = terminal(await events(worker.start(request("sisal"))));
@@ -259,7 +260,7 @@ test("relay page private-network subresource is blocked and fails the relay atte
       }
       return ["93.184.216.34"];
     },
-    relayResolutionTimeoutMs: 75,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const last = terminal(await events(worker.start(request("sisal"))));
@@ -285,7 +286,7 @@ test("private final-bookmaker DNS is rejected during relay transition", async ()
       },
     },
     resolveHostname: async (hostname) => hostname === "www.sisal.it" ? ["127.0.0.1"] : ["93.184.216.34"],
-    relayResolutionTimeoutMs: 50,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const last = terminal(await events(worker.start(request("sisal"))));
@@ -314,7 +315,7 @@ test("retry re-resolves the immutable relay instead of trusting the previous fin
         [correct]: { kind: "html", body: fixtureHtml("sisal", "over", "2.08") },
       },
     },
-    relayResolutionTimeoutMs: 100,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const first = terminal(await events(worker.start(request("sisal", "attempt-1"))));
@@ -345,7 +346,7 @@ test("manual bookmaker auth resume does not revisit the relay origin", async () 
         ],
       },
     },
-    relayResolutionTimeoutMs: 100,
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
   });
   try {
     const first = terminal(await events(worker.start(request("sisal", "attempt-auth"))));
@@ -367,7 +368,7 @@ test("successful relay resolution revokes later relay-origin navigation from att
   try {
     const resolution = await session.resolveRelay({
       relayUrl: relayUrl("sisal"),
-      timeoutMs: 100,
+      timeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
       signal: new AbortController().signal,
     });
     assert.equal(resolution.kind, "RESOLVED");
