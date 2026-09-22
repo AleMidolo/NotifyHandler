@@ -101,6 +101,7 @@ Required controls:
 - suffix must map exactly to and agree with the target leg bookmaker;
 - when both legs are relays, signal UUIDs must agree;
 - relay and expected-bookmaker targets must pass fail-closed DNS/private/internal checks;
+- while relay resolution is active, non-top-level browser requests are intercepted too: only public HTTPS targets without URL credentials and without private/internal DNS answers are permitted; an unsafe relay subresource fails the relay attempt;
 - the only approved cross-origin relay transition is directly to an origin registered for the expected bookmaker;
 - unexpected intermediaries and wrong-bookmaker destinations fail safely;
 - relay loops/revisits/timeouts are bounded;
@@ -146,6 +147,8 @@ A release is blocked if any known path can:
 - allow a relay through an unreviewed intermediary or wrong-bookmaker destination;
 - treat relay path/suffix/redirect success as positive selection identity evidence;
 - expose the structured ingress on non-loopback interfaces by default or accept it without required local authentication/request bounds;
-- expose sensitive authentication/session data in logs or artifacts.
+- expose sensitive authentication/session data in logs or artifacts;
+- allow relay-page subresources to reach loopback/private/internal network targets;
+- omit relay-resolution security regressions from the pinned-browser CI gate.
 
 QA and Security should maintain automated tests/checklists covering these gates.
