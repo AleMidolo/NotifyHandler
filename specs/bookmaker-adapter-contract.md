@@ -1,6 +1,6 @@
 # Bookmaker adapter contract
 
-Status: **Accepted architecture contract for Milestone 1, amended by ARCH-004**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-004 and ARCH-005**
 
 This specification defines how bookmaker-specific code participates in execution without leaking DOM details into the core application or gaining transaction-submission capabilities.
 
@@ -9,7 +9,7 @@ This specification defines how bookmaker-specific code participates in execution
 The core application knows only:
 
 - canonical bookmaker id;
-- immutable `SelectionTarget`;
+- immutable `SelectionTarget`, including typed navigation intent when present;
 - execution lifecycle commands;
 - structured progress/evidence/results.
 
@@ -128,33 +128,60 @@ The gate performs only the single verified selection activation and post-click v
 
 ## 7. Navigation policy
 
-Before every top-level notification-derived navigation or redirect acceptance:
+The worker/browser gateway owns navigation safety. Bookmaker adapters do not parse upstream relay URLs.
 
-- scheme must be `https`;
-- URL userinfo must be empty;
-- origin must be registered to the selected adapter;
-- localhost, loopback, link-local, private/internal-network destinations, unsafe schemes, local files, and unrelated domains are rejected;
-- DNS/private-target defenses must prevent an approved-looking hostname from being used to reach forbidden internal targets;
-- cross-origin redirects/final locations require exact allow-list membership;
-- a redirect/navigation that can stale identity evidence advances the evidence epoch before later activation.
+### 7.1 Direct bookmaker targets
 
-A notification deep link is a navigation candidate, not trusted executable input and not event identity evidence.
+`BOOKMAKER_DIRECT` and v1 direct links retain the existing policy:
 
-For `notifyhandler.direct-pair.v1`:
+- HTTPS only;
+- no URL userinfo;
+- exact adapter-approved origin;
+- fail-closed resolved-address/private-target checks;
+- redirect/final-origin validation;
+- navigation that can stale identity evidence advances the evidence epoch.
 
-- the direct match link is required and is the first navigation candidate;
-- worker/browser validation repeats the core's preflight checks immediately before navigation;
-- after page load, the adapter independently verifies event, context, market, exact line, outcome, and odds;
-- an unsafe, stale, wrong-event, blocked, or insufficient direct link returns structured safe failure;
-- the adapter/worker must not silently replace it with homepage/competition discovery.
+### 7.2 Bet-up relay targets
 
-Legacy textual input may continue to use an adapter-approved entry point when its target has no deep link, subject to the same origin and matching controls.
+`BETUP_RELAY` is resolved by a shared restricted worker/gateway stage **before** `BookmakerAdapter.prepare(...)` begins page matching.
+
+The resolver must:
+
+1. revalidate exact `https://www.bet-up.it/lnk/<uuid>/<suffix>` syntax/binding;
+2. apply fail-closed DNS/private-target validation before opening the relay;
+3. allow only a direct top-level transition from the exact relay origin to an origin registered for the expected bookmaker adapter;
+4. reject third-party intermediary origins;
+5. DNS/private-target validate the expected-bookmaker request before permitting it;
+6. stop relay resolution on first successful expected-bookmaker arrival;
+7. hand the page/session to the adapter only after current origin is revalidated.
+
+No event/market/outcome/odds evidence may be emitted by relay resolution.
+
+A relay-origin login/challenge is a safe failure. `AUTH_REQUIRED` belongs only to bookmaker-side authentication after successful expected-origin arrival.
+
+### 7.3 Resolver capability
+
+Conceptually the worker may expose an internal shared capability such as:
+
+```ts
+interface NavigationResolver {
+  resolve(
+    target: SelectionTarget,
+    adapterOrigins: readonly HttpsOrigin[],
+    signal: AbortSignal,
+  ): Promise<ResolvedNavigation | SafeFailure>;
+}
+```
+
+This is not a public application API and must not expose arbitrary URL following, unrestricted Playwright, shell/filesystem operations, or transaction actions.
+
+The adapter receives the successfully resolved bookmaker page through the same restricted `BookmakerPagePort` abstraction used for direct navigation.
 
 ## 8. Required adapter algorithm
 
 For every fresh preparation pass, an adapter must conceptually:
 
-1. validate and open the target's allowed direct link; use an approved generic entry point only for a legacy target whose contract permits it;
+1. receive a page/session whose typed navigation target has already been safely resolved by the worker; for legacy/no-navigation targets, use only adapter-approved entry behavior permitted by contract;
 2. wait for a supported page state;
 3. return `AUTH_REQUIRED` if user authentication is needed;
 4. enumerate event candidates;
@@ -276,6 +303,8 @@ Every adapter implementation must pass the same deterministic contract suite aga
 - manual-login interruption;
 - blocked unsafe origin/redirect;
 - structured-v1 wrong/stale direct link with zero generic-discovery fallback;
+- v2 malformed relay, suffix mismatch, blocked/private DNS, unexpected intermediary, wrong final bookmaker, relay loop/limit, and relay challenge;
+- proof that relay metadata never enters positive matching evidence;
 - cancellation before selection activation;
 - failed post-click selection verification;
 - absence of stake and bet-submit operations.
