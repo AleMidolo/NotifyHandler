@@ -110,6 +110,7 @@ Mitigations:
 - check final/current origin before matching;
 - direct-bookmaker redirects remain constrained by the existing bookmaker navigation policy;
 - typed bet-up relay navigation permits only the exact validated relay URL followed by a direct top-level transition to the expected bookmaker origin; intermediary and wrong-bookmaker destinations fail safely;
+- relay HTTP redirects are terminated at the gateway with automatic redirect following disabled; the `Location` target is validated before any destination request and an approved target is re-issued as a fresh interceptable browser navigation;
 - relay origin and expected-bookmaker top-level targets are re-resolved through the fail-closed private/internal DNS policy;
 - while relay resolution is active, every intercepted non-top-level network request must be public HTTPS without URL credentials and must resolve only to non-private/non-internal addresses; an unsafe relay subresource aborts the request and fails the relay attempt;
 - relay loops/revisits, unsupported relay challenges, and unresolved timeouts fail before matching or activation;
