@@ -67,6 +67,37 @@ test("structured preflight accepts exact origins when every resolved address is 
   assert.deepEqual(result, { ok: true });
 });
 
+test("structured preflight rejects a non-full-match period before browser dispatch", async () => {
+  const value = plan();
+  const first = value.legs[0];
+  const invalid: ExecutionPlan = {
+    ...value,
+    legs: [
+      {
+        ...first,
+        target: {
+          ...first.target,
+          market: {
+            ...first.target.market,
+            period: "first_half" as never,
+          },
+        },
+      },
+      value.legs[1],
+    ],
+  };
+
+  const result = await createWorkerExecutionPreflight({
+    resolveHostname: async () => ["93.184.216.34"],
+  }).validate(invalid);
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.failure.code, "INVALID_SELECTION_TARGET");
+    assert.equal(result.failure.legId, "leg-sisal");
+  }
+});
+
 test("structured preflight fails closed on DNS resolution failure", async () => {
   const result = await createWorkerExecutionPreflight({
     resolveHostname: async () => { throw new Error("resolver unavailable"); },
