@@ -77,6 +77,15 @@ The initial shared taxonomy is:
 
 - `UNSAFE_OR_UNSUPPORTED_URL`
 - `BLOCKED_REDIRECT`
+- `RELAY_INVALID`
+- `RELAY_BOOKMAKER_MISMATCH`
+- `RELAY_SIGNAL_MISMATCH`
+- `RELAY_NETWORK_TARGET_BLOCKED`
+- `RELAY_INTERMEDIARY_BLOCKED`
+- `RELAY_WRONG_FINAL_BOOKMAKER`
+- `RELAY_REDIRECT_LIMIT`
+- `RELAY_UNRESOLVED`
+- `RELAY_CHALLENGE_UNSUPPORTED`
 - `PAGE_LOAD_TIMEOUT`
 - `UNSUPPORTED_PAGE_STATE`
 - `BROWSER_DISCONNECTED`
@@ -167,11 +176,13 @@ All failures before final activation must prove `activation: "NOT_ATTEMPTED"` th
 
 ## 6. Authentication/challenge handling
 
-Manual authentication is `AUTH_REQUIRED` when normal login is possible for the user.
+Manual authentication is `AUTH_REQUIRED` when normal login is possible for the user **after the current page has reached an approved bookmaker origin**.
 
-If the page presents CAPTCHA, MFA, OTP, security questions, or another authentication challenge, NotifyHandler may only pause and hand the browser to the user. It must not attempt to solve, bypass, automate, or outsource the challenge.
+If a bookmaker page presents CAPTCHA, MFA, OTP, security questions, or another authentication challenge, NotifyHandler may only pause and hand the browser to the user. It must not attempt to solve, bypass, automate, or outsource the challenge.
 
 If normal automation cannot safely resume after the user completes it, return an appropriate `UNSUPPORTED_PAGE_STATE` safe failure.
+
+A login, CAPTCHA, consent wall, or other challenge on the `bet-up.it` relay origin is not a bookmaker authentication interruption and must not become `AUTH_REQUIRED`. It returns `RELAY_CHALLENGE_UNSUPPORTED` with `activation: "NOT_ATTEMPTED"`.
 
 ## 7. Sanitized diagnostics
 
@@ -209,3 +220,20 @@ At minimum show:
 - an explicit inspection warning after `ATTEMPTED_NOT_VERIFIED` before any retry/reopen.
 
 Never tell the user the pair is ready when either current leg is not `READY_FOR_USER`.
+
+
+## 9. Relay failure semantics
+
+All relay-specific failures occur before final outcome activation and must use `activation: "NOT_ATTEMPTED"`.
+
+- malformed relay/path/suffix -> `RELAY_INVALID`;
+- suffix inconsistent with target bookmaker -> `RELAY_BOOKMAKER_MISMATCH`;
+- two relay legs from different signal UUIDs -> `RELAY_SIGNAL_MISMATCH`;
+- forbidden/uncertain relay or destination network target -> `RELAY_NETWORK_TARGET_BLOCKED`;
+- unreviewed third-party redirect/navigation -> `RELAY_INTERMEDIARY_BLOCKED`;
+- relay reaches a different bookmaker -> `RELAY_WRONG_FINAL_BOOKMAKER`;
+- loop/revisit/transition budget exceeded -> `RELAY_REDIRECT_LIMIT`;
+- no expected bookmaker arrival before bounded timeout -> `RELAY_UNRESOLVED`;
+- relay-origin authentication/challenge/consent state requiring unsupported interaction -> `RELAY_CHALLENGE_UNSUPPORTED`.
+
+If relay resolution correctly reaches the expected bookmaker but the page is stale/wrong-event/wrong-market, use the ordinary event/market/line/outcome/odds failure codes. Do not relabel page-identity failure as relay success or vice versa.

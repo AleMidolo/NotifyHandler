@@ -1,6 +1,6 @@
 # Execution plan and state contract
 
-Status: **Accepted architecture contract for Milestone 1, amended by ARCH-003 and ARCH-004**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-003, ARCH-004, and ARCH-005**
 
 This specification defines the bookmaker-agnostic execution model from receipt of a valid notification through automatic two-leg startup, execution-time interruptions, and manual handoff. It is normative for domain, application, automation, QA, and security implementations.
 
@@ -35,14 +35,14 @@ For `specs/notification-format.md`:
 4. fail safely on invalid/ambiguous/same-bookmaker/unsupported primary input;
 5. never fall through to a later recommendation.
 
-### 2.2 Structured direct-pair v1 source
+### 2.2 Structured direct-pair v1/v2 source
 
-For `specs/structured-ingestion-v1.md`:
+For `specs/structured-ingestion-v1.md` and `specs/structured-ingestion-v2.md`:
 
 1. validate the authenticated/bounded structured request;
 2. treat `legs[0]` and `legs[1]` as the authoritative pair;
 3. require exactly two distinct supported canonical bookmakers;
-4. require a valid direct match link for each leg;
+4. require a valid source-version-appropriate navigation candidate for each leg;
 5. normalize both legs into immutable `SelectionTarget` values;
 6. fail safely on any schema, freshness, idempotency, semantic, bookmaker, or URL violation;
 7. never synthesize `recommendedOptions` and never substitute another pair.
@@ -353,3 +353,20 @@ When a plan originates from `notifyhandler.direct-pair.v1`:
 - direct-link failure never authorizes generic-discovery fallback for structured v1.
 
 The HTTP transport's duplicate/idempotency handling is outside the leg state machine: an exact duplicate returns the already-created execution reference and does not create a new attempt or plan.
+
+
+## 18. Relay-resolution phase
+
+For a v2 `BETUP_RELAY` target, relay resolution is part of `OPENING` / navigation readiness, before event matching.
+
+Rules:
+
+- no positive identity evidence is recorded on the relay origin;
+- cancellation during relay resolution prevents any later matching/activation;
+- an unexpected intermediary, wrong bookmaker destination, private/internal target, loop/limit, or relay challenge produces `FAILED_SAFE` before event matching;
+- successful arrival at the expected bookmaker origin advances to a fresh evidence epoch before `MATCHING_EVENT`;
+- only bookmaker-side login after successful relay resolution may produce `AUTH_REQUIRED`;
+- retry/reopen starts relay resolution again from the immutable typed navigation target;
+- a previously resolved bookmaker URL is not trusted/reused as plan input.
+
+The state graph does not add a user-visible pre-execution confirmation state. Relay resolution is automatic and bounded.

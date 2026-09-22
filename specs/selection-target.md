@@ -1,12 +1,13 @@
 # Selection target specification
 
-Status: **Accepted architecture/domain contract for Milestone 1, amended by ARCH-004**
+Status: **Accepted architecture/domain contract for Milestone 1, amended by ARCH-004 and ARCH-005**
 
 `SelectionTarget` is the immutable, bookmaker-agnostic instruction for one leg of an accepted surebet execution pair. It describes **what must be selected**, never how a bookmaker DOM is manipulated.
 
 Normative companion contracts:
 
-- `specs/structured-ingestion-v1.md` — structured explicit-pair provenance and required direct-link semantics;
+- `specs/structured-ingestion-v1.md` — frozen direct-bookmaker structured provenance;
+- `specs/structured-ingestion-v2.md` — typed direct/relay navigation semantics;
 - `specs/execution-contract.md` — two-leg runtime/state semantics;
 - `specs/bookmaker-adapter-contract.md` — worker/adapter/browser capability boundary;
 - `specs/matching-policy.md` — identity evidence, odds, and activation rules;
@@ -36,7 +37,16 @@ type SelectionTarget = Readonly<{
     sourceLabel?: string;
   }>;
   expectedOdds: DecimalOddsString;
-  deepLink?: string; // untrusted navigation candidate until validated
+  navigation?: Readonly<
+    | { kind: "BOOKMAKER_DIRECT"; url: string }
+    | {
+        kind: "BETUP_RELAY";
+        url: string;
+        signalId: string;
+        bookmaker: BookmakerId;
+      }
+  >;
+  deepLink?: string; // deprecated v1/legacy compatibility projection only
   provenance: Readonly<
     | {
         kind: "legacy-recommendation";
@@ -66,8 +76,10 @@ A target is valid for execution only when:
 - outcome/side is explicit;
 - expected odds are valid positive decimal odds;
 - provenance resolves either to the legacy primary recommendation/source offer or to one explicit structured-v1 leg;
-- any supplied deep link remains untrusted until runtime origin/scheme validation;
-- structured-v1 provenance requires a direct link; legacy provenance may omit one when its adapter flow permits another approved entry point.
+- any supplied navigation URL remains untrusted until runtime origin/DNS/redirect validation;
+- structured-v1 provenance requires a `BOOKMAKER_DIRECT` candidate (or the deprecated equivalent direct `deepLink` projection);
+- structured-v2 provenance requires an explicit typed navigation candidate; a relay candidate must carry parsed signal/bookmaker binding;
+- legacy provenance may omit navigation when its adapter flow permits another approved entry point.
 
 Every accepted execution pair resolves to exactly two valid targets.
 
@@ -205,3 +217,18 @@ For `notifyhandler.direct-pair.v1`, `provenance.kind` is `structured-direct-pair
 The direct match link is required input for that source, but it remains a navigation candidate only. It must not be converted into event/market/outcome evidence.
 
 If a structured-v1 direct link is unsafe, stale, wrong-event, blocked by authentication/access behavior that cannot be resumed safely, or insufficient to establish deterministic page evidence, the leg fails safely. The target must not be mutated to a generic bookmaker URL or a different event.
+
+
+## 14. Typed navigation target
+
+ARCH-005 makes navigation intent explicit.
+
+New structured implementations should consume `navigation`, not infer behavior from URL origin.
+
+`BOOKMAKER_DIRECT` uses the existing direct-bookmaker validation and navigation path.
+
+`BETUP_RELAY` is valid only for structured v2. Its `bookmaker` field must equal the enclosing `SelectionTarget.bookmaker`; its signal/bookmaker values come from validated relay-path parsing and are immutable provenance, not selection evidence.
+
+The deprecated `deepLink` field exists only to avoid silently breaking already-shipped v1/legacy code during migration. Implementations must not populate contradictory `navigation` and `deepLink` values. When `navigation` is present it is authoritative for worker routing, while all URLs remain untrusted.
+
+A successful relay resolution never mutates the target navigation into a trusted direct URL. Retry/reopen resolves the original immutable navigation target again.

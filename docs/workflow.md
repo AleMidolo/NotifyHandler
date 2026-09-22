@@ -15,7 +15,7 @@ No browser action occurs until the notification and resulting targets satisfy th
 Two compatible input modes are supported by product policy:
 
 1. **Legacy textual notification:** preserve recommended options in source order and use the first recommendation as the authoritative primary option.
-2. **Versioned structured bot notification:** for `notifyhandler.direct-pair.v1`, accept the authoritative pair directly as exactly two explicit bookmaker legs and require one direct match-page link per leg.
+2. **Versioned structured bot notification:** v1 accepts the authoritative pair with direct bookmaker links; v2 accepts the same authoritative pair with typed `bookmaker-direct` or `betup-relay` navigation.
 
 The application never asks the user which pair to choose. Either input mode must resolve deterministically to exactly two distinct valid `SelectionTarget` legs. A malformed, ambiguous, unsupported, or same-bookmaker pair fails safely before bookmaker navigation; no alternate pair is silently substituted.
 
@@ -29,7 +29,8 @@ Execution starts automatically as soon as all of the following are true:
 - both bookmakers have supported adapters;
 - targets contain sufficient identity information for the matching policy;
 - supplied navigation targets pass origin/deep-link safety checks required before use;
-- structured-v1 requests have passed loopback authentication, media/size bounds, schema, freshness, and idempotency checks.
+- structured requests have passed loopback authentication, media/size bounds, versioned schema, freshness, and idempotency checks;
+- v2 relay candidates have passed relay grammar/suffix/signal-consistency preflight.
 
 There is no pre-execution confirmation button, no recommended-option selector, and no requirement that the user approve an execution summary.
 
@@ -57,7 +58,7 @@ Architecture may refine these names while preserving their semantics.
 
 For each leg the adapter should:
 
-1. for structured v1, validate and open the required direct match link with no generic-discovery fallback; for legacy input, use a supplied valid deep link or adapter-approved entry point as permitted. A deep link is untrusted navigation input and never counts as event-match evidence;
+1. resolve typed navigation: v1/direct v2 opens the validated bookmaker candidate; relay v2 runs the restricted `bet-up.it -> expected bookmaker` resolver first; legacy input uses its permitted approved entry behavior. No navigation link/relay metadata counts as event-match evidence;
 2. wait for an allowed page state;
 3. detect whether manual authentication is required and pause if so;
 4. locate candidate event(s);
@@ -131,7 +132,8 @@ NotifyHandler has a transport boundary above parsing/normalization. Transport co
 Two current input contracts are supported:
 
 - legacy text/manual input -> `specs/notification-format.md`;
-- structured local bot input -> `specs/structured-ingestion-v1.md`.
+- structured local bot input v1 -> `specs/structured-ingestion-v1.md`;
+- structured local bot input v2 -> `specs/structured-ingestion-v2.md`.
 
 The first bot-to-desktop transport is a loopback-only HTTP endpoint, conceptually `POST /api/v1/notifications/direct-pair`.
 
@@ -145,10 +147,25 @@ The listener:
 - bounds request rate/concurrency;
 - returns sanitized errors/references without waiting for bookmaker execution to finish.
 
-An exact duplicate structured request returns the existing execution reference and never creates a second plan. Reuse of the same id with a different normalized payload is rejected.
+V1 and v2 use the same hardened ingress/idempotency boundary. An exact duplicate structured request returns the existing execution reference and never creates a second plan. Reuse of the same id with a different normalized payload is rejected.
 
 Telegram, clipboard monitoring, and other transports may be added later through the same normalization boundary.
 
 The desktop listener must not be exposed to the public Internet by default. A remote surebet service requires a separately designed secure relay/outbound connection or another explicit architecture decision.
 
 Any accepted transport triggers the same automatic two-leg processing path without introducing a confirmation step.
+
+
+## 12. Relay-aware v2 navigation
+
+For a `betup-relay` leg:
+
+1. core validates relay syntax, suffix/bookmaker binding, and pair signal consistency;
+2. worker opens the relay in the isolated leg browser with zero positive identity evidence;
+3. only a direct transition to the expected adapter-approved bookmaker origin is accepted;
+4. unexpected intermediary/wrong-bookmaker/private-target/loop/challenge states fail safely;
+5. after expected-bookmaker arrival, matching starts from a fresh evidence epoch;
+6. bookmaker login may then pause at `AUTH_REQUIRED`;
+7. wrong event/market/line/outcome/odds fails through the normal deterministic policy.
+
+A relay never authorizes generic discovery, selection activation, credentials, stake entry, or wager submission.

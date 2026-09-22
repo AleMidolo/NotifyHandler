@@ -58,12 +58,12 @@ The structured-ingress implementation and security-hardening track is complete:
 
 User-supplied production examples revealed an important refinement: the surebet bot does **not** emit bookmaker-origin match URLs. It emits credential-free relay URLs shaped as `https://www.bet-up.it/lnk/<signal-uuid>/<bookmaker>`, which are expected to redirect to the bookmaker match page.
 
-The current structured v1 contract deliberately requires the initial URL itself to be on the bookmaker origin, so these real upstream links cannot be consumed safely without an explicit architecture change. PRODUCT-019/#118 records this product fact and ARCH-005/#119 is now the immediate P0.
+ARCH-005 introduces `notifyhandler.direct-pair.v2` with a typed `betup-relay` navigation candidate while keeping v1 frozen as direct-bookmaker-only. Relay syntax/binding is validated in the core, but actual relay resolution is restricted to the browser worker/gateway and can transition only from exact `https://www.bet-up.it` directly to an approved origin for the expected bookmaker.
 
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. **#119 ARCH-005 — immediate P0:** define the trusted `bet-up.it` relay-link protocol/redirect/origin/DNS/evidence semantics while preserving direct-bookmaker v1 safety;
+1. **#119 ARCH-005 — architecture track:** `direct-pair.v2`, typed navigation, and restricted `bet-up.it` relay resolution;
 2. **#109 PRODUCT-016 — partially satisfied:** BET365/SISAL relay format is proven; still obtain a usable full-match total-corners upstream sample once #119 is merged;
 3. **#104 BOOK-016 — after #119 + target-market evidence:** validate the real relay-aware path and independently establish event/competition-time/market/line/side/odds;
 4. create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`;
@@ -82,9 +82,9 @@ The accepted MVP runtime is a local-first desktop application with a TypeScript/
 
 Selection authorization is predicate-based, not a fuzzy confidence score. Event, market/context, exact numeric line, outcome, current origin, odds state, attempt freshness, and cancellation state are independently gated.
 
-The architecture has no pre-execution user-review, pair-selection, confirmation, or renderer-driven start gate. Legacy text uses deterministic recommendation index 0; structured `notifyhandler.direct-pair.v1` carries the authoritative two legs directly. Both converge on the same shared preflight and automatic two-leg startup. Preview/target rendering is non-blocking observability.
+The architecture has no pre-execution user-review, pair-selection, confirmation, or renderer-driven start gate. Legacy text uses deterministic recommendation index 0; structured v1/v2 carry the authoritative two legs directly. V1 is direct-bookmaker-only; v2 adds typed direct or `bet-up.it` relay navigation. All paths converge on the same execution/matching/activation contracts.
 
-See `docs/architecture.md`, `docs/adr/0001-local-desktop-playwright-runtime.md`, `docs/adr/0002-automatic-primary-option-startup.md`, and `docs/adr/0003-loopback-structured-direct-pair-ingress.md` for the accepted runtime, automatic-start, and structured-ingress decisions.
+See `docs/architecture.md` and ADR-0001 through ADR-0004 for the accepted runtime, automatic-start, structured-ingress, and relay-resolution decisions.
 
 ## Development
 
@@ -109,7 +109,8 @@ Repository documentation and specifications are authoritative. Start with:
 - `docs/architecture.md` — accepted runtime, component boundaries, automatic-start boundary, trust boundaries, and normative contract map;
 - `docs/adr/0001-local-desktop-playwright-runtime.md` — deployment/runtime architecture decision record;
 - `docs/adr/0002-automatic-primary-option-startup.md` — deterministic primary recommendation and automatic two-leg startup decision;
-- `docs/adr/0003-loopback-structured-direct-pair-ingress.md` — authenticated loopback structured ingress and direct-link-first trust decision;
+- `docs/adr/0003-loopback-structured-direct-pair-ingress.md` — authenticated loopback structured ingress and direct-bookmaker v1 trust decision;
+- `docs/adr/0004-betup-relay-resolution.md` — v2 typed navigation and restricted `bet-up.it` relay-resolution decision;
 - `docs/development.md` — reproducible local setup, CI, browser runtime, diagnostics, and release baseline;
 - `docs/release.md` — CI preview, unsigned alpha prerelease, production artifact policy, signing gates, checksums/SBOM/provenance, and rollback;
 - `docs/workflow.md` — end-to-end user/application workflow;
@@ -119,7 +120,8 @@ Repository documentation and specifications are authoritative. Start with:
 - `docs/bookmaker-support.md` — bookmaker rollout, live-support gates, current support status, and live blockers;
 - `docs/live-validation/` — sanitized evidence and live-validation runner documentation;
 - `specs/notification-format.md` — legacy textual input/normalization and primary-recommendation contract;
-- `specs/structured-ingestion-v1.md` — explicit two-leg structured payload, loopback HTTP, idempotency/freshness, and required direct links;
+- `specs/structured-ingestion-v1.md` — frozen direct-bookmaker explicit two-leg structured payload;
+- `specs/structured-ingestion-v2.md` — relay-aware typed navigation payload and resolver policy;
 - `specs/selection-target.md` — immutable target for one bookmaker leg;
 - `specs/execution-contract.md` — automatic start trigger, exact two-leg state machine, attempts, evidence epochs, and commands;
 - `specs/bookmaker-adapter-contract.md` — worker/adapter interface and restricted browser/selection capability boundary;

@@ -4,6 +4,8 @@ Status: **Accepted architecture contract for Milestone 6**
 
 This specification defines the first machine-to-machine structured notification protocol for NotifyHandler. It complements, and does not replace, the legacy textual notification format in `specs/notification-format.md`.
 
+**Compatibility note:** v1 is frozen as the direct-bookmaker-link contract. It does not accept relay origins such as `bet-up.it`. Relay-aware input uses `notifyhandler.direct-pair.v2` from `specs/structured-ingestion-v2.md`.
+
 The protocol is intentionally narrow: one message describes one explicit two-leg surebet pair and provides one direct bookmaker match-page link for each leg.
 
 ## 1. Protocol identifier
@@ -429,3 +431,15 @@ Application/Security/QA should cover at least:
 - manual login resume revalidates the direct-link target;
 - changed odds, cancellation, stale events, and activation-gate regressions remain unchanged;
 - no credentials, MFA/CAPTCHA, stake, wager-submit, private-API, or bypass capability is introduced.
+
+
+## 17. V1 freeze and v2 migration
+
+V1 keeps its original meaning:
+
+- each `deepLink` is a direct bookmaker navigation candidate;
+- the initial URL itself must satisfy that bookmaker adapter's approved-origin policy;
+- v1 does not follow or resolve `bet-up.it` or another relay/shortener origin;
+- v1 failure is never reinterpreted as v2.
+
+Producers that emit relay links must send `notifyhandler.direct-pair.v2` with a typed `betup-relay` navigation candidate.

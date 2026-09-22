@@ -1,10 +1,10 @@
 # NotifyHandler architecture
 
-Status: **Accepted baseline for Milestone 1, amended by ARCH-003 and ARCH-004**
+Status: **Accepted baseline for Milestone 1, amended by ARCH-003, ARCH-004, and ARCH-005**
 
 NotifyHandler is a local-first desktop application that receives either a legacy textual surebet notification or a versioned structured direct-pair notification, normalizes it into exactly two bookmaker-agnostic targets, and starts two independently prepared bookmaker legs as soon as deterministic validation and navigation-safety checks pass. Authentication, changed-odds acknowledgement where required, stake entry, review, and final bet submission remain manual boundaries.
 
-The runtime decision is recorded in `docs/adr/0001-local-desktop-playwright-runtime.md`. Automatic-start semantics are recorded in `docs/adr/0002-automatic-primary-option-startup.md`. The loopback structured-ingress and direct-link-first trust decision is recorded in `docs/adr/0003-loopback-structured-direct-pair-ingress.md`. Shared execution contracts are defined by ARCH-002 and amended by ARCH-003/ARCH-004.
+The runtime decision is recorded in `docs/adr/0001-local-desktop-playwright-runtime.md`. Automatic-start semantics are recorded in `docs/adr/0002-automatic-primary-option-startup.md`. The loopback structured-ingress/direct-bookmaker-link decision is recorded in `docs/adr/0003-loopback-structured-direct-pair-ingress.md`. Relay-aware typed navigation and restricted `bet-up.it` resolution are recorded in `docs/adr/0004-betup-relay-resolution.md`. Shared execution contracts are defined by ARCH-002 and amended by ARCH-003/ARCH-004/ARCH-005.
 
 ## 1. Runtime model
 
@@ -13,7 +13,7 @@ NotifyHandler uses:
 - transport adapters for legacy text/manual input and authenticated loopback structured ingestion;
 - an unprivileged desktop renderer for notification input/observability, execution status, recovery actions, and manual handoff;
 - a trusted local core/main process for transport handoff, domain integration, automatic primary-option resolution, execution-plan construction, automatic two-leg orchestration, state, and typed IPC;
-- a separate browser-automation worker containing the adapter registry, matching policy, navigation policy, and browser gateway;
+- a separate browser-automation worker containing the adapter registry, typed navigation resolver, matching policy, navigation policy, and browser gateway;
 - Playwright controlling dedicated visible/headed Chromium processes for bookmaker navigation and selection preparation;
 - isolated, application-owned browser/session state per leg for the MVP.
 
@@ -68,7 +68,8 @@ Bookmaker-specific DOM knowledge exists only in bookmaker adapters and their fix
 Downstream implementation must use these shared contracts:
 
 - `specs/notification-format.md` — legacy textual normalization, source-order preservation, and primary recommendation semantics;
-- `specs/structured-ingestion-v1.md` — versioned explicit two-leg payload, loopback HTTP trust boundary, idempotency/freshness, and direct-link-first rules;
+- `specs/structured-ingestion-v1.md` — frozen direct-bookmaker structured payload and loopback trust rules;
+- `specs/structured-ingestion-v2.md` — typed direct/`bet-up.it` relay navigation candidates and restricted relay resolution;
 - `specs/selection-target.md` — immutable bookmaker-agnostic identity target for one leg;
 - `specs/execution-contract.md` — automatic plan/start trigger, exact two-leg runtime model, states, attempts, evidence epochs, commands, and derived plan status;
 - `specs/bookmaker-adapter-contract.md` — core/worker/adapter interface and restricted browser/selection capability boundary;
@@ -81,72 +82,79 @@ If implementation behavior conflicts with these contracts, implementation must c
 
 ## 4. Ingestion-to-execution boundary
 
-The core owns the transition from any accepted notification transport to one immutable two-leg execution plan.
+The core owns the transition from accepted notification input to one immutable two-leg execution plan.
 
-Two input contracts are supported:
+Three compatible source contracts are supported:
 
 ### 4.1 Legacy textual notification
 
-1. a transport delivers text to the parser/domain boundary;
-2. parsing and deterministic validation begin immediately;
-3. `recommendedOptions` source order is preserved;
-4. recommendation index `0` is the authoritative primary recommendation;
-5. that recommendation must resolve to exactly two valid `SelectionTarget` values for distinct canonical bookmakers;
-6. existing adapter-availability and navigation-candidate preflight runs;
-7. the core creates one immutable `ExecutionPlan` and starts both legs automatically.
-
-An invalid primary recommendation fails safely. The core does not ask the user to choose another recommendation and does not fall through to index 1+.
+Legacy text preserves `recommendedOptions` source order and uses recommendation index `0` as the authoritative primary. It must resolve to exactly two distinct valid targets and never falls through to a later recommendation.
 
 ### 4.2 Structured direct-pair v1
 
-The machine-to-machine contract is `notifyhandler.direct-pair.v1` from `specs/structured-ingestion-v1.md`.
+`notifyhandler.direct-pair.v1` remains supported and frozen for producers that can supply a direct bookmaker-origin match URL per leg.
 
-For this version:
+V1 keeps the ARCH-004 rules:
 
-1. the request is accepted only through the authenticated, bounded loopback ingress policy;
-2. schema, freshness, idempotency, exact-two-leg, distinct-bookmaker, market, odds, and URL requirements are validated before execution creation;
-3. the explicit two legs are authoritative; there is no `recommendedOptions` chooser or fallback;
-4. each required direct match link is treated as untrusted navigation input and must pass application preflight;
-5. structured normalization produces exactly two immutable `SelectionTarget` values;
-6. the core creates the same `ExecutionPlan` type used by the legacy path;
-7. both legs start automatically, preferably concurrently.
+- authenticated/bounded loopback ingress;
+- exactly two explicit distinct bookmaker legs;
+- direct link required for each leg;
+- initial URL itself must satisfy that bookmaker adapter's approved-origin policy;
+- no generic-discovery fallback when the v1 direct link fails.
 
-The structured transport is not allowed to call bookmaker adapters directly. Both ingestion modes converge before the worker/adapter boundary.
+V1 is not widened to accept `bet-up.it`.
 
-### 4.3 Loopback HTTP boundary
+### 4.3 Structured direct-pair v2
 
-The first structured transport is a local HTTP endpoint, conceptually:
+`notifyhandler.direct-pair.v2` preserves the explicit two-leg payload but replaces the untyped leg `deepLink` with a typed navigation candidate:
 
-```text
-POST /api/v1/notifications/direct-pair
+- `bookmaker-direct`;
+- `betup-relay`.
+
+The application validates v2 schema, freshness/idempotency, pair semantics, navigation kind, relay grammar, relay suffix/bookmaker binding, and—when both legs are relays—the shared relay signal UUID. It does not follow the relay.
+
+Both v1 and v2 normalize into the same immutable `SelectionTarget` / `ExecutionPlan` runtime. No second orchestration path exists.
+
+### 4.4 Loopback HTTP boundary
+
+The existing authenticated loopback endpoint remains the machine-to-machine ingress boundary. `schemaVersion` selects the validator deterministically.
+
+ARCH-004 request-size, Host/Origin, local bearer token, replay/idempotency, rate/concurrency, logging/privacy, and loopback-only binding requirements remain unchanged.
+
+A failed v2 message is not reinterpreted as v1.
+
+### 4.5 Typed navigation normalization
+
+The core normalizes navigation intent before worker dispatch:
+
+```ts
+type NavigationTarget =
+  | { kind: "BOOKMAKER_DIRECT"; url: HttpsUrl }
+  | {
+      kind: "BETUP_RELAY";
+      url: HttpsUrl;
+      signalId: string;
+      bookmaker: BookmakerId;
+    };
 ```
 
-Architecture requirements:
+This typed value is immutable execution intent. The worker must not infer relay behavior from string heuristics alone.
 
-- bind to `127.0.0.1` by default; `::1` requires an explicit local listener/configuration;
-- never bind LAN/Internet interfaces by default;
-- require an unguessable local bearer capability of at least 256 bits;
-- keep the token outside renderer state, URLs, payloads, logs, and bookmaker/browser credentials;
-- require JSON and cap request bodies at 64 KiB;
-- reject unexpected browser `Origin` requests and validate the configured loopback `Host`;
-- require bounded freshness and idempotency before execution creation;
-- bound request concurrency/rate so ingress cannot create an unbounded number of browser starts;
-- return sanitized HTTP error/result metadata only.
+### 4.6 Bet-up relay preflight
 
-Remote/public webhook exposure, tunnels, reverse proxies, or Internet relays require a separate architecture/security decision.
+For `BETUP_RELAY`, application preflight accepts only:
 
-### 4.4 Idempotency and replay
+- exact origin `https://www.bet-up.it`;
+- no userinfo/query/fragment;
+- exact `/lnk/<uuid>/<bookmaker-suffix>` path grammar;
+- version-controlled suffix mapping equal to the leg's canonical bookmaker;
+- supported adapter availability for that bookmaker.
 
-`notificationId` is the structured-v1 idempotency key and `sentAt` is required freshness evidence.
+The relay signal UUID is correlation/provenance only and never selection evidence.
 
-Default semantics:
+When both legs are relay candidates, their signal UUIDs must agree.
 
-- accept timestamps at most 5 minutes old and at most 60 seconds in the future;
-- same id + same normalized payload hash returns the existing execution reference and never starts another plan;
-- same id + different payload hash is a conflict;
-- retain only a bounded id/hash/execution association, not the full raw notification, for the required duplicate-suppression horizon.
-
-The renderer may observe parsed/plan/status updates, but renderer completion or acknowledgement is never a prerequisite for startup.
+The renderer may observe plan/status updates, but no renderer acknowledgement is required before automatic startup.
 
 ## 5. Renderer boundary
 
@@ -222,7 +230,8 @@ The worker owns:
 
 - browser launch/cleanup;
 - isolated leg sessions;
-- allowed-origin/deep-link/redirect validation;
+- typed direct/relay navigation resolution;
+- allowed-origin/DNS/private-target/redirect validation;
 - page readiness;
 - manual-login interruption coordination;
 - adapter execution;
@@ -234,6 +243,8 @@ The worker owns:
 Adapters do not receive the Electron renderer, application privilege surface, credential stores, password manager access, or raw application filesystem authority.
 
 Adapters should receive a restricted bookmaker-page abstraction rather than raw Playwright `Browser`, `BrowserContext`, or `Page` objects as their public dependency.
+
+Relay resolution is a shared worker/browser-gateway responsibility before bookmaker adapter matching. Bookmaker adapters do not implement `bet-up.it` parsing or redirect policy.
 
 The worker-level `start(...)` operation remains valid, but it is invoked by the core automatically after plan preflight. It is not a renderer/user approval operation.
 
@@ -325,27 +336,42 @@ Adding a transaction capability is an architecture-breaking change and release b
 
 ## 15. Navigation and trust boundaries
 
-Notification content, structured payload fields, deep links, and bookmaker page content are untrusted.
+Notification content, structured payload fields, navigation URLs, relay responses, redirects, and bookmaker page content are untrusted.
 
-Before accepting a notification-derived bookmaker navigation:
+### 15.1 Direct bookmaker navigation
 
-- URL must parse successfully;
-- scheme must be exactly `https:`;
-- username/password components must be empty;
-- origin must exactly match an origin registered for the selected adapter;
-- literal or resolved loopback/link-local/private/internal destinations are rejected;
-- unsafe schemes, local files, browser-internal/custom executable schemes, and unrelated domains are blocked;
-- notification-controlled strings are never used as shell commands or arbitrary browser-evaluation source.
+Legacy/v1 and v2 `BOOKMAKER_DIRECT` navigation keep the existing fail-closed rules: HTTPS only, empty URL userinfo, exact adapter-approved origin, DNS/private-target checks, redirect/final-origin revalidation, and no silent generic-discovery substitution for authoritative structured input.
 
-Structured-v1 direct match links are validated twice: during core preflight and again by the browser/worker gateway immediately before navigation.
+### 15.2 Bet-up relay navigation
 
-A direct match link is only a navigation/latency hint. It never proves event, competition/time context, market/context, line, outcome, or odds. Those dimensions must still be independently matched in the current evidence epoch.
+For v2 `BETUP_RELAY`:
 
-Redirects and final locations do not inherit trust from the starting URL. Cross-origin/final-origin changes must pass the adapter's exact allowlist, and any navigation that can stale identity evidence advances the evidence epoch before later activation.
+1. application preflight validates exact relay origin/path/suffix binding but does not follow the URL;
+2. the worker/browser gateway revalidates the candidate and its resolved addresses immediately before navigation;
+3. the exact relay origin is `https://www.bet-up.it`;
+4. the only authorized cross-origin transition during relay resolution is directly from that relay origin to an origin already registered for the leg's expected bookmaker adapter;
+5. an affiliate, tracker, shortener, unrelated identity provider, or other intermediary origin is rejected unless a later reviewed architecture explicitly adds it;
+6. the expected-bookmaker target is DNS/private-target validated before navigation;
+7. upon reaching the expected bookmaker origin, relay resolution ends and normal adapter navigation/matching policy begins;
+8. every later top-level navigation remains subject to adapter origin policy and evidence invalidation.
 
-For structured v1, an unsafe, stale, wrong-event, blocked, or insufficient direct link produces safe failure. The worker must not silently fall back to generic homepage/competition discovery. Legacy textual input remains governed by its existing adapter navigation behavior.
+A client-side/meta/script-driven top-level transition is not automatically trusted; the actual next top-level request must satisfy the same destination policy.
 
-The renderer never renders untrusted bookmaker HTML.
+A relay challenge/login/CAPTCHA on `bet-up.it` is a safe relay-resolution failure, not `AUTH_REQUIRED`. Manual `AUTH_REQUIRED` begins only after a valid expected-bookmaker origin has been reached.
+
+### 15.3 Evidence boundary
+
+Successful relay resolution proves only that navigation reached an approved origin for the expected bookmaker. It proves nothing about event, competition/time, market, line, outcome, or odds.
+
+Matching begins in a fresh evidence epoch after bookmaker arrival. Relay URL, UUID, suffix, hop result, and redirect destination cannot be positive `MatchingEvidenceSnapshot` dimensions and cannot authorize `SelectionActivationGate`.
+
+### 15.4 Retry and persistence
+
+Retry/reopen re-resolves the immutable navigation candidate from the beginning. A previously resolved bookmaker URL is not cached as trusted target input.
+
+Diagnostics may record navigation kind, relay origin, bookmaker id/suffix, hop count, failure code, timings, sanitized final origin/path category, and a hashed/truncated signal identifier. Full relay URLs and signal UUIDs are not logged/persisted by default.
+
+The renderer never renders untrusted bookmaker or relay HTML.
 
 ## 16. Persistence and diagnostics
 
@@ -383,18 +409,19 @@ Exact package manager, Electron/Node/Playwright versions, bundler, installer/sig
 
 ## 19. Architecture completion state
 
-ARCH-001 through ARCH-004 now establish the current runtime and shared contracts:
+ARCH-001 through ARCH-005 now establish the current runtime and shared contracts:
 
 - ARCH-001 — local desktop + headed Playwright runtime;
 - ARCH-002 — execution/adapter/matching/error contracts;
 - ARCH-003 — deterministic automatic startup;
-- ARCH-004 — versioned structured direct-pair ingestion, authenticated loopback HTTP boundary, idempotency/freshness, and direct-link-first trust semantics.
+- ARCH-004 — versioned structured direct-pair ingestion, authenticated loopback HTTP boundary, idempotency/freshness, and direct-bookmaker trust semantics;
+- ARCH-005 — `direct-pair.v2`, typed navigation candidates, and restricted `bet-up.it` relay resolution.
 
 Downstream responsibilities are now explicit:
 
-- **Application Engineer / APP-005:** implement the loopback transport and `notifyhandler.direct-pair.v1` validator, local bearer lifecycle, bounds/freshness/idempotency, and convergence into the existing automatic two-leg orchestration;
-- **Bookmaker Automation Engineer / BOOK-016:** treat the immutable validated direct match link as the first navigation candidate, revalidate it at the browser boundary, and independently re-establish all identity/odds evidence without generic-discovery fallback for structured v1;
-- **Security & Compliance Engineer / SEC-002:** review listener binding, token lifecycle, Host/Origin policy, replay/idempotency, URL/DNS/redirect defenses, and ingress logging/privacy;
+- **Application Engineer:** add v2 payload/typed-navigation validation while preserving v1 semantics and the existing hardened loopback transport;
+- **Bookmaker Automation Engineer / BOOK-016:** add/use the shared restricted relay resolver, then collect evidence only after expected-bookmaker arrival and independently re-establish all identity/odds evidence;
+- **Security & Compliance Engineer:** review relay DNS/request interception, direct-transition enforcement, challenge behavior, redirect/final-origin checks, and diagnostics/privacy;
 - **QA / Integration Engineer:** prove legacy and structured inputs converge on the same state/matching/transaction contracts and that rejected ingress produces zero browser navigation.
 
 QA-002 remains blocked until two bookmakers reach narrowly scoped evidence-backed live `Supported` status. Production release remains blocked behind that qualification.
