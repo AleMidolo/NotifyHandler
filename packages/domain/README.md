@@ -6,7 +6,7 @@ Transport-neutral surebet notification parsing, normalization, validation, recom
 
 This package owns no browser or bookmaker DOM behavior. It has no runtime dependencies and deliberately has no APIs for credentials, MFA/CAPTCHA, stake entry, or bet submission.
 
-The initial implemented market taxonomy is intentionally narrow: football total corners over/under (`U/O CORNER(S)`, `OVER/UNDER CORNER(S)`, or `TOTAL CORNER(S)`) with an explicit positive line. Unsupported markets fail with a typed error rather than being guessed.
+The initial implemented market taxonomy is intentionally narrow: football full-match total corners over/under (`U/O CORNER(S)`, `OVER/UNDER CORNER(S)`, or `TOTAL CORNER(S)`) with an explicit positive line. The supported bare legacy grammar normalizes to canonical `period: "full_match"` by protocol definition. Explicit first-half, second-half, or other-period legacy syntax is rejected rather than collapsed into the full-match target. Unsupported markets fail with a typed error rather than being guessed.
 
 Supported bookmaker names are explicit aliases for SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRALBET. Unknown names are preserved as unsupported offers but cannot resolve into an executable recommendation.
 
