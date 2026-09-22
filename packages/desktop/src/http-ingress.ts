@@ -177,8 +177,8 @@ function currentWindowsUserSid(): string {
 /**
  * Applies user-only permissions to the local ingress capability.
  *
- * POSIX uses mode 0600. Windows removes inherited ACLs and grants full access
- * only to the current user SID. Failure is fatal so a packaged Windows build
+ * POSIX uses mode 0600. Windows resets explicit ACLs, removes inheritance, and
+ * grants full access only to the current user SID. Failure is fatal so a packaged Windows build
  * never silently falls back to a broadly readable bearer-token file.
  */
 export function hardenLocalIngressTokenPermissions(filePath: string): void {
@@ -188,52 +188,25 @@ export function hardenLocalIngressTokenPermissions(filePath: string): void {
   }
 
   const sid = currentWindowsUserSid();
-  const script = [
-    "$ErrorActionPreference = 'Stop'",
-    "$stage = 'INIT'",
-    "try {",
-    "  $path = $env:NOTIFYHANDLER_ACL_PATH",
-    "  $expectedSid = $env:NOTIFYHANDLER_ACL_SID",
-    "  $stage = 'READ_ACL'",
-    "  $acl = Get-Acl -LiteralPath $path",
-    "  $stage = 'REPLACE_DACL'",
-    "  $sddl = 'D:P(A;;FA;;;' + $expectedSid + ')'",
-    "  $acl.SetSecurityDescriptorSddlForm($sddl, [System.Security.AccessControl.AccessControlSections]::Access)",
-    "  $stage = 'APPLY_ACL'",
-    "  Set-Acl -LiteralPath $path -AclObject $acl",
-    "  $stage = 'VERIFY_ACL'",
-    "  $verify = Get-Acl -LiteralPath $path",
-    "  $rules = @($verify.Access)",
-    "  if ($rules.Count -ne 1) { throw 'unexpected access-rule count' }",
-    "  $actualSid = $rules[0].IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value",
-    "  if ($actualSid -ne $expectedSid) { throw 'unexpected access principal' }",
-    "  if ($rules[0].AccessControlType -ne [System.Security.AccessControl.AccessControlType]::Allow) { throw 'unexpected access type' }",
-    "  if ($rules[0].IsInherited) { throw 'access rule remained inherited' }",
-    "  if (($rules[0].FileSystemRights -band [System.Security.AccessControl.FileSystemRights]::FullControl) -ne [System.Security.AccessControl.FileSystemRights]::FullControl) { throw 'insufficient access rights' }",
-    "} catch {",
-    "  Write-Output ('NOTIFYHANDLER_ACL_STAGE=' + $stage)",
-    "  exit 1",
-    "}",
-  ].join("\n");
 
-  const result = spawnSync(
-    "powershell.exe",
-    ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script],
-    {
-      encoding: "utf8",
-      windowsHide: true,
-      shell: false,
-      env: {
-        ...process.env,
-        NOTIFYHANDLER_ACL_PATH: filePath,
-        NOTIFYHANDLER_ACL_SID: sid,
-      },
-    },
-  );
-  if (result.error !== undefined || result.status !== 0) {
-    const stage = /NOTIFYHANDLER_ACL_STAGE=([A-Z_]+)/u.exec(result.stdout)?.[1] ?? "PROCESS";
-    throw new Error(`Could not establish and verify a current-user-only Windows ACL for the local ingress token (stage ${stage}).`);
-  }
+  const runIcacls = (stage: string, args: readonly string[]): void => {
+    const result = spawnSync(
+      "icacls",
+      [filePath, ...args],
+      { encoding: "utf8", windowsHide: true, shell: false },
+    );
+    if (result.error !== undefined || result.status !== 0) {
+      throw new Error(`Could not establish and verify a current-user-only Windows ACL for the local ingress token (stage ${stage}).`);
+    }
+  };
+
+  // Reset removes every pre-existing explicit ACE (including a malicious
+  // Everyone grant), then inheritance is removed before the single current-user
+  // rule is installed. /verify checks the resulting ACL is structurally valid.
+  runIcacls("RESET_DACL", ["/reset"]);
+  runIcacls("REMOVE_INHERITANCE", ["/inheritance:r"]);
+  runIcacls("GRANT_CURRENT_USER", ["/grant:r", `*${sid}:F`]);
+  runIcacls("VERIFY_DACL", ["/verify"]);
 }
 
 function generateLocalIngressToken(): string {
