@@ -175,6 +175,9 @@ test("unexpected third-party relay intermediary is blocked before matching", asy
     assert.equal(last.state, "FAILED_SAFE");
     assert.equal(last.failure?.code, "RELAY_INTERMEDIARY_BLOCKED");
     assert.equal(last.failure?.activation, "NOT_ATTEMPTED");
+    const diagnostic = JSON.stringify(last);
+    assert.equal(diagnostic.includes(SIGNAL_ID), false);
+    assert.equal(diagnostic.includes(relayUrl("sisal")), false);
   } finally {
     await worker.closeAll();
   }
@@ -233,6 +236,40 @@ test("relay-origin challenge is a relay safe failure, not AUTH_REQUIRED", async 
     const last = terminal(await events(worker.start(request("sisal"))));
     assert.equal(last.state, "FAILED_SAFE");
     assert.equal(last.failure?.code, "RELAY_CHALLENGE_UNSUPPORTED");
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("relay page private-network subresource is blocked and fails the relay attempt", async () => {
+  let privateLookups = 0;
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relayUrl("sisal")]: {
+          kind: "html",
+          body: '<!doctype html><html><body><img src="https://relay-private.example/probe"><div>relay</div></body></html>',
+        },
+      },
+    },
+    resolveHostname: async (hostname) => {
+      if (hostname === "relay-private.example") {
+        privateLookups += 1;
+        return ["10.20.30.40"];
+      }
+      return ["93.184.216.34"];
+    },
+    relayResolutionTimeoutMs: 75,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_NETWORK_TARGET_BLOCKED");
+    assert.equal(last.failure?.activation, "NOT_ATTEMPTED");
+    assert.ok(privateLookups >= 1, "relay subresource hostname must be resolved through the private-target policy");
+    const diagnostic = JSON.stringify(last);
+    assert.equal(diagnostic.includes("relay-private.example"), false);
+    assert.equal(diagnostic.includes(SIGNAL_ID), false);
   } finally {
     await worker.closeAll();
   }
