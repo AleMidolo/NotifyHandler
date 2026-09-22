@@ -526,3 +526,128 @@ test("Windows token hardening removes unrelated explicit ACEs", { skip: process.
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+
+function payloadV2Direct(notificationId = "surebet-http-v2-direct-001") {
+  return {
+    schemaVersion: "notifyhandler.direct-pair.v2",
+    notificationId,
+    sentAt: "2026-09-21T13:00:00.000Z",
+    event: {
+      participantA: "Real Madrid",
+      participantB: "Rayo Vallecano",
+      competition: "La Liga",
+      scheduledAt: "2026-09-21T19:00:00+02:00",
+    },
+    market: {
+      family: "total",
+      context: "corners",
+      period: "full_match",
+      line: "11.5",
+      sourceLabel: "U/O CORNER 11.5",
+    },
+    legs: [
+      {
+        bookmaker: "sisal",
+        outcome: "over",
+        expectedOdds: "2.90",
+        navigation: {
+          kind: "bookmaker-direct",
+          url: "https://www.sisal.it/scommesse-matchpoint/sport/calcio/event/real-rayo",
+        },
+      },
+      {
+        bookmaker: "bet365",
+        outcome: "under",
+        expectedOdds: "1.61",
+        navigation: {
+          kind: "bookmaker-direct",
+          url: "https://www.bet365.it/#/AC/B1/C1/D100/Efixture/",
+        },
+      },
+    ],
+  };
+}
+
+function payloadV2Relay(notificationId = "surebet-http-v2-relay-001") {
+  const value = payloadV2Direct(notificationId);
+  const signal = "11111111-2222-4333-8444-555555555555";
+  value.legs[0].navigation = {
+    kind: "betup-relay",
+    url: "https://www.bet-up.it/lnk/" + signal + "/sisal",
+  };
+  value.legs[1].navigation = {
+    kind: "betup-relay",
+    url: "https://www.bet-up.it/lnk/" + signal + "/bet365",
+  };
+  return value;
+}
+
+test("HTTP ingress accepts v2 typed direct candidates through the existing automatic path", async () => {
+  const { worker, controller, server } = await fixture();
+  try {
+    const response = await post(server, JSON.stringify(payloadV2Direct()));
+    assert.equal(response.status, 202);
+    const body = await response.json() as Record<string, unknown>;
+    assert.equal(body.accepted, true);
+    assert.equal(worker.starts.length, 2);
+    assert.deepEqual(worker.starts.map((request) => request.target.navigation?.kind), [
+      "BOOKMAKER_DIRECT",
+      "BOOKMAKER_DIRECT",
+    ]);
+    assert.equal(worker.starts[0]?.target.deepLink, undefined);
+    assert.equal(worker.starts[1]?.target.deepLink, undefined);
+  } finally {
+    await server.close();
+    await controller.close();
+  }
+});
+
+test("HTTP ingress accepts relay schema but fails closed before worker start until BOOK-017 resolver is installed", async () => {
+  const { worker, controller, server } = await fixture();
+  try {
+    const response = await post(server, JSON.stringify(payloadV2Relay()));
+    assert.equal(response.status, 422);
+    const body = await response.json() as { error?: { code?: unknown } };
+    assert.equal(body.error?.code, "UNSAFE_OR_UNSUPPORTED_URL");
+    assert.equal(worker.starts.length, 0);
+  } finally {
+    await server.close();
+    await controller.close();
+  }
+});
+
+test("idempotency namespace is shared across v1 and v2 schema versions", async () => {
+  const { worker, controller, server } = await fixture();
+  try {
+    const first = payload();
+    first.notificationId = "cross-schema-id";
+    const accepted = await post(server, JSON.stringify(first));
+    assert.equal(accepted.status, 202);
+    assert.equal(worker.starts.length, 2);
+
+    const v2 = payloadV2Direct("cross-schema-id");
+    const conflict = await post(server, JSON.stringify(v2));
+    assert.equal(conflict.status, 409);
+    const body = await conflict.json() as { error?: { code?: unknown } };
+    assert.equal(body.error?.code, "IDEMPOTENCY_CONFLICT");
+    assert.equal(worker.starts.length, 2);
+  } finally {
+    await server.close();
+    await controller.close();
+  }
+});
+
+test("malformed v2 relay fails before worker start and never falls back to v1", async () => {
+  const { worker, controller, server } = await fixture();
+  try {
+    const value = payloadV2Relay("bad-v2-relay");
+    value.legs[0].navigation.url += "?unexpected=1";
+    const response = await post(server, JSON.stringify(value));
+    assert.equal(response.status, 422);
+    assert.equal(worker.starts.length, 0);
+  } finally {
+    await server.close();
+    await controller.close();
+  }
+});

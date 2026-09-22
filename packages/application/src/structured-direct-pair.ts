@@ -3,9 +3,11 @@ import type {
   ExecutionPlan,
   OutcomeSide,
   SelectionTarget,
+  NavigationTarget,
 } from "../../domain/src/index.ts";
 
 export const DIRECT_PAIR_SCHEMA_VERSION = "notifyhandler.direct-pair.v1" as const;
+export const DIRECT_PAIR_SCHEMA_VERSION_V2 = "notifyhandler.direct-pair.v2" as const;
 
 export interface DirectPairLegV1 {
   readonly bookmaker: BookmakerId;
@@ -56,6 +58,49 @@ export interface CanonicalDirectPairV1 {
   readonly legs: readonly [DirectPairLegV1, DirectPairLegV1];
 }
 
+export type DirectPairNavigationV2 =
+  | Readonly<{ kind: "bookmaker-direct"; url: string }>
+  | Readonly<{ kind: "betup-relay"; url: string }>;
+
+export interface DirectPairLegV2 {
+  readonly bookmaker: BookmakerId;
+  readonly outcome: OutcomeSide;
+  readonly expectedOdds: string;
+  readonly navigation: DirectPairNavigationV2;
+}
+
+export interface DirectPairNotificationV2 {
+  readonly schemaVersion: typeof DIRECT_PAIR_SCHEMA_VERSION_V2;
+  readonly notificationId: string;
+  readonly sentAt: string;
+  readonly event: DirectPairNotificationV1["event"];
+  readonly market: DirectPairNotificationV1["market"];
+  readonly legs: readonly [DirectPairLegV2, DirectPairLegV2];
+}
+
+export interface CanonicalDirectPairLegV2 {
+  readonly bookmaker: BookmakerId;
+  readonly outcome: OutcomeSide;
+  readonly expectedOdds: string;
+  readonly navigation:
+    | Readonly<{ kind: "bookmaker-direct"; url: string }>
+    | Readonly<{
+        kind: "betup-relay";
+        url: string;
+        signalId: string;
+        bookmaker: BookmakerId;
+      }>;
+}
+
+export interface CanonicalDirectPairV2 {
+  readonly schemaVersion: typeof DIRECT_PAIR_SCHEMA_VERSION_V2;
+  readonly notificationId: string;
+  readonly sentAt: string;
+  readonly event: CanonicalDirectPairV1["event"];
+  readonly market: CanonicalDirectPairV1["market"];
+  readonly legs: readonly [CanonicalDirectPairLegV2, CanonicalDirectPairLegV2];
+}
+
 export type DirectPairValidationCode =
   | "INVALID_SCHEMA"
   | "UNSUPPORTED_SCHEMA_VERSION"
@@ -70,6 +115,11 @@ export type DirectPairValidationCode =
   | "INVALID_OUTCOME"
   | "INVALID_ODDS"
   | "INVALID_DEEP_LINK"
+  | "INVALID_NAVIGATION"
+  | "INVALID_RELAY_URL"
+  | "UNKNOWN_RELAY_SUFFIX"
+  | "RELAY_BOOKMAKER_MISMATCH"
+  | "RELAY_SIGNAL_MISMATCH"
   | "DUPLICATE_BOOKMAKER";
 
 export interface DirectPairValidationIssue {
@@ -88,6 +138,28 @@ export type DirectPairNormalizationResult =
     }
   | { readonly ok: false; readonly errors: readonly DirectPairValidationIssue[] };
 
+export type DirectPairNormalizationResultV2 =
+  | {
+      readonly ok: true;
+      readonly value: Readonly<{
+        canonical: CanonicalDirectPairV2;
+        plan: ExecutionPlan;
+      }>;
+    }
+  | { readonly ok: false; readonly errors: readonly DirectPairValidationIssue[] };
+
+export type StructuredDirectPairCanonical = CanonicalDirectPairV1 | CanonicalDirectPairV2;
+
+export type StructuredDirectPairNormalizationResult =
+  | {
+      readonly ok: true;
+      readonly value: Readonly<{
+        canonical: StructuredDirectPairCanonical;
+        plan: ExecutionPlan;
+      }>;
+    }
+  | { readonly ok: false; readonly errors: readonly DirectPairValidationIssue[] };
+
 export interface DirectPairNormalizationOptions {
   readonly now?: () => Date;
   readonly maxAgeMs?: number;
@@ -99,6 +171,23 @@ const TOP_LEVEL_KEYS = ["schemaVersion", "notificationId", "sentAt", "event", "m
 const EVENT_KEYS = ["participantA", "participantB", "competition", "scheduledAt", "sourceDisplay"] as const;
 const MARKET_KEYS = ["family", "context", "period", "line", "sourceLabel"] as const;
 const LEG_KEYS = ["bookmaker", "outcome", "expectedOdds", "deepLink"] as const;
+const LEG_V2_KEYS = ["bookmaker", "outcome", "expectedOdds", "navigation"] as const;
+const NAVIGATION_KEYS = ["kind", "url"] as const;
+
+const EXECUTABLE_BOOKMAKERS = new Set<BookmakerId>(["sisal", "bet365"]);
+const BOOKMAKER_DIRECT_ORIGINS: Readonly<Partial<Record<BookmakerId, string>>> = Object.freeze({
+  sisal: "https://www.sisal.it",
+  bet365: "https://www.bet365.it",
+});
+export const BETUP_RELAY_SUFFIX_REGISTRY: Readonly<Record<string, BookmakerId>> = Object.freeze({
+  bet365: "bet365",
+  sisal: "sisal",
+  lottomatica: "lottomatica",
+  eplay24: "eplay24",
+  admiralbet: "admiralbet",
+});
+const BETUP_RELAY_ORIGIN = "https://www.bet-up.it";
+const BETUP_RELAY_PATH = /^\/lnk\/([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})\/([a-z0-9]+)$/u;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -417,7 +506,7 @@ export function normalizeDirectPairNotificationV1(
     market: {
       family: "total",
       context: "corners",
-      period: canonicalMarket.period,
+      period: "full_match",
       line,
       sourceLabel: marketLabel,
     },
@@ -451,4 +540,262 @@ export function normalizeDirectPairNotificationV1(
   };
 
   return { ok: true, value: { canonical, plan } };
+}
+
+
+function directNavigationForV2(
+  value: unknown,
+  bookmaker: BookmakerId,
+  field: string,
+  errors: DirectPairValidationIssue[],
+): CanonicalDirectPairLegV2["navigation"] | null {
+  if (!isRecord(value) || !hasOnlyKeys(value, NAVIGATION_KEYS) || typeof value.kind !== "string") {
+    errors.push(issue("INVALID_NAVIGATION", field, "navigation must be a strict typed object."));
+    return null;
+  }
+
+  if (value.kind === "bookmaker-direct") {
+    const urlText = normalizeDeepLink(value.url);
+    if (urlText === null) {
+      errors.push(issue("INVALID_NAVIGATION", field + ".url", "Direct navigation must be a bounded HTTPS URL without userinfo or local/private literal host."));
+      return null;
+    }
+    const expectedOrigin = BOOKMAKER_DIRECT_ORIGINS[bookmaker];
+    let parsed: URL;
+    try { parsed = new URL(urlText); }
+    catch {
+      errors.push(issue("INVALID_NAVIGATION", field + ".url", "Direct navigation URL is malformed."));
+      return null;
+    }
+    if (expectedOrigin === undefined || parsed.origin !== expectedOrigin) {
+      errors.push(issue("INVALID_NAVIGATION", field + ".url", "Direct navigation origin does not match the selected bookmaker."));
+      return null;
+    }
+    return { kind: "bookmaker-direct", url: parsed.href };
+  }
+
+  if (value.kind === "betup-relay") {
+    const raw = boundedString(value.url, 4096);
+    if (raw === null) {
+      errors.push(issue("INVALID_RELAY_URL", field + ".url", "Relay URL must be a bounded HTTPS URL."));
+      return null;
+    }
+    let parsed: URL;
+    try { parsed = new URL(raw); }
+    catch {
+      errors.push(issue("INVALID_RELAY_URL", field + ".url", "Relay URL is malformed."));
+      return null;
+    }
+    if (
+      parsed.protocol !== "https:"
+      || parsed.origin !== BETUP_RELAY_ORIGIN
+      || parsed.username !== ""
+      || parsed.password !== ""
+      || parsed.search !== ""
+      || parsed.hash !== ""
+      || forbiddenLiteralHost(parsed.hostname)
+    ) {
+      errors.push(issue("INVALID_RELAY_URL", field + ".url", "Relay navigation must use the exact bet-up HTTPS origin without userinfo, query, fragment, or local/private literal host."));
+      return null;
+    }
+    const match = parsed.pathname.match(BETUP_RELAY_PATH);
+    if (match === null || match[1] === undefined || match[2] === undefined) {
+      errors.push(issue("INVALID_RELAY_URL", field + ".url", "Relay path must be exactly /lnk/<uuid>/<bookmaker-suffix>."));
+      return null;
+    }
+    const suffix = match[2];
+    const boundBookmaker = BETUP_RELAY_SUFFIX_REGISTRY[suffix];
+    if (boundBookmaker === undefined) {
+      errors.push(issue("UNKNOWN_RELAY_SUFFIX", field + ".url", "Relay bookmaker suffix is not registered."));
+      return null;
+    }
+    if (boundBookmaker !== bookmaker) {
+      errors.push(issue("RELAY_BOOKMAKER_MISMATCH", field + ".url", "Relay bookmaker suffix does not match the leg bookmaker."));
+      return null;
+    }
+    return {
+      kind: "betup-relay",
+      url: parsed.href,
+      signalId: match[1].toLocaleLowerCase("en-US"),
+      bookmaker,
+    };
+  }
+
+  errors.push(issue("INVALID_NAVIGATION", field + ".kind", "navigation.kind must be bookmaker-direct or betup-relay."));
+  return null;
+}
+
+export function normalizeDirectPairNotificationV2(
+  input: unknown,
+  options: DirectPairNormalizationOptions = {},
+): DirectPairNormalizationResultV2 {
+  const errors: DirectPairValidationIssue[] = [];
+  if (!isRecord(input) || !hasOnlyKeys(input, TOP_LEVEL_KEYS)) {
+    return { ok: false, errors: [issue("INVALID_SCHEMA", "$", "Payload must be a strict direct-pair v2 object.")] };
+  }
+  if (input.schemaVersion !== DIRECT_PAIR_SCHEMA_VERSION_V2) {
+    errors.push(issue("UNSUPPORTED_SCHEMA_VERSION", "schemaVersion", "Unsupported structured notification schema version."));
+  }
+
+  const rawLegs = Array.isArray(input.legs) ? input.legs : [];
+  if (rawLegs.length !== 2) {
+    errors.push(issue("INVALID_LEGS", "legs", "Exactly two explicit legs are required."));
+  }
+
+  const canonicalNavigations: Array<CanonicalDirectPairLegV2["navigation"] | null> = [];
+  const syntheticLegs: Array<Record<string, unknown>> = [];
+  for (let index = 0; index < rawLegs.length && index < 2; index += 1) {
+    const raw = rawLegs[index];
+    if (!isRecord(raw) || !hasOnlyKeys(raw, LEG_V2_KEYS)) {
+      errors.push(issue("INVALID_LEGS", "legs[" + index + "]", "Each v2 leg must be a strict object."));
+      canonicalNavigations.push(null);
+      syntheticLegs.push({
+        bookmaker: "",
+        outcome: "",
+        expectedOdds: "",
+        deepLink: "invalid:",
+      });
+      continue;
+    }
+
+    const bookmaker = normalizeBookmaker(raw.bookmaker);
+    if (bookmaker !== null && !EXECUTABLE_BOOKMAKERS.has(bookmaker)) {
+      errors.push(issue("UNSUPPORTED_BOOKMAKER", "legs[" + index + "].bookmaker", "No current application/adapter worker is registered for this bookmaker."));
+    }
+    const navigation = bookmaker === null
+      ? null
+      : directNavigationForV2(raw.navigation, bookmaker, "legs[" + index + "].navigation", errors);
+    canonicalNavigations.push(navigation);
+    syntheticLegs.push({
+      bookmaker: raw.bookmaker,
+      outcome: raw.outcome,
+      expectedOdds: raw.expectedOdds,
+      deepLink: navigation?.url ?? "invalid:",
+    });
+  }
+
+  const synthetic = {
+    schemaVersion: DIRECT_PAIR_SCHEMA_VERSION,
+    notificationId: input.notificationId,
+    sentAt: input.sentAt,
+    event: input.event,
+    market: input.market,
+    legs: syntheticLegs,
+  };
+  const base = normalizeDirectPairNotificationV1(synthetic, options);
+  if (!base.ok) errors.push(...base.errors);
+
+  if (canonicalNavigations.length === 2) {
+    const first = canonicalNavigations[0];
+    const second = canonicalNavigations[1];
+    if (
+      first?.kind === "betup-relay"
+      && second?.kind === "betup-relay"
+      && first.signalId !== second.signalId
+    ) {
+      errors.push(issue("RELAY_SIGNAL_MISMATCH", "legs", "Two relay legs in one pair must carry the same normalized signal UUID."));
+    }
+  }
+
+  if (!base.ok || errors.length > 0) return { ok: false, errors };
+
+  const firstNavigation = canonicalNavigations[0];
+  const secondNavigation = canonicalNavigations[1];
+  if (firstNavigation === null || firstNavigation === undefined || secondNavigation === null || secondNavigation === undefined) {
+    return { ok: false, errors: [issue("INVALID_NAVIGATION", "legs", "Both v2 legs require valid typed navigation.")] };
+  }
+
+  const legFor = (
+    leg: DirectPairLegV1,
+    navigation: CanonicalDirectPairLegV2["navigation"],
+  ): CanonicalDirectPairLegV2 => ({
+    bookmaker: leg.bookmaker,
+    outcome: leg.outcome,
+    expectedOdds: leg.expectedOdds,
+    navigation,
+  });
+  const canonicalLegs: readonly [CanonicalDirectPairLegV2, CanonicalDirectPairLegV2] = [
+    legFor(base.value.canonical.legs[0], firstNavigation),
+    legFor(base.value.canonical.legs[1], secondNavigation),
+  ];
+  const canonical: CanonicalDirectPairV2 = {
+    schemaVersion: DIRECT_PAIR_SCHEMA_VERSION_V2,
+    notificationId: base.value.canonical.notificationId,
+    sentAt: base.value.canonical.sentAt,
+    event: base.value.canonical.event,
+    market: base.value.canonical.market,
+    legs: canonicalLegs,
+  };
+
+  const targetFor = (
+    leg: CanonicalDirectPairLegV2,
+    index: 0 | 1,
+  ): SelectionTarget => {
+    const navigation: NavigationTarget = leg.navigation.kind === "bookmaker-direct"
+      ? { kind: "BOOKMAKER_DIRECT", url: leg.navigation.url }
+      : {
+          kind: "BETUP_RELAY",
+          url: leg.navigation.url,
+          signalId: leg.navigation.signalId,
+          bookmaker: leg.navigation.bookmaker,
+        };
+    return {
+      id: "structured-v2-target-" + (index + 1),
+      bookmaker: leg.bookmaker,
+      event: base.value.canonical.event,
+      market: {
+        family: "total",
+        context: "corners",
+        period: base.value.canonical.market.period,
+        line: base.value.canonical.market.line,
+        sourceLabel: base.value.canonical.market.sourceLabel,
+      },
+      outcome: {
+        side: leg.outcome,
+        sourceLabel: leg.outcome.toLocaleUpperCase("en-US"),
+      },
+      expectedOdds: leg.expectedOdds,
+      navigation,
+      provenance: {
+        kind: "structured-direct-pair",
+        schemaVersion: DIRECT_PAIR_SCHEMA_VERSION_V2,
+        notificationId: base.value.canonical.notificationId,
+        legIndex: index,
+      },
+    };
+  };
+  const targets: readonly [SelectionTarget, SelectionTarget] = [
+    targetFor(canonicalLegs[0], 0),
+    targetFor(canonicalLegs[1], 1),
+  ];
+  const plan: ExecutionPlan = {
+    id: "direct-pair-v2:" + canonical.notificationId + ":" + Date.parse(canonical.sentAt).toString(36),
+    notificationId: canonical.notificationId,
+    recommendedOptionId: "direct-pair-v2",
+    createdAt: (options.now ?? (() => new Date()))().toISOString(),
+    legs: [
+      { id: "leg-1", target: targets[0] },
+      { id: "leg-2", target: targets[1] },
+    ],
+  };
+  return { ok: true, value: { canonical, plan } };
+}
+
+export function normalizeDirectPairNotification(
+  input: unknown,
+  options: DirectPairNormalizationOptions = {},
+): StructuredDirectPairNormalizationResult {
+  if (!isRecord(input) || typeof input.schemaVersion !== "string") {
+    return { ok: false, errors: [issue("INVALID_SCHEMA", "schemaVersion", "Structured notification must declare an exact schemaVersion.")] };
+  }
+  if (input.schemaVersion === DIRECT_PAIR_SCHEMA_VERSION) {
+    return normalizeDirectPairNotificationV1(input, options);
+  }
+  if (input.schemaVersion === DIRECT_PAIR_SCHEMA_VERSION_V2) {
+    return normalizeDirectPairNotificationV2(input, options);
+  }
+  return {
+    ok: false,
+    errors: [issue("UNSUPPORTED_SCHEMA_VERSION", "schemaVersion", "Unsupported structured notification schema version.")],
+  };
 }
