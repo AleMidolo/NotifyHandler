@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
@@ -15,6 +16,7 @@ import {
 import { createWorkerExecutionPreflight } from "../../automation/src/index.ts";
 import { DesktopAppController } from "../src/controller.ts";
 import {
+  hardenLocalIngressTokenPermissions,
   loadOrCreateLocalIngressToken,
   rotateLocalIngressToken,
   startDirectPairIngressServer,
@@ -343,5 +345,37 @@ test("private DNS answer fails structured ingress preflight with zero worker sta
   } finally {
     await server.close();
     await controller.close();
+  }
+});
+
+
+test("Windows token hardening removes unrelated explicit ACEs", { skip: process.platform !== "win32" }, () => {
+  const dir = mkdtempSync(join(tmpdir(), "notifyhandler-ingress-acl-"));
+  const file = join(dir, "token");
+  try {
+    loadOrCreateLocalIngressToken(file);
+
+    const grant = spawnSync(
+      "icacls",
+      [file, "/grant", "*S-1-1-0:F"],
+      { encoding: "utf8", windowsHide: true, shell: false },
+    );
+    assert.equal(grant.status, 0, grant.stderr || grant.stdout);
+
+    hardenLocalIngressTokenPermissions(file);
+
+    const inspect = spawnSync(
+      "icacls",
+      [file],
+      { encoding: "utf8", windowsHide: true, shell: false },
+    );
+    assert.equal(inspect.status, 0, inspect.stderr || inspect.stdout);
+    assert.equal(
+      /(?:Everyone|S-1-1-0):\(F\)/iu.test(inspect.stdout),
+      false,
+      "current-user-only hardening must remove a pre-existing explicit Everyone ACE",
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
