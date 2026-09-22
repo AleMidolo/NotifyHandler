@@ -59,12 +59,46 @@ class FixtureRouter {
   }
 }
 
+export type RelayResolutionFailureCode =
+  | "RELAY_INVALID"
+  | "RELAY_NETWORK_TARGET_BLOCKED"
+  | "RELAY_INTERMEDIARY_BLOCKED"
+  | "RELAY_WRONG_FINAL_BOOKMAKER"
+  | "RELAY_REDIRECT_LIMIT"
+  | "RELAY_UNRESOLVED"
+  | "RELAY_CHALLENGE_UNSUPPORTED";
+
+export type RelayResolutionResult =
+  | { readonly kind: "RESOLVED"; readonly finalLocation: SafeLocation }
+  | { readonly kind: "FAILED"; readonly code: RelayResolutionFailureCode; readonly message: string };
+
+export interface RelayResolutionOptions {
+  readonly relayUrl: string;
+  readonly relayPolicy: NavigationPolicy;
+  readonly bookmakerPolicy: NavigationPolicy;
+  readonly expectedOrigins: readonly string[];
+  readonly knownBookmakerOrigins: readonly string[];
+  readonly timeoutMs: number;
+}
+
 export interface WorkerPageRuntime {
   readonly port: BookmakerPagePort;
   beginAttempt(): void;
   cancelInFlight(): void;
+  resolveRelay(options: RelayResolutionOptions): Promise<RelayResolutionResult>;
   activateSelection(ref: ElementRef): Promise<boolean>;
   isCurrentLocationAllowed(): boolean;
+}
+
+interface ActiveRelayResolution {
+  readonly relayUrl: string;
+  readonly relayOrigin: string;
+  readonly relayPolicy: NavigationPolicy;
+  readonly bookmakerPolicy: NavigationPolicy;
+  readonly expectedOrigins: ReadonlySet<string>;
+  readonly knownBookmakerOrigins: ReadonlySet<string>;
+  phase: "EXPECT_RELAY" | "EXPECT_BOOKMAKER" | "ARRIVED";
+  failure?: Extract<RelayResolutionResult, { readonly kind: "FAILED" }>;
 }
 
 class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
@@ -72,7 +106,8 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   private readonly refs = new Map<string, RegisteredElement>();
   private readonly fixtureRouter: FixtureRouter | undefined;
   private readonly page: Page;
-  private readonly policy: NavigationPolicy;
+  private policy: NavigationPolicy;
+  private relayResolution: ActiveRelayResolution | undefined;
   private readonly mapping: SemanticDomMapping;
   private readonly navigationTimeoutMs: number;
   private generation = 0;
@@ -224,6 +259,88 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
     }
   }
 
+  async resolveRelay(options: RelayResolutionOptions): Promise<RelayResolutionResult> {
+    if (this.cancelled || this.page.isClosed() || this.crashed) {
+      return { kind: "FAILED", code: "RELAY_UNRESOLVED", message: "Relay resolution cannot start on an unavailable browser page." };
+    }
+
+    let relay: URL;
+    try {
+      relay = new URL(options.relayUrl);
+    } catch {
+      return { kind: "FAILED", code: "RELAY_INVALID", message: "Relay URL is malformed." };
+    }
+
+    const expectedOrigins = new Set(options.expectedOrigins);
+    if (
+      relay.origin !== "https://www.bet-up.it" ||
+      expectedOrigins.size === 0 ||
+      options.timeoutMs <= 0
+    ) {
+      return { kind: "FAILED", code: "RELAY_INVALID", message: "Relay resolution options violate the restricted navigation contract." };
+    }
+
+    this.invalidateReferences();
+    this.policy = options.relayPolicy;
+    this.relayResolution = {
+      relayUrl: relay.href,
+      relayOrigin: relay.origin,
+      relayPolicy: options.relayPolicy,
+      bookmakerPolicy: options.bookmakerPolicy,
+      expectedOrigins,
+      knownBookmakerOrigins: new Set(options.knownBookmakerOrigins),
+      phase: "EXPECT_RELAY",
+    };
+    this.blockingOperation = true;
+
+    try {
+      await this.page.goto(relay.href, { waitUntil: "domcontentloaded", timeout: options.timeoutMs }).catch(() => undefined);
+      if (this.cancelled || this.page.isClosed()) {
+        return { kind: "FAILED", code: "RELAY_UNRESOLVED", message: "Relay resolution was interrupted." };
+      }
+
+      const active = this.relayResolution;
+      if (active?.failure) return active.failure;
+
+      if (active?.phase !== "ARRIVED") {
+        await Promise.race([
+          this.page.waitForURL((url) => expectedOrigins.has(url.origin), { timeout: options.timeoutMs }).catch(() => undefined),
+          delay(options.timeoutMs),
+        ]);
+      }
+
+      const afterWait = this.relayResolution;
+      if (afterWait?.failure) return afterWait.failure;
+
+      if (afterWait?.phase !== "ARRIVED") {
+        if (await this.detectRelayChallenge()) {
+          return {
+            kind: "FAILED",
+            code: "RELAY_CHALLENGE_UNSUPPORTED",
+            message: "The relay presented an authentication, CAPTCHA, consent, or other unsupported challenge.",
+          };
+        }
+        return { kind: "FAILED", code: "RELAY_UNRESOLVED", message: "The relay did not reach the expected bookmaker within the bounded resolution window." };
+      }
+
+      const current = this.locationFromHref(this.page.url());
+      if (current === undefined || !expectedOrigins.has(current.origin)) {
+        return { kind: "FAILED", code: "RELAY_WRONG_FINAL_BOOKMAKER", message: "Relay resolution did not finish on the expected bookmaker origin." };
+      }
+      if (!(await options.bookmakerPolicy.isResolvedTargetAllowed(current.href))) {
+        return { kind: "FAILED", code: "RELAY_NETWORK_TARGET_BLOCKED", message: "The resolved bookmaker destination failed network-target validation." };
+      }
+
+      this.policy = options.bookmakerPolicy;
+      this.lastSafeLocation = current;
+      return { kind: "RESOLVED", finalLocation: current };
+    } finally {
+      this.blockingOperation = false;
+      this.relayResolution = undefined;
+      this.policy = options.bookmakerPolicy;
+    }
+  }
+
   async activateSelection(ref: ElementRef): Promise<boolean> {
     if (this.cancelled || this.page.isClosed() || this.crashed || !this.isCurrentLocationAllowed()) return false;
     const entry = await this.liveEntry(ref);
@@ -249,7 +366,10 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       if (topLevelNavigation) {
         const url = request.url();
         this.invalidateReferences();
-        if (!(await this.isAllowedNetworkTarget(url))) {
+        const relayAllowed = this.relayResolution === undefined
+          ? undefined
+          : await this.allowRelayTopLevel(url);
+        if (relayAllowed === false || (relayAllowed === undefined && !(await this.isAllowedNetworkTarget(url)))) {
           await route.abort("blockedbyclient");
           return;
         }
@@ -281,6 +401,65 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       await route.continue();
     } catch {
       await route.abort("blockedbyclient").catch(() => undefined);
+    }
+  }
+
+  private async allowRelayTopLevel(url: string): Promise<boolean> {
+    const active = this.relayResolution;
+    if (active === undefined) return false;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay navigation produced a malformed top-level URL." };
+      return false;
+    }
+
+    if (active.phase === "EXPECT_RELAY") {
+      if (parsed.href !== active.relayUrl) {
+        active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay navigation did not start from the exact validated relay URL." };
+        return false;
+      }
+      if (!(await active.relayPolicy.isResolvedTargetAllowed(parsed.href))) {
+        active.failure = { kind: "FAILED", code: "RELAY_NETWORK_TARGET_BLOCKED", message: "Relay origin failed network-target validation." };
+        return false;
+      }
+      active.phase = "EXPECT_BOOKMAKER";
+      return true;
+    }
+
+    if (parsed.origin === active.relayOrigin) {
+      active.failure = { kind: "FAILED", code: "RELAY_REDIRECT_LIMIT", message: "Relay origin was revisited before bookmaker arrival." };
+      return false;
+    }
+
+    if (active.expectedOrigins.has(parsed.origin)) {
+      if (!(await active.bookmakerPolicy.isResolvedTargetAllowed(parsed.href))) {
+        active.failure = { kind: "FAILED", code: "RELAY_NETWORK_TARGET_BLOCKED", message: "Bookmaker destination failed network-target validation." };
+        return false;
+      }
+      active.phase = "ARRIVED";
+      return true;
+    }
+
+    if (active.knownBookmakerOrigins.has(parsed.origin)) {
+      active.failure = { kind: "FAILED", code: "RELAY_WRONG_FINAL_BOOKMAKER", message: "Relay reached a bookmaker different from the leg target." };
+      return false;
+    }
+
+    active.failure = { kind: "FAILED", code: "RELAY_INTERMEDIARY_BLOCKED", message: "Relay attempted to navigate through an unreviewed intermediary origin." };
+    return false;
+  }
+
+  private async detectRelayChallenge(): Promise<boolean> {
+    if (this.page.isClosed()) return false;
+    try {
+      return await this.page.locator(
+        '[data-nh-relay-challenge], input[type="password"], input[name*="captcha" i], [id*="captcha" i], [class*="captcha" i], iframe[src*="captcha" i]',
+      ).first().isVisible().catch(() => false);
+    } catch {
+      return false;
     }
   }
 

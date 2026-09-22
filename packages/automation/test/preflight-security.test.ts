@@ -67,6 +67,37 @@ test("structured preflight accepts exact origins when every resolved address is 
   assert.deepEqual(result, { ok: true });
 });
 
+test("structured preflight rejects a non-full-match period before browser dispatch", async () => {
+  const value = plan();
+  const first = value.legs[0];
+  const invalid: ExecutionPlan = {
+    ...value,
+    legs: [
+      {
+        ...first,
+        target: {
+          ...first.target,
+          market: {
+            ...first.target.market,
+            period: "first_half" as never,
+          },
+        },
+      },
+      value.legs[1],
+    ],
+  };
+
+  const result = await createWorkerExecutionPreflight({
+    resolveHostname: async () => ["93.184.216.34"],
+  }).validate(invalid);
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.failure.code, "INVALID_SELECTION_TARGET");
+    assert.equal(result.failure.legId, "leg-sisal");
+  }
+});
+
 test("structured preflight fails closed on DNS resolution failure", async () => {
   const result = await createWorkerExecutionPreflight({
     resolveHostname: async () => { throw new Error("resolver unavailable"); },
@@ -145,9 +176,8 @@ test("v2 direct navigation uses the same resolved-origin preflight without deepL
   assert.equal(value.legs[0].target.deepLink, undefined);
 });
 
-test("v2 relay navigation fails closed until the shared BOOK-017 resolver is present", async () => {
-  const signalId = "11111111-2222-4333-8444-555555555555";
-  const value: ExecutionPlan = {
+function relayPlan(signalId = "11111111-2222-4333-8444-555555555555"): ExecutionPlan {
+  return {
     id: "plan-v2-relay",
     notificationId: "security-v2-relay-001",
     recommendedOptionId: "direct-pair-v2",
@@ -173,12 +203,79 @@ test("v2 relay navigation fails closed until the shared BOOK-017 resolver is pre
       },
     ],
   };
+}
+
+test("v2 relay navigation passes worker preflight when relay DNS is public", async () => {
   const result = await createWorkerExecutionPreflight({
     resolveHostname: async () => ["93.184.216.34"],
-  }).validate(value);
+  }).validate(relayPlan());
+  assert.deepEqual(result, { ok: true });
+});
+
+test("v2 relay preflight fails closed when bet-up DNS resolves private", async () => {
+  const result = await createWorkerExecutionPreflight({
+    resolveHostname: async (hostname) => hostname === "www.bet-up.it" ? ["127.0.0.1"] : ["93.184.216.34"],
+  }).validate(relayPlan());
   assert.equal(result.ok, false);
   if (!result.ok) {
     assert.equal(result.failure.code, "UNSAFE_OR_UNSUPPORTED_URL");
     assert.equal(result.failure.legId, "leg-sisal");
   }
+});
+
+test("v2 relay preflight revalidates suffix/bookmaker binding", async () => {
+  const value = relayPlan();
+  const first = value.legs[0].target;
+  const navigation = first.navigation;
+  assert.equal(navigation?.kind, "BETUP_RELAY");
+  if (navigation?.kind !== "BETUP_RELAY") return;
+  const invalid: ExecutionPlan = {
+    ...value,
+    legs: [
+      {
+        ...value.legs[0],
+        target: {
+          ...first,
+          navigation: { ...navigation, url: navigation.url.replace(/\/sisal$/u, "/bet365") },
+        },
+      },
+      value.legs[1],
+    ],
+  };
+  const result = await createWorkerExecutionPreflight({
+    resolveHostname: async () => ["93.184.216.34"],
+  }).validate(invalid);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.failure.code, "UNSAFE_OR_UNSUPPORTED_URL");
+});
+
+test("v2 relay preflight rejects mixed signal identifiers across the pair", async () => {
+  const value = relayPlan();
+  const second = value.legs[1].target;
+  const navigation = second.navigation;
+  assert.equal(navigation?.kind, "BETUP_RELAY");
+  if (navigation?.kind !== "BETUP_RELAY") return;
+  const otherSignal = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+  const invalid: ExecutionPlan = {
+    ...value,
+    legs: [
+      value.legs[0],
+      {
+        ...value.legs[1],
+        target: {
+          ...second,
+          navigation: {
+            ...navigation,
+            signalId: otherSignal,
+            url: "https://www.bet-up.it/lnk/" + otherSignal + "/bet365",
+          },
+        },
+      },
+    ],
+  };
+  const result = await createWorkerExecutionPreflight({
+    resolveHostname: async () => ["93.184.216.34"],
+  }).validate(invalid);
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.failure.code, "CONTRACT_VIOLATION");
 });

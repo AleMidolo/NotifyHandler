@@ -127,6 +127,8 @@ export interface WorkerExecutionPreflightOptions {
 export interface BookmakerAutomationWorkerOptions {
   readonly headless?: boolean;
   readonly navigationTimeoutMs?: number;
+  readonly relayResolutionTimeoutMs?: number;
+  readonly resolveHostname?: HostResolver;
   /** Fixture-only dependency injection. Production callers leave this undefined. */
   readonly sessionLauncher?: SessionLauncher;
 }
@@ -136,11 +138,13 @@ interface LegSlot {
   readonly session: BookmakerLegSession;
   controller?: AbortController;
   attemptId?: string;
+  resolvedRelayUrl?: string;
 }
 
 interface RunOptions {
   readonly replaceSession: boolean;
   readonly openingState: boolean;
+  readonly resolveRelay: boolean;
   readonly acknowledgedObservedOdds?: string;
   readonly requireExistingSession?: boolean;
 }
@@ -156,6 +160,56 @@ function asWorkerBookmaker(bookmaker: BookmakerId): WorkerBookmaker | null {
 
 function adapterFor(bookmaker: WorkerBookmaker): BookmakerAdapter {
   return bookmaker === "sisal" ? new SisalAdapter() : new Bet365Adapter();
+}
+
+const BETUP_RELAY_ORIGIN = "https://www.bet-up.it";
+const RELAY_SUFFIX: Readonly<Record<WorkerBookmaker, string>> = Object.freeze({
+  sisal: "sisal",
+  bet365: "bet365",
+});
+const RELAY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+type RelayValidation =
+  | { readonly ok: true; readonly url: string; readonly signalId: string }
+  | { readonly ok: false; readonly code: "RELAY_INVALID" | "RELAY_BOOKMAKER_MISMATCH"; readonly message: string };
+
+function validateRelayTarget(target: SelectionTarget, bookmaker: WorkerBookmaker): RelayValidation {
+  const navigation = target.navigation;
+  if (navigation?.kind !== "BETUP_RELAY") {
+    return { ok: false, code: "RELAY_INVALID", message: "Selection target does not contain a typed bet-up relay navigation candidate." };
+  }
+  if (navigation.bookmaker !== bookmaker || target.bookmaker !== bookmaker) {
+    return { ok: false, code: "RELAY_BOOKMAKER_MISMATCH", message: "Relay bookmaker binding does not match the leg bookmaker." };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(navigation.url);
+  } catch {
+    return { ok: false, code: "RELAY_INVALID", message: "Relay URL is malformed." };
+  }
+  const match = /^\/lnk\/([0-9a-fA-F-]+)\/([a-z0-9]+)$/u.exec(parsed.pathname);
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.origin !== BETUP_RELAY_ORIGIN ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    parsed.search !== "" ||
+    parsed.hash !== "" ||
+    match === null
+  ) {
+    return { ok: false, code: "RELAY_INVALID", message: "Relay URL violates the exact approved bet-up grammar." };
+  }
+
+  const signalId = (match[1] ?? "").toLowerCase();
+  const suffix = match[2] ?? "";
+  if (!RELAY_UUID.test(signalId) || navigation.signalId !== signalId) {
+    return { ok: false, code: "RELAY_INVALID", message: "Relay signal identifier is malformed or inconsistent with the typed target." };
+  }
+  if (suffix !== RELAY_SUFFIX[bookmaker]) {
+    return { ok: false, code: "RELAY_BOOKMAKER_MISMATCH", message: "Relay suffix does not match the target bookmaker." };
+  }
+  return { ok: true, url: parsed.href, signalId };
 }
 
 function workerEvent(
@@ -193,6 +247,7 @@ function validTarget(target: SelectionTarget): boolean {
     && target.event.participantB.trim().length > 0
     && target.market.family.trim().length > 0
     && target.market.context.trim().length > 0
+    && target.market.period === "full_match"
     && target.market.line.trim().length > 0
     && target.expectedOdds.trim().length > 0;
 }
@@ -203,10 +258,14 @@ async function safeDeepLink(
   options: WorkerExecutionPreflightOptions,
 ): Promise<boolean> {
   if (target.navigation?.kind === "BETUP_RELAY") {
-    // APP-006 carries the typed relay immutably, but BOOK-017 owns the only
-    // authorized resolver. Until that resolver is installed, preflight fails
-    // closed rather than falling back to a generic bookmaker entry point.
-    return false;
+    const relay = validateRelayTarget(target, bookmaker);
+    if (!relay.ok) return false;
+    try {
+      const policy = new NavigationPolicy([BETUP_RELAY_ORIGIN], options.resolveHostname);
+      return policy.isResolvedTargetAllowed(relay.url);
+    } catch {
+      return false;
+    }
   }
 
   const candidate = target.navigation?.kind === "BOOKMAKER_DIRECT"
@@ -224,7 +283,8 @@ async function safeDeepLink(
   }
 }
 
-function adapterTarget(target: SelectionTarget): SelectionTarget {
+function adapterTarget(target: SelectionTarget, resolvedRelayUrl?: string): SelectionTarget {
+  if (resolvedRelayUrl !== undefined) return { ...target, deepLink: resolvedRelayUrl };
   if (target.navigation?.kind !== "BOOKMAKER_DIRECT") return target;
   return { ...target, deepLink: target.navigation.url };
 }
@@ -239,6 +299,13 @@ export function createWorkerExecutionPreflight(
       }
       if (plan.legs[0].target.bookmaker === plan.legs[1].target.bookmaker) {
         return { ok: false, failure: { code: "CONTRACT_VIOLATION", message: "Execution plan must target two distinct bookmakers." } };
+      }
+      const relaySignals = plan.legs
+        .map((leg) => leg.target.navigation)
+        .filter((navigation): navigation is Extract<NonNullable<SelectionTarget["navigation"]>, { readonly kind: "BETUP_RELAY" }> => navigation?.kind === "BETUP_RELAY")
+        .map((navigation) => navigation.signalId);
+      if (relaySignals.length === 2 && relaySignals[0] !== relaySignals[1]) {
+        return { ok: false, failure: { code: "CONTRACT_VIOLATION", message: "Relay legs must originate from the same signal identifier." } };
       }
       for (const leg of plan.legs) {
         const bookmaker = asWorkerBookmaker(leg.target.bookmaker);
@@ -291,6 +358,8 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
   private readonly launcher: SessionLauncher;
   private readonly headless: boolean;
   private readonly navigationTimeoutMs: number | undefined;
+  private readonly relayResolutionTimeoutMs: number;
+  private readonly resolveHostname: HostResolver | undefined;
   private readonly slots = new Map<string, LegSlot>();
   private readonly cancelledAttempts = new Set<string>();
 
@@ -298,22 +367,24 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
     this.launcher = options.sessionLauncher ?? launchBookmakerLegSession;
     this.headless = options.headless ?? false;
     this.navigationTimeoutMs = options.navigationTimeoutMs;
+    this.relayResolutionTimeoutMs = options.relayResolutionTimeoutMs ?? 5_000;
+    this.resolveHostname = options.resolveHostname;
   }
 
   start(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent> {
-    return this.beginRun(request, { replaceSession: true, openingState: true });
+    return this.beginRun(request, { replaceSession: true, openingState: true, resolveRelay: true });
   }
   resumeAfterManualAuth(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent> {
-    return this.beginRun(request, { replaceSession: false, openingState: false, requireExistingSession: true });
+    return this.beginRun(request, { replaceSession: false, openingState: false, resolveRelay: false, requireExistingSession: true });
   }
   continueWithObservedOdds(request: WorkerContinueOddsRequest): AsyncIterable<WorkerPortEvent> {
-    return this.beginRun(request, { replaceSession: false, openingState: false, acknowledgedObservedOdds: request.acknowledgedObservedOdds, requireExistingSession: true });
+    return this.beginRun(request, { replaceSession: false, openingState: false, resolveRelay: false, acknowledgedObservedOdds: request.acknowledgedObservedOdds, requireExistingSession: true });
   }
   retry(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent> {
-    return this.beginRun(request, { replaceSession: false, openingState: true });
+    return this.beginRun(request, { replaceSession: false, openingState: true, resolveRelay: true });
   }
   reopen(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent> {
-    return this.beginRun(request, { replaceSession: true, openingState: true });
+    return this.beginRun(request, { replaceSession: true, openingState: true, resolveRelay: true });
   }
 
   async cancel(request: WorkerCancelRequest): Promise<void> {
@@ -358,18 +429,6 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
       return;
     }
 
-    if (request.target.navigation?.kind === "BETUP_RELAY") {
-      yield workerEvent(request, "FAILED_SAFE", { failure: {
-        code: "RELAY_RESOLVER_UNAVAILABLE",
-        stage: "NAVIGATION",
-        message: "Bet-up relay navigation requires the restricted shared relay resolver.",
-        recoverability: "REOPEN",
-        activation: "NOT_ATTEMPTED",
-        evidenceEpoch: request.evidenceEpoch,
-      } });
-      return;
-    }
-
     let slot: LegSlot;
     try {
       slot = await this.sessionFor(request.legId, bookmaker, options.replaceSession, !(options.requireExistingSession ?? false));
@@ -407,6 +466,61 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
     slot.controller = controller;
     slot.attemptId = request.attemptId;
 
+    let resolvedRelayUrl: string | undefined;
+    if (request.target.navigation?.kind === "BETUP_RELAY") {
+      const relay = validateRelayTarget(request.target, bookmaker);
+      if (!relay.ok) {
+        yield workerEvent(request, "FAILED_SAFE", { failure: {
+          code: relay.code,
+          stage: "NAVIGATION",
+          message: relay.message,
+          recoverability: "RESTART_PLAN",
+          activation: "NOT_ATTEMPTED",
+          evidenceEpoch: request.evidenceEpoch,
+        } });
+        return;
+      }
+
+      if (options.resolveRelay) {
+        delete slot.resolvedRelayUrl;
+        const resolution = await slot.session.resolveRelay({
+          relayUrl: relay.url,
+          timeoutMs: this.relayResolutionTimeoutMs,
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted || this.cancelledAttempts.has(key)) {
+          this.cancelledAttempts.delete(key);
+          yield workerEvent(request, "CANCELLED");
+          return;
+        }
+        if (resolution.kind === "FAILED") {
+          yield workerEvent(request, "FAILED_SAFE", { failure: {
+            code: resolution.code,
+            stage: "NAVIGATION",
+            message: resolution.message,
+            recoverability: resolution.code === "RELAY_INVALID" ? "RESTART_PLAN" : "REOPEN",
+            activation: "NOT_ATTEMPTED",
+            evidenceEpoch: request.evidenceEpoch,
+          } });
+          return;
+        }
+        slot.resolvedRelayUrl = resolution.finalLocation.href;
+      }
+
+      if (slot.resolvedRelayUrl === undefined) {
+        yield workerEvent(request, "FAILED_SAFE", { failure: {
+          code: "RELAY_UNRESOLVED",
+          stage: "NAVIGATION",
+          message: "No current resolved bookmaker page exists for this relay attempt.",
+          recoverability: "REOPEN",
+          activation: "NOT_ATTEMPTED",
+          evidenceEpoch: request.evidenceEpoch,
+        } });
+        return;
+      }
+      resolvedRelayUrl = slot.resolvedRelayUrl;
+    }
+
     let result: AdapterTerminalResult;
     try {
       const capabilities = slot.session.createAttemptCapabilities(request.evidenceEpoch, controller.signal);
@@ -418,7 +532,7 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
         selectionGate: capabilities.selectionGate,
         ...(options.acknowledgedObservedOdds === undefined ? {} : { acknowledgedObservedOdds: options.acknowledgedObservedOdds }),
       };
-      result = await adapterFor(bookmaker).prepare(context, adapterTarget(request.target), {}, controller.signal);
+      result = await adapterFor(bookmaker).prepare(context, adapterTarget(request.target, resolvedRelayUrl), {}, controller.signal);
     } catch (error) {
       if (controller.signal.aborted || this.cancelledAttempts.has(key)) {
         this.cancelledAttempts.delete(key);
@@ -452,7 +566,12 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
     const current = this.slots.get(legId);
     if (current !== undefined) return current;
     if (!allowCreate) throw new Error(`No active browser session exists for leg ${legId}.`);
-    const session = await this.launcher({ bookmaker, headless: this.headless, ...(this.navigationTimeoutMs === undefined ? {} : { navigationTimeoutMs: this.navigationTimeoutMs }) });
+    const session = await this.launcher({
+      bookmaker,
+      headless: this.headless,
+      ...(this.navigationTimeoutMs === undefined ? {} : { navigationTimeoutMs: this.navigationTimeoutMs }),
+      ...(this.resolveHostname === undefined ? {} : { resolveHostname: this.resolveHostname }),
+    });
     const slot: LegSlot = { bookmaker, session };
     this.slots.set(legId, slot);
     return slot;

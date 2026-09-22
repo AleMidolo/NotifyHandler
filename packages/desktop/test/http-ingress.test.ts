@@ -603,14 +603,20 @@ test("HTTP ingress accepts v2 typed direct candidates through the existing autom
   }
 });
 
-test("HTTP ingress accepts relay schema but fails closed before worker start until BOOK-017 resolver is installed", async () => {
+test("HTTP ingress accepts relay schema and forwards typed relay targets to the worker", async () => {
   const { worker, controller, server } = await fixture();
   try {
     const response = await post(server, JSON.stringify(payloadV2Relay()));
-    assert.equal(response.status, 422);
-    const body = await response.json() as { error?: { code?: unknown } };
-    assert.equal(body.error?.code, "UNSAFE_OR_UNSUPPORTED_URL");
-    assert.equal(worker.starts.length, 0);
+    assert.equal(response.status, 202);
+    const body = await response.json() as Record<string, unknown>;
+    assert.equal(body.accepted, true);
+    assert.equal(worker.starts.length, 2);
+    assert.deepEqual(worker.starts.map((request) => request.target.navigation?.kind), [
+      "BETUP_RELAY",
+      "BETUP_RELAY",
+    ]);
+    assert.equal(worker.starts[0]?.target.deepLink, undefined);
+    assert.equal(worker.starts[1]?.target.deepLink, undefined);
   } finally {
     await server.close();
     await controller.close();
