@@ -481,7 +481,7 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
       }
 
       if (options.resolveRelay) {
-        slot.resolvedRelayUrl = undefined;
+        delete slot.resolvedRelayUrl;
         const resolution = await slot.session.resolveRelay({
           relayUrl: relay.url,
           timeoutMs: this.relayResolutionTimeoutMs,
