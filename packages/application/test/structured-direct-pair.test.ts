@@ -52,6 +52,8 @@ test("structured v1 normalizes into the shared immutable execution-plan semantic
   assert.equal(result.value.canonical.event.scheduledAt, "2026-09-21T17:00:00.000Z");
   assert.equal(result.value.plan.notificationId, "surebet-20260921-001");
   assert.equal(result.value.plan.recommendedOptionId, "direct-pair-v1");
+  assert.equal(result.value.plan.legs[0].target.market.period, "full_match");
+  assert.equal(result.value.plan.legs[1].target.market.period, "full_match");
   assert.deepEqual(result.value.plan.legs.map((leg) => [leg.target.bookmaker, leg.target.outcome.side]), [
     ["sisal", "over"],
     ["bet365", "under"],

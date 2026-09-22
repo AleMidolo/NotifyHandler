@@ -8,6 +8,7 @@ export type BookmakerId =
 export type SportId = "football";
 export type MarketFamily = "total";
 export type MarketSubtype = "over_under";
+export type MarketPeriod = "full_match";
 export type OutcomeSide = "over" | "under";
 export type DecimalString = string;
 
@@ -63,6 +64,7 @@ export interface EventIdentity {
 export interface NormalizedMarket {
   readonly family: MarketFamily;
   readonly subtype: MarketSubtype;
+  readonly period: MarketPeriod;
   readonly context: "corners";
   readonly line: DecimalString;
   readonly sourceLabel: string;
@@ -130,6 +132,7 @@ export interface SelectionTarget {
   readonly market: Readonly<{
     family: MarketFamily;
     context: string;
+    period: MarketPeriod;
     line: DecimalString;
     sourceLabel: string;
   }>;
@@ -407,6 +410,15 @@ function parseMarket(raw: string | undefined): DomainResult<NormalizedMarket> {
     return fail([error("UNSUPPORTED_MARKET", "The notification does not contain a supported market.", { field: "market" })]);
   }
   const sourceLabel = stripPresentation(raw);
+  const explicitPeriod = /(?:\b(?:FIRST|SECOND)\s+HALF\b|\b(?:1ST|2ND)\s+HALF\b|\b[12]H\b|\b[12]T\b|\b(?:PRIMO|SECONDO)\s+TEMPO\b|\b[12](?:°|º)?\s+TEMPO\b)/iu;
+  if (explicitPeriod.test(sourceLabel)) {
+    return fail([
+      error("UNSUPPORTED_MARKET", "Explicit non-full-match market periods are not supported by the legacy notification grammar.", {
+        field: "market.period",
+        source: sourceLabel,
+      }),
+    ]);
+  }
   const totalCorners = sourceLabel.match(/^(?:U\s*\/\s*O|OVER\s*\/\s*UNDER|TOTAL)\s+CORNERS?\s*(.*)$/iu);
   if (!totalCorners) {
     return fail([
@@ -439,6 +451,7 @@ function parseMarket(raw: string | undefined): DomainResult<NormalizedMarket> {
     value: {
       family: "total",
       subtype: "over_under",
+      period: "full_match",
       context: "corners",
       line,
       sourceLabel,
@@ -879,6 +892,7 @@ function toSelectionTarget(
       market: {
         family: notification.market.family,
         context: notification.market.context,
+        period: notification.market.period,
         line: notification.market.line,
         sourceLabel: notification.market.sourceLabel,
       },

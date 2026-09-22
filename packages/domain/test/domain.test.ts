@@ -9,6 +9,8 @@ import {
   decoratedComma,
   duplicateOffer,
   conflictingEvent,
+  explicitFirstHalfMarket,
+  explicitSecondHalfMarket,
   inconsistentRecommendationLine,
   inconsistentRecommendationOdds,
   invalidDate,
@@ -53,6 +55,7 @@ test("parses representative Italian notification and preserves deterministic nor
   assert.deepEqual(parsed.value.market, {
     family: "total",
     subtype: "over_under",
+    period: "full_match",
     context: "corners",
     line: "11.5",
     sourceLabel: "U/O CORNER 11.5",
@@ -87,12 +90,13 @@ test("builds exactly two immutable bookmaker-agnostic selection targets and excl
     plan.value.legs.map((leg) => ({
       bookmaker: leg.target.bookmaker,
       outcome: leg.target.outcome.side,
+      period: leg.target.market.period,
       line: leg.target.market.line,
       expectedOdds: leg.target.expectedOdds,
     })),
     [
-      { bookmaker: "sisal", outcome: "over", line: "11.5", expectedOdds: "2.9" },
-      { bookmaker: "bet365", outcome: "under", line: "11.5", expectedOdds: "1.61" },
+      { bookmaker: "sisal", outcome: "over", period: "full_match", line: "11.5", expectedOdds: "2.9" },
+      { bookmaker: "bet365", outcome: "under", period: "full_match", line: "11.5", expectedOdds: "1.61" },
     ],
   );
   assert.equal(plan.value.legs[0].target.event.scheduledAt, "2026-09-12T19:00:00.000Z");
@@ -136,6 +140,8 @@ test("accepts executable input when optional competition, date/time and deep lin
 test("does not guess an event when it is missing", () => expectError(missingEvent, "MISSING_EVENT"));
 test("requires a line for line-based total-corners markets", () => expectError(missingLine, "MISSING_MARKET_LINE"));
 test("rejects unsupported market syntax", () => expectError(unsupportedMarket, "UNSUPPORTED_MARKET"));
+test("does not collapse an explicit first-half legacy market into full_match", () => expectError(explicitFirstHalfMarket, "UNSUPPORTED_MARKET"));
+test("does not collapse an explicit second-half legacy market into full_match", () => expectError(explicitSecondHalfMarket, "UNSUPPORTED_MARKET"));
 test("rejects invalid calendar dates", () => expectError(invalidDate, "INVALID_DATE_TIME"));
 test("rejects conflicting duplicate scalar fields", () => expectError(conflictingEvent, "CONFLICTING_FIELD"));
 test("rejects notifications without a recommended pair", () => expectError(missingRecommendation, "MISSING_RECOMMENDATION"));
