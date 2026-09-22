@@ -246,15 +246,22 @@ Requirements:
 - not interpreted as a filename, URL, command, or database key without encoding;
 - retained only as needed to suppress duplicate execution.
 
-The application stores a bounded idempotency record for at least the freshness/retry horizon and preferably 24 hours. The record should contain a hash of the normalized payload plus the resulting execution identifier/status reference, not the full sensitive payload.
+The desktop application persists a bounded idempotency tombstone for **24 hours** from first reservation. The tombstone is written synchronously before execution startup and contains only the notification id, SHA-256 hash of the normalized canonical payload, deterministic execution id, reservation timestamp, and `pending`/`accepted` state. It must not contain the bearer token, raw request body, deep links, cookies/session data, bookmaker credentials, or other page/session state.
+
+The tombstone file lives under the Electron user-data directory, is hardened with the same current-user-only file permissions as the local ingress capability, has a bounded schema/record count/file size, and is fsynced before execution may start. Corrupt, oversized, future-dated, duplicate-key, or otherwise invalid persisted state prevents the ingress listener from starting. Expired records are pruned and the bounded state is rewritten.
 
 ### 8.3 Duplicate semantics
 
 For the same authenticated caller/token scope:
 
-- same `notificationId` + same normalized payload hash => do not start a second execution; return the original/same execution reference with `duplicate: true`;
-- same `notificationId` + different normalized payload hash => reject with idempotency conflict;
-- expired idempotency records may be evicted according to bounded retention policy.
+- same `notificationId` + same normalized payload hash in the **same running process** after successful acceptance => do not start a second execution; return the same execution reference with `duplicate: true`;
+- same `notificationId` + different normalized payload hash => reject with `IDEMPOTENCY_CONFLICT`;
+- a tombstone recovered from a **previous NotifyHandler process** => reject automatic replay with `IDEMPOTENCY_REPLAY_BLOCKED`, regardless of whether the prior state was `pending` or `accepted`; do not create or restart browser work;
+- a current-process `pending` tombstone with no live in-flight operation => reject with `IDEMPOTENCY_UNCERTAIN` rather than guessing whether execution began;
+- a deterministic preflight failure may remove its reservation because worker startup did not occur;
+- expired tombstones are evicted after the 24-hour retention interval.
+
+The fail-closed restart rule is intentional: NotifyHandler does not restore prior browser execution state, so a recovered execution id is historical metadata rather than proof that an active execution still exists. A sender that needs a genuinely new attempt after restart must receive a new upstream notification/id rather than replaying the old one.
 
 Idempotency does not weaken cancellation or stale-attempt rules inside an already-created execution.
 
@@ -279,7 +286,7 @@ Recommended status mapping:
 - `400 Bad Request` — malformed JSON/schema syntax;
 - `401 Unauthorized` — missing/invalid local bearer token;
 - `403 Forbidden` — invalid local Host/Origin/network policy;
-- `409 Conflict` — reused idempotency key with different payload;
+- `409 Conflict` — idempotency conflict, restart replay block, or unresolved durable reservation;
 - `413 Payload Too Large` — request size limit exceeded;
 - `415 Unsupported Media Type` — not JSON;
 - `422 Unprocessable Entity` — semantically invalid/unsupported notification;
@@ -309,9 +316,10 @@ For a newly accepted valid v1 request:
 4. validate distinct supported bookmakers and direct-link candidates;
 5. construct exactly two immutable `SelectionTarget` values;
 6. create one immutable `ExecutionPlan`;
-7. atomically register the idempotency/execution association;
+7. synchronously persist and fsync a `pending` idempotency tombstone before calling the application execution path;
 8. start both legs automatically, preferably concurrently;
-9. return the accepted execution reference without waiting for bookmaker preparation to finish.
+9. after successful execution creation, persist the tombstone as `accepted`;
+10. return the accepted execution reference without waiting for bookmaker preparation to finish.
 
 No renderer acknowledgement, pair choice, or start button is part of this path.
 
@@ -340,7 +348,7 @@ No credentials/MFA/CAPTCHA values enter the protocol or application.
 
 Cancellation invalidates the current attempt. No later redirect, resume, duplicate HTTP request, or stale browser callback may reactivate the cancelled attempt.
 
-A duplicate HTTP request for an already-created execution returns the existing execution reference rather than creating a replacement attempt.
+A same-process duplicate HTTP request for an already-created execution returns the existing execution reference rather than creating a replacement attempt. After a NotifyHandler restart, a recovered durable tombstone blocks automatic replay instead of pretending the previous browser execution still exists.
 
 ## 13. SelectionActivationGate
 
@@ -408,8 +416,11 @@ Application/Security/QA should cover at least:
 - unexpected Origin/Host yields no execution/navigation;
 - wrong media type/malformed JSON/oversized payload yields no execution/navigation;
 - stale/future `sentAt` yields no execution/navigation;
-- exact duplicate returns original execution without a second start;
-- same id + changed payload yields conflict;
+- exact duplicate in the same process returns the original execution without a second start;
+- exact duplicate after process restart is blocked with zero worker starts;
+- same id + changed payload yields conflict both before and after restart;
+- durable tombstones contain only bounded ids/hashes/timestamps/state metadata and inherit user-only local permissions;
+- corrupt/oversized durable state fails closed before listener startup and expired state is evicted;
 - same-bookmaker/unsupported bookmaker pair is rejected;
 - unsafe/credential-bearing/off-origin direct URL is rejected;
 - direct URL that opens the wrong event fails matching rather than being trusted;
