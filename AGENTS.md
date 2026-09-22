@@ -75,15 +75,15 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-ARCH-004/#103 is complete via PR #108. The accepted contract is `notifyhandler.direct-pair.v1` with conceptual `POST /api/v1/notifications/direct-pair`, loopback-only binding by default, local bearer auth, bounded JSON, freshness/idempotency, and direct links that are navigation input only.
+ARCH-004/#103, APP-005/#105, SEC-002/#106, and SEC-003/#113 are complete. The loopback structured-ingress path is implemented and hardened, including restart-safe idempotency.
 
-1. **#105 APP-005 — immediate autonomous P0.** Implement the loopback structured-ingress endpoint and converge valid exact two-leg requests into the existing automatic orchestration path.
-2. **#109 PRODUCT-016 — external/upstream P0 blocker for live validation.** Obtain representative credential-free SISAL and BET365 direct match links plus matching notification context from the actual surebet flow.
-3. **#104 BOOK-016 — blocked only on #109 evidence.** Once real links exist, run direct-link-anchored BOOK-012 validation. Do not repeat generic football-hub runs or broaden capabilities to compensate for missing samples.
-4. **#106 SEC-002 — after/alongside APP-005.** Review binding/auth/request/freshness/idempotency/privacy and deep-link URL/DNS/redirect protections.
-5. If direct-link evidence yields a feasible candidate, create a separate restricted live-mapping implementation issue. If both remain Blocked, route to Product Coordination for candidate/scope replan.
-6. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
-7. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#109 PRODUCT-016 — sole immediate P0 blocker.** Obtain representative credential-free SISAL and BET365 direct match-page URLs plus matching notification context from the actual surebet flow. Never invent or reconstruct them.
+2. **#104 BOOK-016 — ready immediately after #109.** Run direct-link-anchored BOOK-012 validation from those exact URLs. Do not repeat generic football-hub runs or broaden capabilities to compensate for missing samples.
+3. If direct-link evidence yields a feasible candidate, create a separate restricted live-mapping implementation issue. If both remain Blocked, route to Product Coordination for candidate/scope replan.
+4. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
+5. **#46 DEVOPS-003** remains blocked until #45 passes.
+
+Minimum #109 sample fields per bookmaker: canonical bookmaker id, exact public HTTPS match URL from the upstream surebet source, event participants, competition/time when supplied, market source label/normalized meaning, exact line, side/outcome, and expected odds. Never include credentials, cookies, session tokens, or account identifiers.
 
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 
