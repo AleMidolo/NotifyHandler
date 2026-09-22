@@ -56,27 +56,19 @@ The structured-ingress implementation and security-hardening track is complete:
 - **SEC-002/#106** — DNS/private-target validation, local token hardening/rotation, Host/Origin/privacy regressions, merged via PR #114;
 - **SEC-003/#113** — restart-safe bounded idempotency tombstones with user-only persistence and zero sensitive payload storage, merged via PR #115.
 
-The sole immediate Milestone 6 blocker is now **PRODUCT-016/#109**: the repository needs representative credential-free direct match-page URLs from the actual surebet flow for **SISAL** and **BET365**, together with the matching notification context. Once those samples exist, **BOOK-016/#104** can start direct-link-anchored validation immediately.
+User-supplied production examples revealed an important refinement: the surebet bot does **not** emit bookmaker-origin match URLs. It emits credential-free relay URLs shaped as `https://www.bet-up.it/lnk/<signal-uuid>/<bookmaker>`, which are expected to redirect to the bookmaker match page.
 
-Minimum sample context per bookmaker:
-- canonical bookmaker id;
-- exact public HTTPS direct match URL emitted by the surebet source;
-- event participants;
-- competition when available;
-- scheduled date/time when available;
-- market source label / normalized full-match total-corners meaning;
-- exact line;
-- requested side/outcome;
-- expected odds.
+The current structured v1 contract deliberately requires the initial URL itself to be on the bookmaker origin, so these real upstream links cannot be consumed safely without an explicit architecture change. PRODUCT-019/#118 records this product fact and ARCH-005/#119 is now the immediate P0.
 
-Do not include credentials, cookies, session tokens, account identifiers, or reconstructed/guessed URLs. The direct URL remains navigation input only and never counts as event/market/line/side/odds evidence.
+The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. **#109 PRODUCT-016 — immediate external evidence blocker**;
-2. **#104 BOOK-016 — run SISAL/BET365 direct-link validation once #109 is satisfied**;
-3. create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`;
-4. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
-5. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#119 ARCH-005 — immediate P0:** define the trusted `bet-up.it` relay-link protocol/redirect/origin/DNS/evidence semantics while preserving direct-bookmaker v1 safety;
+2. **#109 PRODUCT-016 — partially satisfied:** BET365/SISAL relay format is proven; still obtain a usable full-match total-corners upstream sample once #119 is merged;
+3. **#104 BOOK-016 — after #119 + target-market evidence:** validate the real relay-aware path and independently establish event/competition-time/market/line/side/odds;
+4. create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`;
+5. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
+6. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 Remote Internet exposure of the desktop webhook is not part of this decision. The default integration is local/loopback; a remote surebet service would require a separately designed secure relay/outbound connection rather than opening the desktop listener to the public Internet.
 
