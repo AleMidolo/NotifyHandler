@@ -79,6 +79,9 @@ Controls:
 - require the exact configured loopback `Host`, reject any browser `Origin`, and emit no permissive CORS policy;
 - accept only POST + JSON, cap the body at 64 KiB, and bound request rate/concurrency;
 - validate freshness and idempotency before creating browser work;
+- persist a 24-hour, bounded, current-user-only idempotency tombstone containing only notification id, normalized payload hash, deterministic execution id, timestamp, and pending/accepted state;
+- fsync the pending tombstone before execution startup; recovered tombstones from an earlier process block automatic replay rather than recreating browser work;
+- fail closed before listener startup on corrupt, oversized, future-dated, duplicate-key, or otherwise invalid durable idempotency state; evict expired tombstones;
 - return sanitized execution/error metadata only; never echo Authorization, token, full request bodies, or deep links;
 - do not expose generic browser-evaluation, shell, filesystem, credential, or transaction APIs;
 - remote webhook exposure, tunnels, reverse proxies, or public listeners remain out of scope and require a new architecture/security decision.
@@ -121,11 +124,14 @@ Mitigations:
 
 ### Compromised local control endpoint
 
-Threat: another local process or malicious web page controls the browser automation service.
+Threat: another local process or malicious web page controls the browser automation service, or an authenticated sender replays a still-fresh notification after the desktop process restarts.
 
 Mitigations:
 - loopback-only binding, per-session capability authentication, Host/Origin checks, and no permissive CORS;
 - state-changing endpoints are not GET requests;
+- durable idempotency reservation is written before browser work and survives restart for 24 hours;
+- an exact replay recovered from a previous process is blocked because browser execution state itself is not restored;
+- same id with different content remains a conflict; unresolved current-process reservations fail closed;
 - no endpoint may expose credentials, cookies, arbitrary navigation, arbitrary JavaScript evaluation, stake entry, or wager submission.
 
 ### Unsafe browser permissions/profile handling
