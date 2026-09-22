@@ -162,3 +162,7 @@ Esito UNDER:
 BET365 @ 1.61
 Opzioni consigliate:
 SISAL OVER + BET365 UNDER`;
+
+export const explicitFirstHalfMarket = `Evento: Real Madrid - Rayo Vallecano\nMercato: FIRST HALF U/O CORNER 11.5\nEsito OVER:\nSISAL @ 2.90\nEsito UNDER:\nBET365 @ 1.61\nOpzioni consigliate:\nSISAL OVER + BET365 UNDER`;
+
+export const explicitSecondHalfMarket = `Evento: Real Madrid - Rayo Vallecano\nMercato: U/O CORNER 2H 11.5\nEsito OVER:\nSISAL @ 2.90\nEsito UNDER:\nBET365 @ 1.61\nOpzioni consigliate:\nSISAL OVER + BET365 UNDER`;
