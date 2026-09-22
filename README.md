@@ -63,12 +63,14 @@ ARCH-005 introduces `notifyhandler.direct-pair.v2` with a typed `betup-relay` na
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. **#119 ARCH-005 — architecture track:** `direct-pair.v2`, typed navigation, and restricted `bet-up.it` relay resolution;
-2. **#109 PRODUCT-016 — partially satisfied:** BET365/SISAL relay format is proven; still obtain a usable full-match total-corners upstream sample once #119 is merged;
-3. **#104 BOOK-016 — after #119 + target-market evidence:** validate the real relay-aware path and independently establish event/competition-time/market/line/side/odds;
+1. **#125 SEC-004 — immediate autonomous task:** security-review the merged relay resolver, typed v2 navigation, DNS/origin enforcement, cancellation, privacy, and unchanged transaction boundary;
+2. **#109 PRODUCT-016 — immediate external evidence blocker:** provide a current/still-reachable upstream `bet-up.it` signal for the actual pre-match **full-match total-corners O/U** target;
+3. **#104 BOOK-016 — ready when #109 evidence exists:** run relay-aware live validation using the already-merged v2 ingestion, full-match period identity, and restricted relay resolver;
 4. create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`;
 5. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
 6. **#46 DEVOPS-003** remains blocked until #45 passes.
+
+The relay-aware implementation stack is now complete on `main`: ARCH-005/#119, ARCH-006/#128, APP-006/#123, shared market-period propagation, BOOK-018/#131, and BOOK-017/#124 are merged. Relay resolution remains navigation only and contributes no positive event/market/line/side/odds evidence.
 
 Remote Internet exposure of the desktop webhook is not part of this decision. The default integration is local/loopback; a remote surebet service would require a separately designed secure relay/outbound connection rather than opening the desktop listener to the public Internet.
 
