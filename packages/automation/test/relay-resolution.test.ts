@@ -282,7 +282,7 @@ test("relay phase rejects a POST revisit to the exact canonical relay URL", asyn
           kind: "html",
           body: `<!doctype html><html><body>
             <form id="revisit" method="post" action="${relay}">
-              <input type="hidden" name="state" value="unreviewed">
+              <input type="hidden" name="state" value="relay-post-body-secret">
             </form>
             <script>document.getElementById("revisit").submit()</script>
           </body></html>`,
@@ -299,7 +299,7 @@ test("relay phase rejects a POST revisit to the exact canonical relay URL", asyn
     const diagnostic = JSON.stringify(last);
     assert.equal(diagnostic.includes(SIGNAL_ID), false);
     assert.equal(diagnostic.includes(relay), false);
-    assert.equal(diagnostic.includes("unreviewed"), false);
+    assert.equal(diagnostic.includes("relay-post-body-secret"), false);
   } finally {
     await worker.closeAll();
   }
