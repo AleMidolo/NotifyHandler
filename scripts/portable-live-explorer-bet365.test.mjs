@@ -137,7 +137,7 @@ test("portable summary validator only accepts sanitized BET365 BOOK-012 summarie
     actions: [],
   };
   const sanitizedRelayFailure = {
-    ...sanitizedRelayFailure,
+    ...invalidRelaySummary,
     note: "Relay-aware explorer stopped safely during the shared restricted resolver phase. No relay signal identifier or full relay URL is included in this summary.",
   };
   assert.deepEqual(validatePortableExplorerSummary(JSON.stringify(sanitizedRelayFailure)), sanitizedRelayFailure);
