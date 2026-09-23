@@ -90,6 +90,8 @@ export async function verifyPortableValidationBundle() {
     join(bundle, "browsers"),
     join(bundle, "app", "packages", "automation", "src", "live-validation", "interactive-explorer.ts"),
     join(bundle, "app", "packages", "automation", "src", "navigation-policy.ts"),
+    join(bundle, "app", "packages", "automation", "src", "dom-mapping.ts"),
+    join(bundle, "app", "packages", "automation", "src", "page-runtime.ts"),
     join(bundle, "README.txt"),
     join(bundle, "SHA256SUMS.txt"),
   ]) {
