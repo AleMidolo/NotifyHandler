@@ -136,31 +136,42 @@ test("portable summary validator only accepts sanitized SISAL BOOK-012 summaries
     snapshots: [],
     actions: [],
   };
-  assert.deepEqual(validatePortableExplorerSummary(JSON.stringify(invalidRelaySummary)), invalidRelaySummary);
+  const sanitizedRelayFailure = {
+    ...sanitizedRelayFailure,
+    note: "Relay-aware explorer stopped safely during the shared restricted resolver phase. No relay signal identifier or full relay URL is included in this summary.",
+  };
+  assert.deepEqual(validatePortableExplorerSummary(JSON.stringify(sanitizedRelayFailure)), sanitizedRelayFailure);
   assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({
-      ...invalidRelaySummary,
+      ...sanitizedRelayFailure,
+      note: "Internal resolver message: rejected /secret/path",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...sanitizedRelayFailure,
       resolverMessage: "raw rejected path or internal diagnostic",
     })),
     /boundary validation/i,
   );
   assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({
-      ...invalidRelaySummary,
+      ...sanitizedRelayFailure,
       rawRedirectTarget: "https://example.invalid/secret-path?token=secret",
     })),
     /boundary validation/i,
   );
   assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({
-      ...invalidRelaySummary,
+      ...sanitizedRelayFailure,
       status: "COMPLETE",
     })),
     /boundary validation/i,
   );
   assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({
-      ...invalidRelaySummary,
+      ...sanitizedRelayFailure,
       startPath: "/resolved/event/123",
       finalPath: "/event",
     })),
@@ -177,7 +188,7 @@ test("portable summary validator only accepts sanitized SISAL BOOK-012 summaries
   );
   assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({
-      ...invalidRelaySummary,
+      ...sanitizedRelayFailure,
       relayInvalidCategory: undefined,
     })),
     /boundary validation/i,
@@ -193,7 +204,7 @@ test("portable summary validator only accepts sanitized SISAL BOOK-012 summaries
   );
   assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({
-      ...invalidRelaySummary,
+      ...sanitizedRelayFailure,
       relayInvalidCategory: "RAW_PATH_/secret",
     })),
     /boundary validation/i,
