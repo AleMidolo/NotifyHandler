@@ -118,6 +118,20 @@ test("portable summary validator only accepts sanitized SISAL BOOK-012 summaries
     /boundary validation/i,
   );
   assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...relaySummary,
+      note: "Leaked relay id 11111111-2222-4333-8444-555555555555",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...relaySummary,
+      actions: [{ sequence: 1, interaction: "NAVIGATION", label: "Corner", beforePath: "/11111111-2222-4333-8444-555555555555", afterPath: "/event" }],
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({ ...base, bookmaker: "admiralbet" })),
     /boundary validation/i,
   );
