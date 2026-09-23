@@ -227,13 +227,25 @@ Never tell the user the pair is ready when either current leg is not `READY_FOR_
 All relay-specific failures occur before final outcome activation and must use `activation: "NOT_ATTEMPTED"`.
 
 - malformed relay/path/suffix -> `RELAY_INVALID`;
-- suffix inconsistent with target bookmaker -> `RELAY_BOOKMAKER_MISMATCH`;
-- two relay legs from different signal UUIDs -> `RELAY_SIGNAL_MISMATCH`;
+- suffix inconsistent with target bookmaker, including a runtime same-origin revisit with a different suffix -> `RELAY_BOOKMAKER_MISMATCH`;
+- two relay legs from different signal UUIDs, or a runtime same-origin revisit with a different UUID -> `RELAY_SIGNAL_MISMATCH`;
 - forbidden/uncertain relay or destination network target -> `RELAY_NETWORK_TARGET_BLOCKED`;
 - unreviewed third-party redirect/navigation -> `RELAY_INTERMEDIARY_BLOCKED`;
 - relay reaches a different bookmaker -> `RELAY_WRONG_FINAL_BOOKMAKER`;
-- loop/revisit/transition budget exceeded -> `RELAY_REDIRECT_LIMIT`;
+- a second additional same-origin relay visit or other finite-state hop-budget excess -> `RELAY_REDIRECT_LIMIT`;
 - no expected bookmaker arrival before bounded timeout -> `RELAY_UNRESOLVED`;
 - relay-origin authentication/challenge/consent state requiring unsupported interaction -> `RELAY_CHALLENGE_UNSUPPORTED`.
 
 If relay resolution correctly reaches the expected bookmaker but the page is stale/wrong-event/wrong-market, use the ordinary event/market/line/outcome/odds failure codes. Do not relabel page-identity failure as relay success or vice versa.
+
+
+### ARCH-007 same-origin relay failures
+
+One extra visit to the original canonical relay href is permitted. Same-origin alone is not sufficient.
+
+- same origin but malformed/unreviewed path/query/fragment/userinfo -> `RELAY_INVALID`;
+- same grammar but different signal UUID -> `RELAY_SIGNAL_MISMATCH`;
+- same grammar but suffix resolves to a different bookmaker -> `RELAY_BOOKMAKER_MISMATCH`;
+- second extra visit to the canonical relay -> `RELAY_REDIRECT_LIMIT`.
+
+These failures remain pre-matching and pre-activation.

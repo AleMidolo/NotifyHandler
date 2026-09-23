@@ -1,6 +1,6 @@
 # ADR-0004: Versioned typed navigation and restricted bet-up relay resolution
 
-Status: **Accepted**
+Status: **Accepted, amended by ADR-0005**
 
 Date: 2026-09-22
 
@@ -71,19 +71,20 @@ The resolver is not a bookmaker adapter and does not perform event/market/outcom
 
 ## Redirect/origin policy
 
-The approved relay path is intentionally strict:
+The base relay policy remains intentionally strict and is amended only by ADR-0005.
 
-1. open the exact validated `www.bet-up.it` relay;
-2. permit one cross-origin transition only when its destination is already an approved origin for the leg's expected bookmaker adapter;
-3. reject any third-party intermediary;
-4. apply fail-closed DNS/private-target checks to relay and destination before navigation;
-5. after the expected bookmaker origin is reached, finish relay resolution and hand control to the existing adapter/navigation policy.
+The accepted finite state machine is now:
 
-This allows normal HTTP, meta, or script-driven top-level navigation only when the actual top-level destination is the expected bookmaker.
+1. open the exact validated `www.bet-up.it/lnk/<signal>/<suffix>` relay;
+2. either transition directly to the expected bookmaker origin **or** perform one additional top-level visit to the exact same canonical relay URL;
+3. after that one permitted same-origin revisit, the next accepted cross-origin transition must be directly to the expected bookmaker origin;
+4. reject any third-party intermediary, wrong bookmaker, non-canonical same-origin path, or further relay-origin visit;
+5. apply fail-closed DNS/private-target checks to every accepted relay/bookmaker top-level request;
+6. after the expected bookmaker origin is reached, finish relay resolution and hand control to the existing adapter/navigation policy.
 
-Unreviewed affiliate/tracker intermediaries are not accepted merely because they may eventually reach the bookmaker.
+The one extra relay-origin visit is not arbitrary same-origin crawling. It must retain the original normalized signal UUID and bookmaker suffix and canonicalize to the exact initial relay href.
 
-If real evidence later proves a required intermediary pattern, it must be reviewed and added explicitly rather than accepted generically.
+Unreviewed affiliate/tracker intermediaries remain rejected. Any different same-origin path or a requirement for more than one additional relay visit requires another evidence-backed architecture decision.
 
 ## Evidence decision
 
@@ -169,6 +170,8 @@ Add deterministic v1/v2 compatibility and relay-path regressions, proving no rel
 - ARCH-005 / #119
 - PRODUCT-019 / #118
 - PRODUCT-016 / #109
+- ARCH-007 / #147
+- ADR-0005
 - BOOK-016 / #104
 - `specs/structured-ingestion-v1.md`
 - `specs/structured-ingestion-v2.md`

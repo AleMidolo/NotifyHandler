@@ -86,7 +86,7 @@ For `EXPANSION`, the explorer may click only the narrowly qualified disclosure/t
 
 For direct-bookmaker exploration, the browser context independently enforces the selected origin for every top-level navigation, including redirects and popup navigation. HTTP(S) requests containing URL credentials or targeting internal/private hostnames are aborted. Additional pages/popups are closed rather than used as a new interaction surface.
 
-For BOOK-016 relay-aware exploration, the diagnostic reuses the merged BOOK-017 worker page-runtime resolver. Before evidence collection it permits only the exact validated `https://www.bet-up.it` relay and then one direct top-level transition to the selected bookmaker's registered origin. Relay revisits/loops, third-party intermediaries, a different registered bookmaker, private/uncertain DNS, unresolved relays, and relay-origin challenges fail safely. After expected-bookmaker arrival the resolver revokes relay-origin permission and the existing bookmaker-only navigation policy remains authoritative.
+For relay-aware exploration, the diagnostic reuses the shared worker page-runtime resolver. Before evidence collection it permits the exact validated `https://www.bet-up.it/lnk/<signal>/<bookmaker>` relay, then either direct expected-bookmaker arrival or exactly one additional visit to that same canonical relay URL. After that revisit, the selected bookmaker's registered origin is the only accepted cross-origin destination. A different same-origin path/UUID/suffix, a second extra relay visit, third-party intermediary, different registered bookmaker, private/uncertain DNS target, unresolved relay, or relay-origin challenge fails safely. After expected-bookmaker arrival the resolver revokes relay-origin permission and the existing bookmaker-only navigation policy remains authoritative.
 
 The explorer does not inspect protected/private API responses or use arbitrary page evaluation to bypass the visible UI.
 
@@ -159,3 +159,10 @@ Repository tests cover:
 - headed mode, fixed interaction budget, minimum delay, navigation policy, internal-host blocking, and non-authorizing output.
 
 Existing deterministic SISAL/BET365 worker, cancellation, stale-attempt, security, and desktop tests remain authoritative for production behavior.
+
+
+### ARCH-007 relay-hop rule
+
+The diagnostic must not expose a flag for increasing the relay hop budget. The allowed additional same-origin count is exactly one and is independent of `NH_LIVE_EXPLORER_MAX_ACTIONS`.
+
+A relay failure after the one allowed canonical revisit is retained as shared navigation-contract evidence. The live explorer must not auto-retry it, broaden the path grammar, or classify bookmaker market feasibility before expected-bookmaker arrival.

@@ -1,6 +1,6 @@
 # NotifyHandler architecture
 
-Status: **Accepted baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, and ARCH-006**
+Status: **Accepted baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, ARCH-006, and ARCH-007**
 
 NotifyHandler is a local-first desktop application that receives either a legacy textual surebet notification or a versioned structured direct-pair notification, normalizes it into exactly two bookmaker-agnostic targets, and starts two independently prepared bookmaker legs as soon as deterministic validation and navigation-safety checks pass. Authentication, changed-odds acknowledgement where required, stake entry, review, and final bet submission remain manual boundaries.
 
@@ -244,7 +244,7 @@ Adapters do not receive the Electron renderer, application privilege surface, cr
 
 Adapters should receive a restricted bookmaker-page abstraction rather than raw Playwright `Browser`, `BrowserContext`, or `Page` objects as their public dependency.
 
-Relay resolution is a shared worker/browser-gateway responsibility before bookmaker adapter matching. Bookmaker adapters do not implement `bet-up.it` parsing or redirect policy.
+Relay resolution is a shared worker/browser-gateway responsibility before bookmaker adapter matching. Bookmaker adapters do not implement `bet-up.it` parsing or redirect policy. The resolver is a finite state machine: initial canonical relay entry, at most one additional visit to that exact same canonical relay URL, then expected-bookmaker arrival; no other relay-origin path or intermediary is authorized.
 
 The worker-level `start(...)` operation remains valid, but it is invoked by the core automatically after plan preflight. It is not a renderer/user approval operation.
 
@@ -373,6 +373,18 @@ Diagnostics may record navigation kind, relay origin, bookmaker id/suffix, hop c
 
 The renderer never renders untrusted bookmaker or relay HTML.
 
+### 15.5 ARCH-007 bounded relay revisit
+
+Qualifying live evidence showed the real upstream relay performs one additional top-level navigation on `https://www.bet-up.it` before bookmaker arrival.
+
+Architecture permits exactly one such additional hop **only when the candidate canonicalizes to the original immutable relay href**. This preserves the original `/lnk/<signal-uuid>/<bookmaker-suffix>` grammar, signal identity, and bookmaker binding.
+
+The initial relay entry is not counted in the additional-hop budget. The budget is exactly one, resets only on a fresh attempt, and is never configurable/increased on retry.
+
+Every relay visit repeats resolved-target validation. A non-canonical same-origin path, UUID/suffix mutation, query/fragment/userinfo, second extra relay visit, wrong bookmaker, intermediary, challenge, or unsafe network target fails before matching.
+
+This amendment does not create positive identity evidence and does not alter the selection/transaction boundary.
+
 ## 16. Persistence and diagnostics
 
 MVP persistent application data should be minimal and non-sensitive.
@@ -409,14 +421,15 @@ Exact package manager, Electron/Node/Playwright versions, bundler, installer/sig
 
 ## 19. Architecture completion state
 
-ARCH-001 through ARCH-006 now establish the current runtime and shared contracts:
+ARCH-001 through ARCH-007 now establish the current runtime and shared contracts:
 
 - ARCH-001 — local desktop + headed Playwright runtime;
 - ARCH-002 — execution/adapter/matching/error contracts;
 - ARCH-003 — deterministic automatic startup;
 - ARCH-004 — versioned structured direct-pair ingestion, authenticated loopback HTTP boundary, idempotency/freshness, and direct-bookmaker trust semantics;
 - ARCH-005 — `direct-pair.v2`, typed navigation candidates, and restricted `bet-up.it` relay resolution;
-- ARCH-006 — explicit market-period identity propagated from input through SelectionTarget and required by adapter market matching.
+- ARCH-006 — explicit market-period identity propagated from input through SelectionTarget and required by adapter market matching;
+- ARCH-007 — one evidence-backed canonical same-origin `bet-up.it` revisit before expected-bookmaker arrival, with fixed hop budget and unchanged evidence/transaction boundaries.
 
 Downstream responsibilities are now explicit:
 

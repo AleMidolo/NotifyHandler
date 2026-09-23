@@ -104,16 +104,16 @@ Mitigations:
 
 ### Malicious redirect and relay content
 
-Threat: an approved direct link or bet-up relay redirects to another origin, login phishing page, local service, unsupported scheme, or a compromised relay page attempts subresource requests against loopback/private/internal services.
+Threat: an approved direct link or bet-up relay redirects to another origin, abuses same-origin redirects as an open-redirect/crawling surface, changes signal/bookmaker identity mid-chain, reaches a login phishing page/local service/unsupported scheme, or a compromised relay page attempts subresource requests against loopback/private/internal services.
 
 Mitigations:
 - check final/current origin before matching;
 - direct-bookmaker redirects remain constrained by the existing bookmaker navigation policy;
-- typed bet-up relay navigation permits only the exact validated relay URL followed by a direct top-level transition to the expected bookmaker origin; intermediary and wrong-bookmaker destinations fail safely;
+- typed bet-up relay navigation permits the exact validated relay URL, at most one additional top-level visit to that exact same canonical URL, then a direct transition to the expected bookmaker origin; arbitrary same-origin paths, additional revisits, intermediary and wrong-bookmaker destinations fail safely;
 - relay HTTP redirects are terminated at the gateway with automatic redirect following disabled; the `Location` target is validated before any destination request and an approved target is re-issued as a fresh interceptable browser navigation;
-- relay origin and expected-bookmaker top-level targets are re-resolved through the fail-closed private/internal DNS policy;
+- relay origin is re-resolved through the fail-closed private/internal DNS policy on both initial entry and the one permitted revisit; the expected-bookmaker target is independently resolved before navigation;
 - while relay resolution is active, every intercepted non-top-level network request must be public HTTPS without URL credentials and must resolve only to non-private/non-internal addresses; an unsafe relay subresource aborts the request and fails the relay attempt;
-- relay loops/revisits, unsupported relay challenges, and unresolved timeouts fail before matching or activation;
+- a second additional relay visit, non-canonical same-origin target, unsupported relay challenge, and unresolved timeout fail before matching or activation;
 - retry/reopen re-resolve the immutable relay rather than trusting a previously resolved final URL;
 - re-run origin and target validation after manual login, refresh, retry, reopen, or navigation.
 

@@ -104,8 +104,9 @@ Required controls:
 - HTTP redirect responses from the relay must not be auto-followed by the browser: the gateway obtains the first response with redirects disabled, validates its `Location` before any destination request, and only then initiates a fresh controlled browser navigation;
 - while relay resolution is active, non-top-level browser requests are intercepted too: only public HTTPS targets without URL credentials and without private/internal DNS answers are permitted; an unsafe relay subresource fails the relay attempt;
 - the only approved cross-origin relay transition is directly to an origin registered for the expected bookmaker;
-- unexpected intermediaries and wrong-bookmaker destinations fail safely;
-- relay loops/revisits/timeouts are bounded;
+- before that cross-origin transition, at most one additional top-level visit to the exact same canonical `/lnk/<same-uuid>/<same-suffix>` relay URL is allowed;
+- a different same-origin relay path/UUID/suffix/query/fragment, a second extra relay visit, unexpected intermediary, or wrong-bookmaker destination fails safely;
+- relay revisits are bounded by a fixed non-configurable additional-hop budget of exactly one; retries reset to a fresh attempt rather than increasing that budget;
 - relay-origin auth/CAPTCHA/consent challenges fail safely rather than being automated or handed off as bookmaker login;
 - successful relay resolution contributes zero event/market/line/outcome/odds evidence.
 
@@ -146,6 +147,8 @@ A release is blocked if any known path can:
 - bypass access controls or anti-bot/geo/rate-limit restrictions;
 - navigate untrusted input to unsafe/unapproved origins;
 - allow a relay through an unreviewed intermediary or wrong-bookmaker destination;
+- treat same-origin as sufficient authorization for an arbitrary `bet-up.it` path;
+- make the relay same-origin hop budget user-configurable or auto-increase it after failure;
 - treat relay path/suffix/redirect success as positive selection identity evidence;
 - expose the structured ingress on non-loopback interfaces by default or accept it without required local authentication/request bounds;
 - expose sensitive authentication/session data in logs or artifacts;

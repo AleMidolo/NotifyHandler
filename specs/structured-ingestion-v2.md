@@ -153,26 +153,32 @@ For `BETUP_RELAY`:
 2. immediately before navigation, revalidate relay URL syntax/origin and resolved addresses;
 3. reject when any resolved relay-host address is loopback, link-local, private/internal, multicast, otherwise forbidden, or resolution is uncertain under the shared fail-closed network policy;
 4. open the exact validated relay URL through normal browser navigation;
-5. permit only a direct top-level transition from the exact relay origin to an origin already registered for the leg's expected bookmaker adapter;
-6. reject any unreviewed third-party intermediary origin;
-7. before allowing the expected-bookmaker request, apply the same DNS/private-target validation to that target;
-8. once the first allowed expected-bookmaker top-level request is reached, relay resolution completes and normal adapter navigation/matching policy takes over;
-9. re-check the current/final origin before matching starts.
+5. after the initial relay entry, permit either the expected-bookmaker transition or exactly one additional top-level visit to the same canonical relay URL;
+6. the permitted same-origin revisit must preserve exact origin, no userinfo/query/fragment, exact `/lnk/<same-normalized-uuid>/<same-suffix>` grammar, and canonical href equality with the immutable initial relay URL;
+7. re-run fail-closed DNS/private-target validation for the permitted revisit;
+8. after the revisit budget is consumed, require the next accepted cross-origin transition to be directly to an origin already registered for the leg's expected bookmaker adapter;
+9. reject any non-canonical same-origin URL, second additional relay-origin visit, or unreviewed third-party intermediary origin;
+10. before allowing the expected-bookmaker request, apply the same DNS/private-target validation to that target;
+11. once the first allowed expected-bookmaker top-level request is reached, relay resolution completes and normal adapter navigation/matching policy takes over;
+12. re-check the current/final origin before matching starts.
 
 The resolver does not expose arbitrary navigation, raw Playwright objects, shell access, generic JavaScript evaluation, credentials, or transaction capabilities.
 
 ## 8. Redirect/navigation budget
 
-The default relay policy is deliberately narrow:
+The relay policy is a finite state machine, not a generic redirect follower.
 
-- initial document origin must be exactly `https://www.bet-up.it`;
-- only one cross-origin relay transition is authorized: `bet-up.it -> expected bookmaker adapter origin`;
+- initial document URL must be exactly the immutable validated `https://www.bet-up.it/lnk/<signal>/<suffix>` candidate;
+- **maximum additional same-origin relay hops: 1**;
+- that one additional hop is accepted only when its canonical href equals the original relay href and therefore preserves the same normalized signal UUID and bookmaker suffix;
+- query, fragment, URL credentials, a different relay path, different UUID, or different suffix is rejected;
+- the hop count is fixed architecture policy and is not configurable or increased by retry;
+- after zero or one permitted same-origin revisit, the only allowed cross-origin transition is directly to the expected bookmaker adapter origin;
 - no affiliate/tracker/URL-shortener/other intermediary origin is allowed;
-- a second visit/reload/loop at the relay origin before bookmaker arrival is treated as unresolved/looping unless an explicit later ADR approves a reviewed pattern;
-- after the expected bookmaker origin is reached, subsequent navigation is governed only by that adapter's existing approved-origin policy and evidence-epoch rules;
-- every later top-level origin is still revalidated.
+- any second additional relay-origin visit fails with `RELAY_REDIRECT_LIMIT`;
+- after expected-bookmaker arrival, subsequent navigation is governed only by that adapter's existing approved-origin/evidence-epoch rules.
 
-This policy supports HTTP redirect, meta/client-side navigation, or script-driven top-level navigation only when the actual next top-level request is the expected bookmaker origin. It does not authorize arbitrary page scripting.
+HTTP redirect, meta refresh, or script-driven top-level navigation are all judged by the same intercepted next top-level URL. This policy does not authorize arbitrary scripting or same-origin browsing.
 
 ## 9. DNS/private-target policy
 
@@ -225,7 +231,7 @@ Normative failure codes are defined in `docs/error-model.md`, including:
 - blocked relay network target;
 - unexpected intermediary origin;
 - wrong final bookmaker origin;
-- relay loop/limit/unresolved timeout;
+- relay loop/limit/unresolved timeout, including a second additional relay-origin visit;
 - unsupported relay authentication/challenge state.
 
 A relay that resolves to the correct bookmaker but the wrong/stale event proceeds to ordinary deterministic matching and then fails with the existing event/market/line/outcome/odds taxonomy.
@@ -298,3 +304,10 @@ V2 requires `market.period: "full_match"` for the current protocol and must pres
 Relay resolution does not supply or repair market-period evidence. After expected-bookmaker arrival, the adapter must independently establish full-match period before market identity can become `MATCHED`.
 
 A first-half/other-period page candidate remains a normal deterministic market mismatch even if the relay, event, line, side, and odds otherwise look correct.
+
+
+## 18. ARCH-007 same-origin revisit amendment
+
+Two qualifying live evidence runs demonstrated one additional relay-origin top-level navigation before bookmaker arrival. ADR-0005 therefore permits exactly one revisit to the **same canonical relay URL**.
+
+This amendment does not approve a new relay path grammar. If the observed second hop uses a different same-origin path, UUID, suffix, query, or fragment, the resolver must fail safely and record only a sanitized reason category. Another architecture decision is required before broadening the grammar.
