@@ -63,12 +63,13 @@ ARCH-005 introduces `notifyhandler.direct-pair.v2` with a typed `betup-relay` na
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. **#104 BOOK-016 — immediate P0:** run relay-aware live validation for the supplied target sample: Portogallo - Galles, Nations League, 24/09/2026 20:45, full-match `U/O CORNERS 6.5`, BET365 OVER @1.14, SISAL UNDER @4.25;
-2. classify each bookmaker only from the post-relay deterministic evidence chain and create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`;
-3. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
-4. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#143 DEVOPS-012 — immediate P0:** execute exactly one BET365 and one SISAL relay-aware BOOK-016 validation run on a qualifying non-CI headed workstation from exact merged commit `a9d07e8692a2a00bf4db1c336896bafc654e5e4c`;
+2. **#104 BOOK-016 — interpretation after #143:** classify each bookmaker only from the returned sanitized post-relay evidence chain;
+3. create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`;
+4. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
+5. **#46 DEVOPS-003** remains blocked until #45 passes.
 
-PRODUCT-016/#109 is complete. The target-market relay evidence exists for both BET365 and SISAL, and all relay/domain/security prerequisites are already merged. Relay success itself still contributes zero positive event/market/period/line/side/odds evidence.
+PR #142 is merged and the explorer is relay-aware. No qualifying live relay run has yet been performed. The autonomous execution container's lack of external DNS is environment evidence only and must not be substituted for the required workstation runs.
 
 Remote Internet exposure of the desktop webhook is not part of this decision. The default integration is local/loopback; a remote surebet service would require a separately designed secure relay/outbound connection rather than opening the desktop listener to the public Internet.
 
