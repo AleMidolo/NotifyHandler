@@ -104,7 +104,8 @@ Required controls:
 - HTTP redirect responses from the relay must not be auto-followed by the browser: the gateway obtains the first response with redirects disabled, validates its `Location` before any destination request, and only then initiates a fresh controlled browser navigation;
 - while relay resolution is active, non-top-level browser requests are intercepted too: only public HTTPS targets without URL credentials and without private/internal DNS answers are permitted; an unsafe relay subresource fails the relay attempt;
 - the only approved cross-origin relay transition is directly to an origin registered for the expected bookmaker;
-- before that cross-origin transition, at most one additional top-level visit to the exact same canonical `/lnk/<same-uuid>/<same-suffix>` relay URL is allowed;
+- relay-phase top-level requests are GET-only; POST/form submissions or any other HTTP method are outside the reviewed protocol and fail safely;
+- before that cross-origin transition, at most one additional GET visit to the exact same canonical `/lnk/<same-uuid>/<same-suffix>` relay URL is allowed;
 - a different same-origin relay path/UUID/suffix/query/fragment, a second extra relay visit, unexpected intermediary, or wrong-bookmaker destination fails safely;
 - relay revisits are bounded by a fixed non-configurable additional-hop budget of exactly one; retries reset to a fresh attempt rather than increasing that budget;
 - relay-origin auth/CAPTCHA/consent challenges fail safely rather than being automated or handed off as bookmaker login;

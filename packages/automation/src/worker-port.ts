@@ -498,7 +498,12 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
             code: resolution.code,
             stage: "NAVIGATION",
             message: resolution.message,
-            recoverability: resolution.code === "RELAY_INVALID" ? "RESTART_PLAN" : "REOPEN",
+            recoverability:
+              resolution.code === "RELAY_INVALID"
+              || resolution.code === "RELAY_SIGNAL_MISMATCH"
+              || resolution.code === "RELAY_BOOKMAKER_MISMATCH"
+                ? "RESTART_PLAN"
+                : "REOPEN",
             activation: "NOT_ATTEMPTED",
             evidenceEpoch: request.evidenceEpoch,
           } });
