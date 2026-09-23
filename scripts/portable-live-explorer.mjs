@@ -23,6 +23,7 @@ const ciSignals = Object.freeze([
 ]);
 const explorerOverrideKeys = Object.freeze([
   "NH_LIVE_EXPLORER_URL",
+  "NH_LIVE_EXPLORER_RELAY_URL",
   "NH_LIVE_EXPLORER_MAX_ACTIONS",
   "NH_LIVE_EXPLORER_DELAY_MS",
 ]);
@@ -103,6 +104,8 @@ export async function assertPortableBundlePrerequisites(bundleRoot) {
   await access(join(bundleRoot, "browsers"));
   await access(join(bundleRoot, "app", "packages", "automation", "src", "live-validation", "interactive-explorer.ts"));
   await access(join(bundleRoot, "app", "packages", "automation", "src", "navigation-policy.ts"));
+  await access(join(bundleRoot, "app", "packages", "automation", "src", "dom-mapping.ts"));
+  await access(join(bundleRoot, "app", "packages", "automation", "src", "page-runtime.ts"));
 }
 
 async function assertAdmiralbetNetworkPrerequisite() {
