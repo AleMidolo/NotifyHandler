@@ -6,6 +6,7 @@ import {
   assertNonCiEnvironment,
   originForBookmaker,
   parseRunnerBookmaker,
+  npmVersionInvocation,
 } from "./run-live-explorer.mjs";
 
 test("local live explorer runner accepts only one supported bookmaker", () => {
@@ -42,4 +43,19 @@ test("local live explorer runner keeps bookmaker origins hard-coded", () => {
   assert.equal(originForBookmaker("sisal"), "https://www.sisal.it");
   assert.equal(originForBookmaker("bet365"), "https://www.bet365.it");
   assert.throws(() => originForBookmaker("example"), /Unsupported bookmaker/);
+});
+
+
+test("local live explorer runner invokes npm through cmd.exe on Windows", () => {
+  assert.deepEqual(
+    npmVersionInvocation("win32", { ComSpec: "C:\\Windows\\System32\\cmd.exe" }),
+    {
+      command: "C:\\Windows\\System32\\cmd.exe",
+      args: ["/d", "/s", "/c", "npm.cmd --version"],
+    },
+  );
+  assert.deepEqual(npmVersionInvocation("linux", {}), {
+    command: "npm",
+    args: ["--version"],
+  });
 });

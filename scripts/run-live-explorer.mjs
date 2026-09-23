@@ -79,9 +79,19 @@ async function loadPinnedVersions() {
   };
 }
 
+export function npmVersionInvocation(platform = process.platform, environment = process.env) {
+  if (platform === "win32") {
+    return {
+      command: environment.ComSpec || environment.COMSPEC || "cmd.exe",
+      args: ["/d", "/s", "/c", "npm.cmd --version"],
+    };
+  }
+  return { command: "npm", args: ["--version"] };
+}
+
 function installedNpmVersion() {
-  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
-  const result = spawnSync(npmCommand, ["--version"], {
+  const invocation = npmVersionInvocation();
+  const result = spawnSync(invocation.command, invocation.args, {
     cwd: root,
     encoding: "utf8",
     windowsHide: true,
