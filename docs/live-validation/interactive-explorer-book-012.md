@@ -117,7 +117,8 @@ The JSON output contains only bounded engineering evidence:
 - selected bookmaker and approved origin;
 - navigation kind; relay-aware runs may expose only the constant relay origin `https://www.bet-up.it`;
 - start/final **bookmaker path** (not query strings or fragments); relay-aware failure before bookmaker arrival uses a constant placeholder rather than the relay path;
-- run status and sanitized block reason;\n- for `RELAY_INVALID` only, an optional finite `relayInvalidCategory` such as `TOP_LEVEL_METHOD` or `UNREVIEWED_SAME_ORIGIN_PATH`; this category contains no URL, UUID, path, query, fragment, request body, headers, or resolver message;
+- run status and sanitized block reason;
+- for relay-aware `RELAY_INVALID`, a required finite `relayInvalidCategory` such as `TOP_LEVEL_METHOD` or `UNREVIEWED_SAME_ORIGIN_PATH`; the field is forbidden for other failure codes/navigation kinds and contains no URL, UUID, path, query, fragment, request body, headers, or resolver message;
 - fixed action budget and action count;
 - page snapshots with title, control counts, and a bounded sample of relevant controls;
 - for sampled controls: short label, tag/role, allow/deny result, reason code, same-origin path, selected stable attributes (`aria-expanded`, `aria-controls`, `data-testid`), short parent context, and child-interactive count;
