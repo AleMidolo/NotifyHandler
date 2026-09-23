@@ -86,7 +86,8 @@ export async function assertPortableBundlePrerequisites(bundleRoot) {
     manifest.nodeVersion !== PORTABLE_NODE_VERSION ||
     manifest.playwrightCoreVersion !== PORTABLE_PLAYWRIGHT_VERSION ||
     manifest.authorizesProductionMapping !== false ||
-    manifest.liveValidationAllowedInCi !== false
+    manifest.liveValidationAllowedInCi !== false ||
+    manifest.supportsBetupRelay !== true
   ) {
     throw new Error("Portable bundle manifest does not match the reviewed BOOK-012 BET365 boundary.");
   }
@@ -103,6 +104,8 @@ export async function assertPortableBundlePrerequisites(bundleRoot) {
   await access(join(bundleRoot, "browsers"));
   await access(join(bundleRoot, "app", "packages", "automation", "src", "live-validation", "interactive-explorer.ts"));
   await access(join(bundleRoot, "app", "packages", "automation", "src", "navigation-policy.ts"));
+  await access(join(bundleRoot, "app", "packages", "automation", "src", "dom-mapping.ts"));
+  await access(join(bundleRoot, "app", "packages", "automation", "src", "page-runtime.ts"));
 }
 
 async function assertBet365NetworkPrerequisite() {
@@ -130,7 +133,17 @@ export function validatePortableExplorerSummary(rawSummary) {
     typeof summary !== "object" ||
     summary.bookmaker !== PORTABLE_BOOKMAKER ||
     summary.approvedOrigin !== PORTABLE_APPROVED_ORIGIN ||
-    summary.startPath !== PORTABLE_START_PATH ||
+    (
+      summary.navigationKind === "BETUP_RELAY"
+        ? (
+            summary.relayOrigin !== "https://www.bet-up.it" ||
+            typeof summary.startPath !== "string" ||
+            !summary.startPath.startsWith("/") ||
+            "signalId" in summary ||
+            "relayUrl" in summary
+          )
+        : summary.startPath !== PORTABLE_START_PATH
+    ) ||
     !validStatuses.has(summary.status) ||
     summary.authorizesProductionMapping !== false ||
     !Number.isInteger(summary.actionBudget) ||
