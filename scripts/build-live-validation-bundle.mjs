@@ -228,6 +228,14 @@ export async function buildPortableValidationBundle(options = {}) {
     join(root, "packages", "automation", "src", "navigation-policy.ts"),
     join(bundle, "app", "packages", "automation", "src", "navigation-policy.ts"),
   );
+  await cp(
+    join(root, "packages", "automation", "src", "dom-mapping.ts"),
+    join(bundle, "app", "packages", "automation", "src", "dom-mapping.ts"),
+  );
+  await cp(
+    join(root, "packages", "automation", "src", "page-runtime.ts"),
+    join(bundle, "app", "packages", "automation", "src", "page-runtime.ts"),
+  );
   await writeFile(join(bundle, "app", "package.json"), '{"type":"module","private":true}\n', "utf8");
 
   await mkdir(join(bundle, "node_modules"), { recursive: true });
