@@ -58,18 +58,19 @@ The structured-ingress implementation and security-hardening track is complete:
 
 User-supplied production examples revealed an important refinement: the surebet bot does **not** emit bookmaker-origin match URLs. It emits credential-free relay URLs shaped as `https://www.bet-up.it/lnk/<signal-uuid>/<bookmaker>`, which are expected to redirect to the bookmaker match page.
 
-ARCH-005 introduces `notifyhandler.direct-pair.v2` with a typed `betup-relay` navigation candidate while keeping v1 frozen as direct-bookmaker-only. Relay syntax/binding is validated in the core, but actual relay resolution is restricted to the browser worker/gateway and can transition only from exact `https://www.bet-up.it` directly to an approved origin for the expected bookmaker.
+ARCH-005 introduced `notifyhandler.direct-pair.v2` with a typed `betup-relay` navigation candidate while keeping v1 frozen as direct-bookmaker-only. Qualifying BOOK-016 runs then showed one additional `bet-up.it` top-level visit before bookmaker arrival. ARCH-007/ADR-0005 narrowly permits exactly one revisit to the **same canonical relay URL** before requiring the expected bookmaker; arbitrary same-origin paths and larger redirect chains remain blocked.
 
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. **#143 DEVOPS-012 — immediate P0:** execute exactly one BET365 and one SISAL relay-aware BOOK-016 validation run on a qualifying non-CI headed workstation from exact merged commit `a9d07e8692a2a00bf4db1c336896bafc654e5e4c`;
-2. **#104 BOOK-016 — interpretation after #143:** classify each bookmaker only from the returned sanitized post-relay evidence chain;
-3. create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`;
-4. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
-5. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#147 ARCH-007 — P0 architecture:** reconcile the observed same-origin relay revisit with a finite reviewed state machine;
+2. implement the ADR-0005 resolver amendment and run Security/QA regression gates;
+3. only after those gates merge, perform a new single-shot relay-aware workstation run;
+4. create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`;
+5. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
+6. **#46 DEVOPS-003** remains blocked until #45 passes.
 
-PR #142 is merged and the explorer is relay-aware. No qualifying live relay run has yet been performed. The autonomous execution container's lack of external DNS is environment evidence only and must not be substituted for the required workstation runs.
+The previous qualifying BET365/SISAL runs both stopped at the shared relay resolver with `RELAY_REDIRECT_LIMIT` before bookmaker arrival. That is relay-contract evidence, not bookmaker market infeasibility. Do not rerun live validation against the unchanged resolver.
 
 Remote Internet exposure of the desktop webhook is not part of this decision. The default integration is local/loopback; a remote surebet service would require a separately designed secure relay/outbound connection rather than opening the desktop listener to the public Internet.
 
@@ -85,7 +86,7 @@ Selection authorization is predicate-based, not a fuzzy confidence score. Event,
 
 The architecture has no pre-execution user-review, pair-selection, confirmation, or renderer-driven start gate. Legacy text uses deterministic recommendation index 0; structured v1/v2 carry the authoritative two legs directly. V1 is direct-bookmaker-only; v2 adds typed direct or `bet-up.it` relay navigation. All paths converge on the same execution/matching/activation contracts.
 
-See `docs/architecture.md` and ADR-0001 through ADR-0004 for the accepted runtime, automatic-start, structured-ingress, and relay-resolution decisions.
+See `docs/architecture.md` and ADR-0001 through ADR-0005 for the accepted runtime, automatic-start, structured-ingress, relay-resolution, and bounded same-origin revisit decisions.
 
 ## Development
 
@@ -112,6 +113,7 @@ Repository documentation and specifications are authoritative. Start with:
 - `docs/adr/0002-automatic-primary-option-startup.md` — deterministic primary recommendation and automatic two-leg startup decision;
 - `docs/adr/0003-loopback-structured-direct-pair-ingress.md` — authenticated loopback structured ingress and direct-bookmaker v1 trust decision;
 - `docs/adr/0004-betup-relay-resolution.md` — v2 typed navigation and restricted `bet-up.it` relay-resolution decision;
+- `docs/adr/0005-bounded-betup-same-origin-revisit.md` — evidence-backed one-revisit relay state-machine amendment;
 - `docs/development.md` — reproducible local setup, CI, browser runtime, diagnostics, and release baseline;
 - `docs/release.md` — CI preview, unsigned alpha prerelease, production artifact policy, signing gates, checksums/SBOM/provenance, and rollback;
 - `docs/workflow.md` — end-to-end user/application workflow;
