@@ -77,6 +77,7 @@ export async function verifyPortableValidationBundle() {
     manifest.nodeVersion !== nodePin.trim() ||
     manifest.playwrightCoreVersion !== automationPackage.dependencies?.["playwright-core"] ||
     manifest.liveValidationAllowedInCi !== false ||
+    manifest.supportsBetupRelay !== true ||
     manifest.authorizesProductionMapping !== false ||
     !/^[0-9a-f]{40}$/.test(manifest.sourceCommit)
   ) {
@@ -90,6 +91,8 @@ export async function verifyPortableValidationBundle() {
     join(bundle, "browsers"),
     join(bundle, "app", "packages", "automation", "src", "live-validation", "interactive-explorer.ts"),
     join(bundle, "app", "packages", "automation", "src", "navigation-policy.ts"),
+    join(bundle, "app", "packages", "automation", "src", "dom-mapping.ts"),
+    join(bundle, "app", "packages", "automation", "src", "page-runtime.ts"),
     join(bundle, "README.txt"),
     join(bundle, "SHA256SUMS.txt"),
   ]) {

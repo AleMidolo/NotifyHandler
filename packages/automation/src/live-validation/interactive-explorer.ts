@@ -1,8 +1,15 @@
 import { chromium, type Locator, type Page } from "playwright-core";
 
+import { domMappingFor, type WorkerBookmaker } from "../dom-mapping.ts";
 import { NavigationPolicy, isInternalHostname } from "../navigation-policy.ts";
+import { createWorkerPageRuntime } from "../page-runtime.ts";
 
 export type ExplorerBookmaker = "admiralbet" | "sisal" | "bet365";
+type RelayExplorerBookmaker = Extract<ExplorerBookmaker, WorkerBookmaker>;
+
+const BETUP_RELAY_ORIGIN = "https://www.bet-up.it";
+const RELAY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const EVIDENCE_UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu;
 
 const BOOKMAKER_CONFIG: Readonly<
   Record<ExplorerBookmaker, Readonly<{ origin: string; defaultPath: string }>>
@@ -118,11 +125,20 @@ export type ExplorerBlockReason =
   | "CONSENT_REQUIRED"
   | "UNAPPROVED_NAVIGATION"
   | "PRIVATE_OR_INTERNAL_DESTINATION"
-  | "PAGE_CLOSED";
+  | "PAGE_CLOSED"
+  | "RELAY_INVALID"
+  | "RELAY_NETWORK_TARGET_BLOCKED"
+  | "RELAY_INTERMEDIARY_BLOCKED"
+  | "RELAY_WRONG_FINAL_BOOKMAKER"
+  | "RELAY_REDIRECT_LIMIT"
+  | "RELAY_UNRESOLVED"
+  | "RELAY_CHALLENGE_UNSUPPORTED";
 
 export interface ExplorerSummary {
   readonly bookmaker: ExplorerBookmaker;
   readonly approvedOrigin: string;
+  readonly navigationKind?: "BOOKMAKER_DIRECT" | "BETUP_RELAY";
+  readonly relayOrigin?: typeof BETUP_RELAY_ORIGIN;
   readonly startPath: string;
   readonly finalPath: string;
   readonly status: "COMPLETE" | "BLOCKED" | "BUDGET_EXHAUSTED";
@@ -138,21 +154,39 @@ export interface ExplorerSummary {
 export interface ExplorerOptions {
   readonly bookmaker: ExplorerBookmaker;
   readonly url?: string;
+  readonly relayUrl?: string;
   readonly maxActions?: number;
   readonly delayMs?: number;
 }
 
-function sanitizeText(value: string, maxLength = MAX_TEXT_LENGTH): string {
-  return value.replace(/\s+/g, " ").trim().slice(0, maxLength);
+export function sanitizeExplorerEvidenceText(
+  value: string,
+  maxLength = MAX_TEXT_LENGTH,
+): string {
+  return value
+    .replace(EVIDENCE_UUID, "[uuid]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
 }
 
-function sanitizePath(rawUrl: string, approvedOrigin: string): string {
+export function sanitizeExplorerEvidencePath(rawUrl: string, approvedOrigin: string): string {
   try {
     const parsed = new URL(rawUrl, approvedOrigin);
-    return parsed.origin === approvedOrigin ? parsed.pathname : "[unapproved-origin]";
+    return parsed.origin === approvedOrigin
+      ? parsed.pathname.replace(EVIDENCE_UUID, "[uuid]")
+      : "[unapproved-origin]";
   } catch {
     return "[invalid-url]";
   }
+}
+
+function sanitizeText(value: string, maxLength = MAX_TEXT_LENGTH): string {
+  return sanitizeExplorerEvidenceText(value, maxLength);
+}
+
+function sanitizePath(rawUrl: string, approvedOrigin: string): string {
+  return sanitizeExplorerEvidencePath(rawUrl, approvedOrigin);
 }
 
 function parseBoundedInteger(
@@ -169,7 +203,61 @@ function parseBoundedInteger(
   return resolved;
 }
 
-function parseTarget(options: ExplorerOptions): URL {
+type ExplorerStart =
+  | Readonly<{ kind: "BOOKMAKER_DIRECT"; target: URL }>
+  | Readonly<{
+      kind: "BETUP_RELAY";
+      relay: URL;
+      bookmaker: RelayExplorerBookmaker;
+    }>;
+
+function asRelayExplorerBookmaker(bookmaker: ExplorerBookmaker): RelayExplorerBookmaker {
+  if (bookmaker === "sisal" || bookmaker === "bet365") return bookmaker;
+  throw new Error("BETUP_RELAY live exploration is currently restricted to SISAL and BET365.");
+}
+
+function parseRelayTarget(options: ExplorerOptions): ExplorerStart {
+  const bookmaker = asRelayExplorerBookmaker(options.bookmaker);
+  if (options.relayUrl === undefined) {
+    throw new Error("Relay URL is required for BETUP_RELAY live exploration.");
+  }
+
+  let relay: URL;
+  try {
+    relay = new URL(options.relayUrl);
+  } catch {
+    throw new Error("BETUP_RELAY live explorer received a malformed relay URL.");
+  }
+
+  const suffix = bookmaker;
+  const match = /^\/lnk\/([0-9a-fA-F-]+)\/([a-z0-9]+)$/u.exec(relay.pathname);
+  const signalId = (match?.[1] ?? "").toLowerCase();
+  const observedSuffix = match?.[2] ?? "";
+  if (
+    relay.protocol !== "https:" ||
+    relay.origin !== BETUP_RELAY_ORIGIN ||
+    relay.username !== "" ||
+    relay.password !== "" ||
+    relay.search !== "" ||
+    relay.hash !== "" ||
+    match === null ||
+    !RELAY_UUID.test(signalId) ||
+    observedSuffix !== suffix
+  ) {
+    throw new Error(
+      `BETUP_RELAY live explorer requires exact https://www.bet-up.it/lnk/<uuid>/${suffix} navigation with no credentials, query, or fragment.`,
+    );
+  }
+
+  return { kind: "BETUP_RELAY", relay, bookmaker };
+}
+
+function parseTarget(options: ExplorerOptions): ExplorerStart {
+  if (options.url !== undefined && options.relayUrl !== undefined) {
+    throw new Error("Specify either a bookmaker URL or a bet-up relay URL, never both.");
+  }
+  if (options.relayUrl !== undefined) return parseRelayTarget(options);
+
   const config = BOOKMAKER_CONFIG[options.bookmaker];
   const target = new URL(options.url ?? `${config.origin}${config.defaultPath}`);
   const policy = new NavigationPolicy([config.origin]);
@@ -178,7 +266,7 @@ function parseTarget(options: ExplorerOptions): URL {
       `${options.bookmaker.toUpperCase()} live explorer only accepts credential-free HTTPS URLs on ${config.origin}.`,
     );
   }
-  return target;
+  return { kind: "BOOKMAKER_DIRECT", target };
 }
 
 function priorityFor(text: string): number {
@@ -351,8 +439,10 @@ function toEvidenceControl(record: InternalControlRecord): ExplorerEvidenceContr
       : { ariaExpanded: descriptor.ariaExpanded }),
     ...(descriptor.ariaControls === undefined
       ? {}
-      : { ariaControls: descriptor.ariaControls }),
-    ...(descriptor.dataTestId === undefined ? {} : { dataTestId: descriptor.dataTestId }),
+      : { ariaControls: sanitizeText(descriptor.ariaControls) }),
+    ...(descriptor.dataTestId === undefined
+      ? {}
+      : { dataTestId: sanitizeText(descriptor.dataTestId) }),
     ...(descriptor.parentContext === undefined
       ? {}
       : { parentContext: descriptor.parentContext }),
@@ -458,7 +548,9 @@ async function revalidateBeforeInteraction(record: InternalControlRecord): Promi
 }
 
 export async function runInteractiveLiveExplorer(options: ExplorerOptions): Promise<ExplorerSummary> {
-  const target = parseTarget(options);
+  const start = parseTarget(options);
+  const config = BOOKMAKER_CONFIG[options.bookmaker];
+  const approvedOrigin = config.origin;
   const actionBudget = parseBoundedInteger(
     options.maxActions,
     DEFAULT_MAX_ACTIONS,
@@ -473,7 +565,7 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
     MAX_DELAY_MS,
     "delayMs",
   );
-  const navigationPolicy = new NavigationPolicy([target.origin]);
+  const navigationPolicy = new NavigationPolicy([approvedOrigin]);
   const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext({
     acceptDownloads: false,
@@ -484,52 +576,108 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
   const actions: ExplorerActionEvidence[] = [];
   const usedFingerprints = new Set<string>();
   let routeBlockReason: ExplorerBlockReason | undefined;
+  let startPath = start.kind === "BOOKMAKER_DIRECT"
+    ? sanitizePath(start.target.href, approvedOrigin)
+    : "[bet-up-relay]";
 
-  await context.route("**/*", async (route) => {
-    const request = route.request();
-    let parsed: URL;
-    try {
-      parsed = new URL(request.url());
-    } catch {
+  const navigationFields:
+    | Readonly<{ navigationKind: "BETUP_RELAY"; relayOrigin: typeof BETUP_RELAY_ORIGIN }>
+    | Readonly<{ navigationKind: "BOOKMAKER_DIRECT" }> =
+    start.kind === "BETUP_RELAY"
+      ? { navigationKind: "BETUP_RELAY", relayOrigin: BETUP_RELAY_ORIGIN }
+      : { navigationKind: "BOOKMAKER_DIRECT" };
+
+  if (start.kind === "BOOKMAKER_DIRECT") {
+    await context.route("**/*", async (route) => {
+      const request = route.request();
+      let parsed: URL;
+      try {
+        parsed = new URL(request.url());
+      } catch {
+        await route.continue();
+        return;
+      }
+
+      if (
+        (parsed.protocol === "http:" || parsed.protocol === "https:") &&
+        (parsed.username !== "" || parsed.password !== "" || isInternalHostname(parsed.hostname))
+      ) {
+        routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
+        await route.abort("blockedbyclient");
+        return;
+      }
+
+      const isTopLevelNavigation =
+        request.isNavigationRequest() && request.frame().parentFrame() === null;
+      if (isTopLevelNavigation && !navigationPolicy.isAllowed(request.url())) {
+        routeBlockReason = "UNAPPROVED_NAVIGATION";
+        await route.abort("blockedbyclient");
+        return;
+      }
+
       await route.continue();
-      return;
-    }
-
-    if (
-      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
-      (parsed.username !== "" || parsed.password !== "" || isInternalHostname(parsed.hostname))
-    ) {
-      routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
-      await route.abort("blockedbyclient");
-      return;
-    }
-
-    const isTopLevelNavigation =
-      request.isNavigationRequest() && request.frame().parentFrame() === null;
-    if (isTopLevelNavigation && !navigationPolicy.isAllowed(request.url())) {
-      routeBlockReason = "UNAPPROVED_NAVIGATION";
-      await route.abort("blockedbyclient");
-      return;
-    }
-
-    await route.continue();
-  });
+    });
+  }
 
   context.on("page", (openedPage) => {
     if (openedPage !== page) void openedPage.close().catch(() => undefined);
   });
 
   try {
-    await page.goto(target.href, { waitUntil: "domcontentloaded", timeout: 20_000 });
+    if (start.kind === "BETUP_RELAY") {
+      const runtime = await createWorkerPageRuntime({
+        page,
+        policy: navigationPolicy,
+        mapping: domMappingFor(start.bookmaker),
+        navigationTimeoutMs: 20_000,
+      });
+      const relayPolicy = new NavigationPolicy([BETUP_RELAY_ORIGIN]);
+      const knownBookmakerOrigins = [
+        BOOKMAKER_CONFIG.sisal.origin,
+        BOOKMAKER_CONFIG.bet365.origin,
+      ];
+      const resolution = await runtime.resolveRelay({
+        relayUrl: start.relay.href,
+        relayPolicy,
+        bookmakerPolicy: navigationPolicy,
+        expectedOrigins: [approvedOrigin],
+        knownBookmakerOrigins,
+        timeoutMs: 20_000,
+      });
+      if (resolution.kind === "FAILED") {
+        return {
+          bookmaker: options.bookmaker,
+          approvedOrigin,
+          ...navigationFields,
+          startPath,
+          finalPath: navigationPolicy.isAllowed(page.url())
+            ? sanitizePath(page.url(), approvedOrigin)
+            : "[relay-unresolved]",
+          status: "BLOCKED",
+          blockReason: resolution.code,
+          actionBudget,
+          actionsTaken: 0,
+          snapshots,
+          actions,
+          authorizesProductionMapping: false,
+          note:
+            "Relay-aware explorer stopped safely during the shared restricted resolver phase. No relay signal identifier or full relay URL is included in this summary.",
+        };
+      }
+      startPath = sanitizePath(resolution.finalLocation.href, approvedOrigin);
+    } else {
+      await page.goto(start.target.href, { waitUntil: "domcontentloaded", timeout: 20_000 });
+    }
     await page.waitForTimeout(delayMs);
 
     while (actions.length < actionBudget) {
       if (routeBlockReason !== undefined) {
         return {
           bookmaker: options.bookmaker,
-          approvedOrigin: target.origin,
-          startPath: target.pathname,
-          finalPath: sanitizePath(page.url(), target.origin),
+          approvedOrigin,
+          ...navigationFields,
+          startPath,
+          finalPath: sanitizePath(page.url(), approvedOrigin),
           status: "BLOCKED",
           blockReason: routeBlockReason,
           actionBudget,
@@ -546,9 +694,10 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
       if (pageBlock !== undefined) {
         return {
           bookmaker: options.bookmaker,
-          approvedOrigin: target.origin,
-          startPath: target.pathname,
-          finalPath: sanitizePath(page.url(), target.origin),
+          approvedOrigin,
+          ...navigationFields,
+          startPath,
+          finalPath: sanitizePath(page.url(), approvedOrigin),
           status: "BLOCKED",
           blockReason: pageBlock,
           actionBudget,
@@ -564,8 +713,9 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
       if (!navigationPolicy.isAllowed(page.url())) {
         return {
           bookmaker: options.bookmaker,
-          approvedOrigin: target.origin,
-          startPath: target.pathname,
+          approvedOrigin,
+          ...navigationFields,
+          startPath,
           finalPath: "[unapproved-origin]",
           status: "BLOCKED",
           blockReason: "UNAPPROVED_NAVIGATION",
@@ -578,15 +728,16 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
         };
       }
 
-      const snapshot = await takeSnapshot(page, target.origin);
+      const snapshot = await takeSnapshot(page, approvedOrigin);
       snapshots.push(snapshot.evidence);
       const next = chooseNextControl(snapshot.controls, usedFingerprints);
       if (next === undefined) {
         return {
           bookmaker: options.bookmaker,
-          approvedOrigin: target.origin,
-          startPath: target.pathname,
-          finalPath: sanitizePath(page.url(), target.origin),
+          approvedOrigin,
+          ...navigationFields,
+          startPath,
+          finalPath: sanitizePath(page.url(), approvedOrigin),
           status: "COMPLETE",
           actionBudget,
           actionsTaken: actions.length,
@@ -602,12 +753,12 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
       const revalidated = await revalidateBeforeInteraction(next);
       if (revalidated.kind !== "ALLOW") continue;
 
-      const beforePath = sanitizePath(page.url(), target.origin);
+      const beforePath = sanitizePath(page.url(), approvedOrigin);
       if (revalidated.decision.interaction === "NAVIGATION") {
         const href = revalidated.descriptor.href;
         if (href === undefined) continue;
         const destination = new URL(href, page.url());
-        if (!navigationPolicy.isAllowed(destination.href) || destination.origin !== target.origin) {
+        if (!navigationPolicy.isAllowed(destination.href) || destination.origin !== approvedOrigin) {
           routeBlockReason = "UNAPPROVED_NAVIGATION";
           continue;
         }
@@ -617,7 +768,7 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
       }
       await page.waitForTimeout(delayMs);
       await page.waitForLoadState("domcontentloaded", { timeout: 3_000 }).catch(() => undefined);
-      const afterPath = sanitizePath(page.url(), target.origin);
+      const afterPath = sanitizePath(page.url(), approvedOrigin);
       actions.push({
         sequence: actions.length + 1,
         interaction: revalidated.decision.interaction,
@@ -627,13 +778,14 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
       });
     }
 
-    const finalSnapshot = await takeSnapshot(page, target.origin).catch(() => undefined);
+    const finalSnapshot = await takeSnapshot(page, approvedOrigin).catch(() => undefined);
     if (finalSnapshot !== undefined) snapshots.push(finalSnapshot.evidence);
     return {
       bookmaker: options.bookmaker,
-      approvedOrigin: target.origin,
-      startPath: target.pathname,
-      finalPath: sanitizePath(page.url(), target.origin),
+      approvedOrigin,
+      ...navigationFields,
+      startPath,
+      finalPath: sanitizePath(page.url(), approvedOrigin),
       status: "BUDGET_EXHAUSTED",
       actionBudget,
       actionsTaken: actions.length,
@@ -664,11 +816,13 @@ function parseOptionalInteger(value: string | undefined, name: string): number |
 async function main(): Promise<void> {
   const bookmaker = parseBookmaker(process.env.NH_LIVE_EXPLORER_BOOKMAKER);
   const url = process.env.NH_LIVE_EXPLORER_URL;
+  const relayUrl = process.env.NH_LIVE_EXPLORER_RELAY_URL;
   const maxActions = parseOptionalInteger(process.env.NH_LIVE_EXPLORER_MAX_ACTIONS, "max actions");
   const delayMs = parseOptionalInteger(process.env.NH_LIVE_EXPLORER_DELAY_MS, "delay milliseconds");
   const summary = await runInteractiveLiveExplorer({
     bookmaker,
     ...(url === undefined ? {} : { url }),
+    ...(relayUrl === undefined ? {} : { relayUrl }),
     ...(maxActions === undefined ? {} : { maxActions }),
     ...(delayMs === undefined ? {} : { delayMs }),
   });

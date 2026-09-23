@@ -12,6 +12,7 @@ export const PORTABLE_PLAYWRIGHT_VERSION = "1.63.0";
 export const PORTABLE_SUMMARY_FILE = "ExplorerSummary.json";
 
 const MAX_SUMMARY_BYTES = 1_000_000;
+const RELAY_SECRET_PATTERN = /(?:https:\/\/www\.bet-up\.it\/lnk\/|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/iu;
 const ciSignals = Object.freeze([
   "CI",
   "GITHUB_ACTIONS",
@@ -86,7 +87,8 @@ export async function assertPortableBundlePrerequisites(bundleRoot) {
     manifest.nodeVersion !== PORTABLE_NODE_VERSION ||
     manifest.playwrightCoreVersion !== PORTABLE_PLAYWRIGHT_VERSION ||
     manifest.authorizesProductionMapping !== false ||
-    manifest.liveValidationAllowedInCi !== false
+    manifest.liveValidationAllowedInCi !== false ||
+    manifest.supportsBetupRelay !== true
   ) {
     throw new Error("Portable bundle manifest does not match the reviewed BOOK-012 BET365 boundary.");
   }
@@ -103,23 +105,29 @@ export async function assertPortableBundlePrerequisites(bundleRoot) {
   await access(join(bundleRoot, "browsers"));
   await access(join(bundleRoot, "app", "packages", "automation", "src", "live-validation", "interactive-explorer.ts"));
   await access(join(bundleRoot, "app", "packages", "automation", "src", "navigation-policy.ts"));
+  await access(join(bundleRoot, "app", "packages", "automation", "src", "dom-mapping.ts"));
+  await access(join(bundleRoot, "app", "packages", "automation", "src", "page-runtime.ts"));
 }
 
 async function assertBet365NetworkPrerequisite() {
-  const hostname = new URL(PORTABLE_APPROVED_ORIGIN).hostname;
-  try {
-    await lookup(hostname);
-  } catch {
-    throw new Error(
-      `Network prerequisite failed: DNS could not resolve ${hostname}. Use a normal workstation with outbound DNS/HTTPS; this is environment evidence, not bookmaker evidence.`,
-    );
+  const hostnames = [new URL(PORTABLE_APPROVED_ORIGIN).hostname];
+  if (process.env.NH_LIVE_EXPLORER_RELAY_URL !== undefined) hostnames.unshift("www.bet-up.it");
+  for (const hostname of hostnames) {
+    try {
+      await lookup(hostname);
+    } catch {
+      throw new Error(
+        `Network prerequisite failed: DNS could not resolve ${hostname}. Use a normal workstation with outbound DNS/HTTPS; this is environment evidence, not bookmaker evidence.`,
+      );
+    }
   }
 }
 
 export function validatePortableExplorerSummary(rawSummary) {
+  const rawText = String(rawSummary).trim();
   let summary;
   try {
-    summary = JSON.parse(String(rawSummary).trim());
+    summary = JSON.parse(rawText);
   } catch {
     throw new Error("BOOK-012 did not emit valid sanitized ExplorerSummary JSON.");
   }
@@ -130,7 +138,18 @@ export function validatePortableExplorerSummary(rawSummary) {
     typeof summary !== "object" ||
     summary.bookmaker !== PORTABLE_BOOKMAKER ||
     summary.approvedOrigin !== PORTABLE_APPROVED_ORIGIN ||
-    summary.startPath !== PORTABLE_START_PATH ||
+    (
+      summary.navigationKind === "BETUP_RELAY"
+        ? (
+            summary.relayOrigin !== "https://www.bet-up.it" ||
+            typeof summary.startPath !== "string" ||
+            !summary.startPath.startsWith("/") ||
+            "signalId" in summary ||
+            "relayUrl" in summary ||
+            RELAY_SECRET_PATTERN.test(rawText)
+          )
+        : summary.startPath !== PORTABLE_START_PATH
+    ) ||
     !validStatuses.has(summary.status) ||
     summary.authorizesProductionMapping !== false ||
     !Number.isInteger(summary.actionBudget) ||

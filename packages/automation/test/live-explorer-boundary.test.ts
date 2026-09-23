@@ -5,6 +5,8 @@ import test from "node:test";
 import {
   classifyPublicControl,
   runInteractiveLiveExplorer,
+  sanitizeExplorerEvidencePath,
+  sanitizeExplorerEvidenceText,
   type PublicControlDescriptor,
 } from "../src/live-validation/interactive-explorer.ts";
 
@@ -143,6 +145,21 @@ test("interactive explorer defaults ambiguous controls to deny", () => {
   });
 });
 
+test("interactive explorer redacts UUID-shaped identifiers from retained evidence", () => {
+  const signalId = "d87c2b5a-7b46-4827-8ea5-45c0810aee7c";
+  assert.equal(
+    sanitizeExplorerEvidenceText(`Mercato ${signalId} corners`),
+    "Mercato [uuid] corners",
+  );
+  assert.equal(
+    sanitizeExplorerEvidencePath(
+      `https://www.bet365.it/event/${signalId}/corners?source=relay`,
+      "https://www.bet365.it",
+    ),
+    "/event/[uuid]/corners",
+  );
+});
+
 test("interactive explorer rejects unsafe configuration before Chromium launch", async () => {
   await assert.rejects(
     runInteractiveLiveExplorer({
@@ -158,6 +175,38 @@ test("interactive explorer rejects unsafe configuration before Chromium launch",
   await assert.rejects(
     runInteractiveLiveExplorer({ bookmaker: "admiralbet", delayMs: 100 }),
     /delayMs must be an integer between 750 and 5000/,
+  );
+});
+
+test("relay-aware explorer rejects invalid relay grammar and bookmaker suffix before Chromium launch", async () => {
+  await assert.rejects(
+    runInteractiveLiveExplorer({
+      bookmaker: "sisal",
+      relayUrl: "https://www.bet-up.it/lnk/not-a-uuid/sisal",
+    }),
+    /requires exact https:\/\/www\.bet-up\.it\/lnk\/.*\/sisal/u,
+  );
+  await assert.rejects(
+    runInteractiveLiveExplorer({
+      bookmaker: "sisal",
+      relayUrl: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365",
+    }),
+    /requires exact https:\/\/www\.bet-up\.it\/lnk\/.*\/sisal/u,
+  );
+  await assert.rejects(
+    runInteractiveLiveExplorer({
+      bookmaker: "admiralbet",
+      relayUrl: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/admiralbet",
+    }),
+    /restricted to SISAL and BET365/u,
+  );
+  await assert.rejects(
+    runInteractiveLiveExplorer({
+      bookmaker: "bet365",
+      url: "https://www.bet365.it/hub/it-it/football",
+      relayUrl: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365",
+    }),
+    /either a bookmaker URL or a bet-up relay URL/u,
   );
 });
 
@@ -184,7 +233,12 @@ test("interactive explorer source keeps the evidence collector outside sensitive
   assert.match(source, /chromium\.launch\(\{ headless: false \}\)/);
   assert.match(source, /const MAX_ACTIONS = 12/);
   assert.match(source, /const MIN_DELAY_MS = 750/);
-  assert.match(source, /new NavigationPolicy\(\[target\.origin\]\)/);
+  assert.match(source, /new NavigationPolicy\(\[approvedOrigin\]\)/);
+  assert.match(source, /createWorkerPageRuntime\(/);
+  assert.match(source, /runtime\.resolveRelay\(/);
+  assert.match(source, /relayOrigin: BETUP_RELAY_ORIGIN/);
+  assert.match(source, /\[bet-up-relay\]/);
+  assert.equal(source.includes("signalId:"), false);
   assert.match(source, /isInternalHostname\(parsed\.hostname\)/);
   assert.match(source, /authorizesProductionMapping: false/);
 });

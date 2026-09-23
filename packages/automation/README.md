@@ -20,4 +20,6 @@ The `src/live-validation/` tools are diagnostic-only and are not part of the pro
 
 BOOK-012 adds `npm run live:explore --workspace @notify-handler/automation`, a controlled headed-browser explorer for ADMIRALBET, SISAL, and BET365 revalidation. It uses a fixed action budget and a default-deny classifier that permits only positively identified same-origin public navigation or non-transactional market expansion. Outcome/odds controls, authentication, consent, betslip/stake/submit/payment controls, unsafe navigation, and ambiguous controls are rejected.
 
+BOOK-016 extends that diagnostic path for SISAL/BET365 upstream `bet-up.it` relays. Set `NH_LIVE_EXPLORER_RELAY_URL` instead of `NH_LIVE_EXPLORER_URL`; the explorer validates the exact relay grammar/bookmaker suffix, invokes the shared BOOK-017 restricted resolver in the same ephemeral Chromium page, then explores only after the expected bookmaker origin is reached. The full relay URL and signal UUID are never emitted in the sanitized summary.
+
 The explorer emits bounded sanitized evidence only and hard-codes `authorizesProductionMapping: false`. It does not export Playwright objects, credentials/session data, or any production selection capability. See `docs/live-validation/interactive-explorer-book-012.md`.

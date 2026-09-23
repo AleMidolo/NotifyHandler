@@ -57,10 +57,11 @@ function operatorReadmeText(sourceCommit) {
     "Run:",
     "1. Verify the ZIP SHA-256 before extracting.",
     "2. Extract to a fresh writable directory.",
-    "3. Double-click run-bet365-validation.cmd or execute it from cmd/PowerShell.",
-    "4. The headed Chromium window may navigate/expand only BOOK-012-approved public non-transactional controls.",
-    "5. On a valid BOOK-012 result, sanitized JSON is printed to stdout and saved as ExplorerSummary.json next to this README.",
-    "6. Attach only ExplorerSummary.json to NotifyHandler issue #64. Do not attach browser/session data or other captures.",
+    "3. For BOOK-016 relay evidence, set NH_LIVE_EXPLORER_RELAY_URL to the credential-free bet-up relay supplied by the upstream signal; otherwise the reviewed default bookmaker start path is used.",
+    "4. Double-click run-bet365-validation.cmd or execute it from cmd/PowerShell.",
+    "5. The headed Chromium window may resolve the restricted bet-up relay and then navigate/expand only BOOK-012-approved public non-transactional controls.",
+    "6. On a valid BOOK-012 result, sanitized JSON is printed to stdout and saved as ExplorerSummary.json next to this README.",
+    "7. Attach only ExplorerSummary.json to NotifyHandler issue #64. Do not attach browser/session data or other captures.",
     "",
     "The runner refuses normal live execution when common CI signals are active. CI uses only --synthetic-smoke, which launches packaged Chromium against local in-memory content and does not contact a bookmaker.",
     "",
@@ -228,6 +229,14 @@ export async function buildPortableValidationBundle(options = {}) {
     join(root, "packages", "automation", "src", "navigation-policy.ts"),
     join(bundle, "app", "packages", "automation", "src", "navigation-policy.ts"),
   );
+  await cp(
+    join(root, "packages", "automation", "src", "dom-mapping.ts"),
+    join(bundle, "app", "packages", "automation", "src", "dom-mapping.ts"),
+  );
+  await cp(
+    join(root, "packages", "automation", "src", "page-runtime.ts"),
+    join(bundle, "app", "packages", "automation", "src", "page-runtime.ts"),
+  );
   await writeFile(join(bundle, "app", "package.json"), '{"type":"module","private":true}\n', "utf8");
 
   await mkdir(join(bundle, "node_modules"), { recursive: true });
@@ -253,6 +262,7 @@ export async function buildPortableValidationBundle(options = {}) {
     chromiumRevision: chromiumMetadata.revision,
     chromiumVersion: chromiumMetadata.version,
     liveValidationAllowedInCi: false,
+    supportsBetupRelay: true,
     authorizesProductionMapping: false,
     outputFile: "ExplorerSummary.json",
   };
