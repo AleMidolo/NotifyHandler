@@ -202,12 +202,38 @@ test("relay resolving to another registered bookmaker fails as wrong final bookm
   }
 });
 
-test("relay revisit exceeds the one-transition budget", async () => {
+test("one canonical relay revisit then expected SISAL bookmaker succeeds", async () => {
+  const relay = relayUrl("sisal");
+  const destination = finalUrl("sisal", "one-revisit");
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relay]: [
+          { kind: "redirect", location: relay },
+          { kind: "redirect", location: destination },
+        ],
+        [destination]: { kind: "html", body: fixtureHtml("sisal", "over", "2.08") },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "READY_FOR_USER");
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("second canonical relay revisit hits the fixed redirect limit", async () => {
   const relay = relayUrl("sisal");
   const worker = createFixtureAutomationWorker({
     fixtures: {
       sisal: {
-        [relay]: { kind: "redirect", location: relay },
+        [relay]: [
+          { kind: "redirect", location: relay },
+          { kind: "redirect", location: relay },
+        ],
       },
     },
     relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
@@ -216,6 +242,197 @@ test("relay revisit exceeds the one-transition budget", async () => {
     const last = terminal(await events(worker.start(request("sisal"))));
     assert.equal(last.state, "FAILED_SAFE");
     assert.equal(last.failure?.code, "RELAY_REDIRECT_LIMIT");
+    const diagnostic = JSON.stringify(last);
+    assert.equal(diagnostic.includes(SIGNAL_ID), false);
+    assert.equal(diagnostic.includes(relay), false);
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("same-origin relay revisit with an unreviewed path is invalid", async () => {
+  const relay = relayUrl("sisal");
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relay]: { kind: "redirect", location: `${RELAY_ORIGIN}/other/path` },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_INVALID");
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+for (const mutation of ["?next=1", "#fragment"] as const) {
+  test(`same-origin relay revisit with ${mutation.startsWith("?") ? "query" : "fragment"} mutation is invalid`, async () => {
+    const relay = relayUrl("sisal");
+    const worker = createFixtureAutomationWorker({
+      fixtures: {
+        sisal: {
+          [relay]: { kind: "redirect", location: relay + mutation },
+        },
+      },
+      relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+    });
+    try {
+      const last = terminal(await events(worker.start(request("sisal"))));
+      assert.equal(last.state, "FAILED_SAFE");
+      assert.equal(last.failure?.code, "RELAY_INVALID");
+    } finally {
+      await worker.closeAll();
+    }
+  });
+}
+
+test("same-origin relay revisit with userinfo mutation is invalid", async () => {
+  const relay = relayUrl("sisal");
+  const mutated = relay.replace("https://", "https://user:pass@");
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relay]: { kind: "redirect", location: mutated },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_INVALID");
+    assert.equal(JSON.stringify(last).includes("user:pass"), false);
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("same-origin relay revisit with a different signal id fails explicitly", async () => {
+  const relay = relayUrl("sisal");
+  const otherSignal = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relay]: { kind: "redirect", location: `${RELAY_ORIGIN}/lnk/${otherSignal}/sisal` },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_SIGNAL_MISMATCH");
+    const diagnostic = JSON.stringify(last);
+    assert.equal(diagnostic.includes(otherSignal), false);
+    assert.equal(diagnostic.includes(SIGNAL_ID), false);
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("same-origin relay revisit with a different bookmaker suffix fails explicitly", async () => {
+  const relay = relayUrl("sisal");
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relay]: { kind: "redirect", location: `${RELAY_ORIGIN}/lnk/${SIGNAL_ID}/bet365` },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_BOOKMAKER_MISMATCH");
+    assert.equal(JSON.stringify(last).includes(SIGNAL_ID), false);
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("canonical relay revisit re-runs public DNS validation", async () => {
+  const relay = relayUrl("sisal");
+  let relayLookups = 0;
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relay]: { kind: "redirect", location: relay },
+      },
+    },
+    resolveHostname: async (hostname) => {
+      if (hostname === "www.bet-up.it") {
+        relayLookups += 1;
+        return relayLookups === 1 ? ["93.184.216.34"] : ["127.0.0.1"];
+      }
+      return ["93.184.216.34"];
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_NETWORK_TARGET_BLOCKED");
+    assert.ok(relayLookups >= 2, "canonical revisit must repeat relay DNS validation");
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("retry resets the canonical revisit budget and re-resolves immutable input", async () => {
+  const relay = relayUrl("sisal");
+  const destination = finalUrl("sisal", "retry-after-revisit");
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relay]: [
+          { kind: "redirect", location: relay },
+          { kind: "redirect", location: relay },
+          { kind: "redirect", location: relay },
+          { kind: "redirect", location: destination },
+        ],
+        [destination]: { kind: "html", body: fixtureHtml("sisal", "over", "2.08") },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const first = terminal(await events(worker.start(request("sisal", "attempt-hop-1"))));
+    assert.equal(first.state, "FAILED_SAFE");
+    assert.equal(first.failure?.code, "RELAY_REDIRECT_LIMIT");
+
+    const retried = terminal(await events(worker.retry(request("sisal", "attempt-hop-2"))));
+    assert.equal(retried.state, "READY_FOR_USER");
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("cancellation after canonical revisit prevents bookmaker matching and activation", async () => {
+  const relay = relayUrl("sisal");
+  const destination = finalUrl("sisal", "cancel-after-revisit");
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relay]: [
+          { kind: "redirect", location: relay },
+          { kind: "redirect", location: destination, delayMs: 750 },
+        ],
+        [destination]: { kind: "html", body: fixtureHtml("sisal", "over", "2.08") },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const pending = events(worker.start(request("sisal", "attempt-cancel-revisit")));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    await worker.cancel({ legId: "leg-sisal", attemptId: "attempt-cancel-revisit" });
+    const result = await pending;
+    assert.equal(result.some((item) => item.state === "READY_FOR_USER"), false);
+    assert.equal(result.some((item) => item.state === "CANCELLED"), true);
   } finally {
     await worker.closeAll();
   }
