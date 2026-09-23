@@ -1,8 +1,14 @@
 import { chromium, type Locator, type Page } from "playwright-core";
 
+import { domMappingFor, type WorkerBookmaker } from "../dom-mapping.ts";
 import { NavigationPolicy, isInternalHostname } from "../navigation-policy.ts";
+import { createWorkerPageRuntime } from "../page-runtime.ts";
 
 export type ExplorerBookmaker = "admiralbet" | "sisal" | "bet365";
+type RelayExplorerBookmaker = Extract<ExplorerBookmaker, WorkerBookmaker>;
+
+const BETUP_RELAY_ORIGIN = "https://www.bet-up.it";
+const RELAY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 
 const BOOKMAKER_CONFIG: Readonly<
   Record<ExplorerBookmaker, Readonly<{ origin: string; defaultPath: string }>>
@@ -118,11 +124,20 @@ export type ExplorerBlockReason =
   | "CONSENT_REQUIRED"
   | "UNAPPROVED_NAVIGATION"
   | "PRIVATE_OR_INTERNAL_DESTINATION"
-  | "PAGE_CLOSED";
+  | "PAGE_CLOSED"
+  | "RELAY_INVALID"
+  | "RELAY_NETWORK_TARGET_BLOCKED"
+  | "RELAY_INTERMEDIARY_BLOCKED"
+  | "RELAY_WRONG_FINAL_BOOKMAKER"
+  | "RELAY_REDIRECT_LIMIT"
+  | "RELAY_UNRESOLVED"
+  | "RELAY_CHALLENGE_UNSUPPORTED";
 
 export interface ExplorerSummary {
   readonly bookmaker: ExplorerBookmaker;
   readonly approvedOrigin: string;
+  readonly navigationKind?: "BOOKMAKER_DIRECT" | "BETUP_RELAY";
+  readonly relayOrigin?: typeof BETUP_RELAY_ORIGIN;
   readonly startPath: string;
   readonly finalPath: string;
   readonly status: "COMPLETE" | "BLOCKED" | "BUDGET_EXHAUSTED";
@@ -138,6 +153,7 @@ export interface ExplorerSummary {
 export interface ExplorerOptions {
   readonly bookmaker: ExplorerBookmaker;
   readonly url?: string;
+  readonly relayUrl?: string;
   readonly maxActions?: number;
   readonly delayMs?: number;
 }
@@ -169,7 +185,61 @@ function parseBoundedInteger(
   return resolved;
 }
 
-function parseTarget(options: ExplorerOptions): URL {
+type ExplorerStart =
+  | Readonly<{ kind: "BOOKMAKER_DIRECT"; target: URL }>
+  | Readonly<{
+      kind: "BETUP_RELAY";
+      relay: URL;
+      bookmaker: RelayExplorerBookmaker;
+    }>;
+
+function asRelayExplorerBookmaker(bookmaker: ExplorerBookmaker): RelayExplorerBookmaker {
+  if (bookmaker === "sisal" || bookmaker === "bet365") return bookmaker;
+  throw new Error("BETUP_RELAY live exploration is currently restricted to SISAL and BET365.");
+}
+
+function parseRelayTarget(options: ExplorerOptions): ExplorerStart {
+  const bookmaker = asRelayExplorerBookmaker(options.bookmaker);
+  if (options.relayUrl === undefined) {
+    throw new Error("Relay URL is required for BETUP_RELAY live exploration.");
+  }
+
+  let relay: URL;
+  try {
+    relay = new URL(options.relayUrl);
+  } catch {
+    throw new Error("BETUP_RELAY live explorer received a malformed relay URL.");
+  }
+
+  const suffix = bookmaker;
+  const match = /^\/lnk\/([0-9a-fA-F-]+)\/([a-z0-9]+)$/u.exec(relay.pathname);
+  const signalId = (match?.[1] ?? "").toLowerCase();
+  const observedSuffix = match?.[2] ?? "";
+  if (
+    relay.protocol !== "https:" ||
+    relay.origin !== BETUP_RELAY_ORIGIN ||
+    relay.username !== "" ||
+    relay.password !== "" ||
+    relay.search !== "" ||
+    relay.hash !== "" ||
+    match === null ||
+    !RELAY_UUID.test(signalId) ||
+    observedSuffix !== suffix
+  ) {
+    throw new Error(
+      `BETUP_RELAY live explorer requires exact https://www.bet-up.it/lnk/<uuid>/${suffix} navigation with no credentials, query, or fragment.`,
+    );
+  }
+
+  return { kind: "BETUP_RELAY", relay, bookmaker };
+}
+
+function parseTarget(options: ExplorerOptions): ExplorerStart {
+  if (options.url !== undefined && options.relayUrl !== undefined) {
+    throw new Error("Specify either a bookmaker URL or a bet-up relay URL, never both.");
+  }
+  if (options.relayUrl !== undefined) return parseRelayTarget(options);
+
   const config = BOOKMAKER_CONFIG[options.bookmaker];
   const target = new URL(options.url ?? `${config.origin}${config.defaultPath}`);
   const policy = new NavigationPolicy([config.origin]);
@@ -178,7 +248,7 @@ function parseTarget(options: ExplorerOptions): URL {
       `${options.bookmaker.toUpperCase()} live explorer only accepts credential-free HTTPS URLs on ${config.origin}.`,
     );
   }
-  return target;
+  return { kind: "BOOKMAKER_DIRECT", target };
 }
 
 function priorityFor(text: string): number {
