@@ -142,7 +142,7 @@ export type ExplorerBlockReason =
 export interface ExplorerSummary {
   readonly bookmaker: ExplorerBookmaker;
   readonly approvedOrigin: string;
-  readonly navigationKind?: "BOOKMAKER_DIRECT" | "BETUP_RELAY";
+  readonly navigationKind: "BOOKMAKER_DIRECT" | "BETUP_RELAY";
   readonly relayOrigin?: typeof BETUP_RELAY_ORIGIN;
   readonly startPath: string;
   readonly finalPath: string;
