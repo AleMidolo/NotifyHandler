@@ -75,16 +75,15 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-The relay-aware v2 implementation is complete: ARCH-005/#119, ARCH-006/#128, APP-006/#123, shared full-match period propagation, BOOK-018/#131, and BOOK-017/#124 are merged.
+The relay-aware v2 implementation and SEC-004 security hardening are complete: ARCH-005/#119, ARCH-006/#128, APP-006/#123, shared full-match period propagation, BOOK-018/#131, BOOK-017/#124, and SEC-004/#125 are merged.
 
-1. **#125 SEC-004 — immediate autonomous task.** Review the merged relay boundary, including DNS/origin enforcement, intermediary/wrong-bookmaker handling, cancellation, privacy, retry/reopen, evidence epochs, and unchanged v1/transaction protections.
-2. **#109 PRODUCT-016 — immediate external evidence blocker.** Obtain a current/still-reachable upstream `bet-up.it` signal for pre-match **full-match total-corners O/U**. Recorded double-chance and team-corners examples remain useful fixtures but do not satisfy this target.
-3. **#104 BOOK-016 — ready immediately after #109.** Run relay-aware live validation using the merged resolver and explicit full-match period matching.
-4. If relay-aware evidence yields a feasible candidate, create a separate restricted live-mapping implementation issue. If the required pair remains Blocked, route to Product Coordination for candidate/scope replan.
-5. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
-6. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#109 PRODUCT-016 — sole immediate P0 blocker.** Obtain a current/still-reachable upstream `bet-up.it` signal for pre-match **full-match total-corners O/U**. Recorded double-chance and team-corners examples remain useful fixtures but do not satisfy this target.
+2. **#104 BOOK-016 — ready immediately after #109.** Run relay-aware live validation using the merged resolver, explicit full-match period matching, and completed relay network/redirect hardening.
+3. If relay-aware evidence yields a feasible candidate, create a separate restricted live-mapping implementation issue. If the required pair remains Blocked, route to Product Coordination for candidate/scope replan.
+4. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
+5. **#46 DEVOPS-003** remains blocked until #45 passes.
 
-Relay resolution is navigation only and must never satisfy event/market/period/line/side/odds predicates.
+Relay resolution is navigation only and must never satisfy event/market/period/line/side/odds predicates. SEC-004 confirms private/internal relay subresources and unsafe redirect targets fail closed.
 
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 
