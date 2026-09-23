@@ -5,6 +5,8 @@ import test from "node:test";
 import {
   classifyPublicControl,
   runInteractiveLiveExplorer,
+  sanitizeExplorerEvidencePath,
+  sanitizeExplorerEvidenceText,
   type PublicControlDescriptor,
 } from "../src/live-validation/interactive-explorer.ts";
 
@@ -141,6 +143,21 @@ test("interactive explorer defaults ambiguous controls to deny", () => {
     kind: "DENY",
     reasonCode: "AMBIGUOUS_CONTROL",
   });
+});
+
+test("interactive explorer redacts UUID-shaped identifiers from retained evidence", () => {
+  const signalId = "d87c2b5a-7b46-4827-8ea5-45c0810aee7c";
+  assert.equal(
+    sanitizeExplorerEvidenceText(`Mercato ${signalId} corners`),
+    "Mercato [uuid] corners",
+  );
+  assert.equal(
+    sanitizeExplorerEvidencePath(
+      `https://www.bet365.it/event/${signalId}/corners?source=relay`,
+      "https://www.bet365.it",
+    ),
+    "/event/[uuid]/corners",
+  );
 });
 
 test("interactive explorer rejects unsafe configuration before Chromium launch", async () => {
