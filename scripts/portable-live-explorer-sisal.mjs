@@ -109,13 +109,16 @@ export async function assertPortableBundlePrerequisites(bundleRoot) {
 }
 
 async function assertSisalNetworkPrerequisite() {
-  const hostname = new URL(PORTABLE_APPROVED_ORIGIN).hostname;
-  try {
-    await lookup(hostname);
-  } catch {
-    throw new Error(
-      `Network prerequisite failed: DNS could not resolve ${hostname}. Use a normal workstation with outbound DNS/HTTPS; this is environment evidence, not bookmaker evidence.`,
-    );
+  const hostnames = [new URL(PORTABLE_APPROVED_ORIGIN).hostname];
+  if (process.env.NH_LIVE_EXPLORER_RELAY_URL !== undefined) hostnames.unshift("www.bet-up.it");
+  for (const hostname of hostnames) {
+    try {
+      await lookup(hostname);
+    } catch {
+      throw new Error(
+        `Network prerequisite failed: DNS could not resolve ${hostname}. Use a normal workstation with outbound DNS/HTTPS; this is environment evidence, not bookmaker evidence.`,
+      );
+    }
   }
 }
 
