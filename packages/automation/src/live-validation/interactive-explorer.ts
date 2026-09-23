@@ -560,9 +560,12 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
     ? start.target.pathname
     : "[bet-up-relay]";
 
-  const navigationFields = start.kind === "BETUP_RELAY"
-    ? { navigationKind: "BETUP_RELAY" as const, relayOrigin: BETUP_RELAY_ORIGIN }
-    : { navigationKind: "BOOKMAKER_DIRECT" as const };
+  const navigationFields:
+    | Readonly<{ navigationKind: "BETUP_RELAY"; relayOrigin: typeof BETUP_RELAY_ORIGIN }>
+    | Readonly<{ navigationKind: "BOOKMAKER_DIRECT" }> =
+    start.kind === "BETUP_RELAY"
+      ? { navigationKind: "BETUP_RELAY", relayOrigin: BETUP_RELAY_ORIGIN }
+      : { navigationKind: "BOOKMAKER_DIRECT" };
 
   if (start.kind === "BOOKMAKER_DIRECT") {
     await context.route("**/*", async (route) => {
