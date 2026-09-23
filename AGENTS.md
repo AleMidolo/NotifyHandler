@@ -75,13 +75,14 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-The relay-aware v2 implementation, full-match identity propagation, and SEC-004 hardening are complete. PRODUCT-016/#109 is also complete with a target-market BET365/SISAL relay sample.
+PR #142 is merged and BOOK-016 evidence tooling is relay-aware. The remaining blocker is operational execution on a qualifying non-CI workstation.
 
-1. **#104 BOOK-016 — immediate P0.** Validate Portogallo - Galles, full-match `U/O CORNERS 6.5`, BET365 OVER @1.14 and SISAL UNDER @4.25 through the recorded `bet-up.it` relay URLs.
-2. Base `Feasible for implementation` vs `Blocked` only on post-resolution bookmaker evidence: expected origin, event, competition/time, full-match total-corners, exact line, side, displayed odds.
-3. If feasible, create a separate restricted live-mapping implementation issue. If the required pair remains Blocked, route to Product Coordination for candidate/scope replan.
-4. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
-5. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#143 DEVOPS-012 — immediate P0.** Execute exactly one BET365 and one SISAL relay-aware validation run from merged commit `a9d07e8692a2a00bf4db1c336896bafc654e5e4c`; retain only sanitized summary + SHA-256 and return them to #104.
+2. **#104 BOOK-016 — after #143.** Interpret actual results only; DevOps must not classify feasibility/support.
+3. Environment/toolchain/DNS failure remains environment evidence and must not classify a bookmaker.
+4. If relay-aware evidence yields a feasible candidate, create a separate restricted live-mapping implementation issue. If the required pair remains Blocked, route to Product Coordination for candidate/scope replan.
+5. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
+6. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 Relay resolution and upstream notification content never satisfy matching predicates by themselves.
 

@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** PRODUCT-016/#109 is complete with a target-market BET365/SISAL relay sample. BOOK-016/#104 is now the immediate P0 live-evidence task.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** BOOK-016 tooling is relay-ready via merged PR #142. DEVOPS-012/#143 is now the immediate P0 execution dependency; BOOK-016/#104 interprets the returned live evidence.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -153,14 +153,23 @@ A usable current/future full-match total-corners relay sample is recorded for:
 
 The corrected recommendation odds are consistent with the authoritative offer odds. The parser already accepts `CORNER(S)` aliases. The sample contains no credentials/session/auth data.
 
+### Relay-aware BOOK-016 preparation — COMPLETE
+
+**PR #142 — COMPLETE**
+
+The controlled BOOK-012 explorer now accepts the reviewed relay-navigation extension, reuses the BOOK-017 resolver, preserves default-deny exploration, redacts relay identifiers, and keeps `authorizesProductionMapping: false`. Post-merge CI on `a9d07e8692a2a00bf4db1c336896bafc654e5e4c` is green.
+
 ### Current P0
 
-**#104 BOOK-016 — READY NOW**
+**#143 DEVOPS-012 — READY NOW**
 
-All technical and evidence prerequisites are satisfied. Run relay-aware validation through the merged v2/resolver/security stack and independently prove:
-`relay -> expected bookmaker -> event -> competition/time context -> full-match total-corners -> exact numeric line -> requested side -> displayed odds`.
+Execute one qualifying non-CI BET365 run and one SISAL run from exact merged commit `a9d07e...` on a headed workstation with ordinary outbound DNS/HTTPS. Use only the already-recorded relay inputs. Retain sanitized summary + SHA-256.
 
-Feasibility/support must be based only on the bookmaker-page evidence after relay resolution. If feasible, create separate restricted live-mapping implementation issues. If the required pair remains blocked, return to Product Coordination for candidate-pool or explicit market-scope reconsideration.
+Do not retry/increase the interaction budget, do not use proxy/bypass mechanisms, and do not classify a bookmaker from environment failure.
+
+**#104 BOOK-016 — WAITING FOR #143 RESULTS**
+
+After both actual summaries are available, Bookmaker Automation Engineer decides `Feasible for implementation` vs `Blocked` solely from post-relay bookmaker evidence.
 
 ### Implementation and qualification
 
