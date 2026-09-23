@@ -225,6 +225,29 @@ test("one canonical relay revisit then expected SISAL bookmaker succeeds", async
   }
 });
 
+test("one canonical relay revisit then expected BET365 bookmaker succeeds", async () => {
+  const relay = relayUrl("bet365");
+  const destination = finalUrl("bet365", "one-revisit");
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      bet365: {
+        [relay]: [
+          { kind: "redirect", location: relay },
+          { kind: "redirect", location: destination },
+        ],
+        [destination]: { kind: "html", body: fixtureHtml("bet365", "under", "1.95") },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("bet365"))));
+    assert.equal(last.state, "READY_FOR_USER");
+  } finally {
+    await worker.closeAll();
+  }
+});
+
 test("second canonical relay revisit hits the fixed redirect limit", async () => {
   const relay = relayUrl("sisal");
   const worker = createFixtureAutomationWorker({
