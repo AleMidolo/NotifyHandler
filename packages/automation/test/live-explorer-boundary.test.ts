@@ -161,6 +161,38 @@ test("interactive explorer rejects unsafe configuration before Chromium launch",
   );
 });
 
+test("relay-aware explorer rejects invalid relay grammar and bookmaker suffix before Chromium launch", async () => {
+  await assert.rejects(
+    runInteractiveLiveExplorer({
+      bookmaker: "sisal",
+      relayUrl: "https://www.bet-up.it/lnk/not-a-uuid/sisal",
+    }),
+    /requires exact https:\/\/www\.bet-up\.it\/lnk\/.*\/sisal/u,
+  );
+  await assert.rejects(
+    runInteractiveLiveExplorer({
+      bookmaker: "sisal",
+      relayUrl: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365",
+    }),
+    /requires exact https:\/\/www\.bet-up\.it\/lnk\/.*\/sisal/u,
+  );
+  await assert.rejects(
+    runInteractiveLiveExplorer({
+      bookmaker: "admiralbet",
+      relayUrl: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/admiralbet",
+    }),
+    /restricted to SISAL and BET365/u,
+  );
+  await assert.rejects(
+    runInteractiveLiveExplorer({
+      bookmaker: "bet365",
+      url: "https://www.bet365.it/hub/it-it/football",
+      relayUrl: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365",
+    }),
+    /either a bookmaker URL or a bet-up relay URL/u,
+  );
+});
+
 test("interactive explorer source keeps the evidence collector outside sensitive browser capabilities", async () => {
   const source = await readFile(
     new URL("../src/live-validation/interactive-explorer.ts", import.meta.url),
@@ -184,7 +216,12 @@ test("interactive explorer source keeps the evidence collector outside sensitive
   assert.match(source, /chromium\.launch\(\{ headless: false \}\)/);
   assert.match(source, /const MAX_ACTIONS = 12/);
   assert.match(source, /const MIN_DELAY_MS = 750/);
-  assert.match(source, /new NavigationPolicy\(\[target\.origin\]\)/);
+  assert.match(source, /new NavigationPolicy\(\[approvedOrigin\]\)/);
+  assert.match(source, /createWorkerPageRuntime\(/);
+  assert.match(source, /runtime\.resolveRelay\(/);
+  assert.match(source, /relayOrigin: BETUP_RELAY_ORIGIN/);
+  assert.match(source, /\[bet-up-relay\]/);
+  assert.equal(source.includes("signalId:"), false);
   assert.match(source, /isInternalHostname\(parsed\.hostname\)/);
   assert.match(source, /authorizesProductionMapping: false/);
 });
