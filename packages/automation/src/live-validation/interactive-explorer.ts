@@ -9,6 +9,7 @@ type RelayExplorerBookmaker = Extract<ExplorerBookmaker, WorkerBookmaker>;
 
 const BETUP_RELAY_ORIGIN = "https://www.bet-up.it";
 const RELAY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const EVIDENCE_UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/giu;
 
 const BOOKMAKER_CONFIG: Readonly<
   Record<ExplorerBookmaker, Readonly<{ origin: string; defaultPath: string }>>
@@ -158,17 +159,34 @@ export interface ExplorerOptions {
   readonly delayMs?: number;
 }
 
-function sanitizeText(value: string, maxLength = MAX_TEXT_LENGTH): string {
-  return value.replace(/\s+/g, " ").trim().slice(0, maxLength);
+export function sanitizeExplorerEvidenceText(
+  value: string,
+  maxLength = MAX_TEXT_LENGTH,
+): string {
+  return value
+    .replace(EVIDENCE_UUID, "[uuid]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
 }
 
-function sanitizePath(rawUrl: string, approvedOrigin: string): string {
+export function sanitizeExplorerEvidencePath(rawUrl: string, approvedOrigin: string): string {
   try {
     const parsed = new URL(rawUrl, approvedOrigin);
-    return parsed.origin === approvedOrigin ? parsed.pathname : "[unapproved-origin]";
+    return parsed.origin === approvedOrigin
+      ? parsed.pathname.replace(EVIDENCE_UUID, "[uuid]")
+      : "[unapproved-origin]";
   } catch {
     return "[invalid-url]";
   }
+}
+
+function sanitizeText(value: string, maxLength = MAX_TEXT_LENGTH): string {
+  return sanitizeExplorerEvidenceText(value, maxLength);
+}
+
+function sanitizePath(rawUrl: string, approvedOrigin: string): string {
+  return sanitizeExplorerEvidencePath(rawUrl, approvedOrigin);
 }
 
 function parseBoundedInteger(
@@ -421,8 +439,10 @@ function toEvidenceControl(record: InternalControlRecord): ExplorerEvidenceContr
       : { ariaExpanded: descriptor.ariaExpanded }),
     ...(descriptor.ariaControls === undefined
       ? {}
-      : { ariaControls: descriptor.ariaControls }),
-    ...(descriptor.dataTestId === undefined ? {} : { dataTestId: descriptor.dataTestId }),
+      : { ariaControls: sanitizeText(descriptor.ariaControls) }),
+    ...(descriptor.dataTestId === undefined
+      ? {}
+      : { dataTestId: sanitizeText(descriptor.dataTestId) }),
     ...(descriptor.parentContext === undefined
       ? {}
       : { parentContext: descriptor.parentContext }),
@@ -557,7 +577,7 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
   const usedFingerprints = new Set<string>();
   let routeBlockReason: ExplorerBlockReason | undefined;
   let startPath = start.kind === "BOOKMAKER_DIRECT"
-    ? start.target.pathname
+    ? sanitizePath(start.target.href, approvedOrigin)
     : "[bet-up-relay]";
 
   const navigationFields:
