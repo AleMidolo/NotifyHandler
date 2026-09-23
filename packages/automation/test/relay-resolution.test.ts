@@ -273,6 +273,68 @@ test("second canonical relay revisit hits the fixed redirect limit", async () =>
   }
 });
 
+test("relay phase rejects a POST revisit to the exact canonical relay URL", async () => {
+  const relay = relayUrl("sisal");
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relay]: {
+          kind: "html",
+          body: `<!doctype html><html><body>
+            <form id="revisit" method="post" action="${relay}">
+              <input type="hidden" name="state" value="unreviewed">
+            </form>
+            <script>document.getElementById("revisit").submit()</script>
+          </body></html>`,
+        },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_INVALID");
+    assert.equal(last.failure?.activation, "NOT_ATTEMPTED");
+    const diagnostic = JSON.stringify(last);
+    assert.equal(diagnostic.includes(SIGNAL_ID), false);
+    assert.equal(diagnostic.includes(relay), false);
+    assert.equal(diagnostic.includes("unreviewed"), false);
+  } finally {
+    await worker.closeAll();
+  }
+});
+
+test("relay phase rejects a POST transition to the expected bookmaker origin", async () => {
+  const relay = relayUrl("sisal");
+  const destination = finalUrl("sisal", "post-transition");
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [relay]: {
+          kind: "html",
+          body: `<!doctype html><html><body>
+            <form id="bookmaker" method="post" action="${destination}">
+              <input type="hidden" name="state" value="unreviewed">
+            </form>
+            <script>document.getElementById("bookmaker").submit()</script>
+          </body></html>`,
+        },
+        [destination]: { kind: "html", body: fixtureHtml("sisal", "over", "2.08") },
+      },
+    },
+    relayResolutionTimeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+  });
+  try {
+    const last = terminal(await events(worker.start(request("sisal"))));
+    assert.equal(last.state, "FAILED_SAFE");
+    assert.equal(last.failure?.code, "RELAY_INVALID");
+    assert.equal(last.failure?.activation, "NOT_ATTEMPTED");
+  } finally {
+    await worker.closeAll();
+  }
+});
+
 test("same-origin relay revisit with an unreviewed path is invalid", async () => {
   const relay = relayUrl("sisal");
   const worker = createFixtureAutomationWorker({
