@@ -20,23 +20,21 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — BOOK-016 / #104: Run relay-aware live target validation
-Owner: Bookmaker Automation Engineer
+### P0 — DEVOPS-012 / #143: Execute BOOK-016 relay-aware validation
+Owner: Release / DevOps Engineer
 Milestone: 6 — Evidence-backed live bookmaker readiness
 
-PRODUCT-016/#109 is complete with a usable target sample:
-- event: Portogallo - Galles;
-- competition: Nations League;
-- scheduled: 24/09/2026 20:45;
-- market: `U/O CORNERS 6.5` -> canonical full-match total corners;
-- BET365: OVER @ `1.14`;
-- SISAL: UNDER @ `4.25`;
-- relay URLs: previously supplied `bet-up.it` links for the same signal id/bookmaker suffixes.
+PR #142 is merged at exact commit `a9d07e8692a2a00bf4db1c336896bafc654e5e4c`. Execute exactly once per bookmaker on a qualifying non-CI headed workstation:
+- BET365 using the recorded relay for Portogallo - Galles;
+- SISAL using the recorded relay for Portogallo - Galles.
 
-Use the merged typed v2 ingestion, explicit `full_match` identity, BOOK-017 resolver, BOOK-018 period matching, and SEC-004 hardening to establish independently:
-`validated relay -> expected bookmaker -> event -> competition/time -> full-match total-corners -> exact line -> side -> displayed odds`.
+Retain only sanitized `ExplorerSummary.json` + SHA-256 and return both results to #104. Do not classify feasibility in DevOps. Environment/prerequisite failure is not bookmaker evidence.
 
-The relay and notification metadata are navigation/target inputs only. Do not infer support from successful redirect or from the upstream label.
+### P0 after #143 — BOOK-016 / #104
+Owner: Bookmaker Automation Engineer
+
+Interpret the two actual sanitized results against:
+`expected bookmaker -> event -> competition/time -> full-match total-corners -> exact 6.5 line -> requested side -> displayed odds`.
 
 ## Next in Milestone 6
 
