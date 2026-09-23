@@ -63,13 +63,12 @@ ARCH-005 introduces `notifyhandler.direct-pair.v2` with a typed `betup-relay` na
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. **#109 PRODUCT-016 — sole immediate blocker:** provide a current/still-reachable upstream `bet-up.it` signal for the actual pre-match **full-match total-corners O/U** target;
-2. **#104 BOOK-016 — ready immediately after #109:** run relay-aware live validation using the merged v2 ingestion, explicit `full_match` identity, restricted relay resolver, and completed SEC-004 hardening;
-3. create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`;
-4. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
-5. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#104 BOOK-016 — immediate P0:** run relay-aware live validation for the supplied target sample: Portogallo - Galles, Nations League, 24/09/2026 20:45, full-match `U/O CORNERS 6.5`, BET365 OVER @1.14, SISAL UNDER @4.25;
+2. classify each bookmaker only from the post-relay deterministic evidence chain and create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`;
+3. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
+4. **#46 DEVOPS-003** remains blocked until #45 passes.
 
-The relay-aware implementation and security stack is complete on `main`: ARCH-005/#119, ARCH-006/#128, APP-006/#123, shared market-period propagation, BOOK-018/#131, BOOK-017/#124, and SEC-004/#125 are merged. SEC-004 added fail-closed private/internal-network protection for relay subresources and explicit redirect-`Location` validation before destination requests; the pinned Chromium relay suite passes 40/40.
+PRODUCT-016/#109 is complete. The target-market relay evidence exists for both BET365 and SISAL, and all relay/domain/security prerequisites are already merged. Relay success itself still contributes zero positive event/market/period/line/side/odds evidence.
 
 Remote Internet exposure of the desktop webhook is not part of this decision. The default integration is local/loopback; a remote surebet service would require a separately designed secure relay/outbound connection rather than opening the desktop listener to the public Internet.
 
