@@ -720,7 +720,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
     try {
       parsed = new URL(url);
     } catch {
-      active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay navigation produced a malformed top-level URL." };
+      active.failure = relayInvalidFailure("MALFORMED_NAVIGATION", "Relay navigation produced a malformed top-level URL.");
       return false;
     }
 
