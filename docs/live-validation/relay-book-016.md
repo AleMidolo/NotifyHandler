@@ -79,3 +79,70 @@ If ARCH-007 rejects the real relay shape as unsupported, route to Product Coordi
 ## Safety conclusion
 
 The current resolver failed closed as designed. No bookmaker outcome was activated, no stake/betslip/payment/wager action occurred, and the retained evidence contains no credentials, account/session state, relay UUID, or full relay URL.
+
+
+## DEVOPS-013 bounded-revisit revalidation
+
+After ARCH-007/ADR-0005, BOOK-019, SEC-005 and QA-003 were merged/certified, QA authorized exactly one new non-CI relay-aware run for BET365 and one for SISAL using the same Portogallo-Galles target and the exact upstream relay inputs already retained in repository issue history.
+
+The execution source was merged commit `4290058cb385005930ee18e39924135de92c2b38`.
+
+The stored relay inputs are exact lowercase canonical URLs of the approved form:
+
+`https://www.bet-up.it/lnk/<canonical-lowercase-uuid>/<bookmaker-suffix>`.
+
+### BET365 DEVOPS-013 result
+
+- navigation kind: `BETUP_RELAY`;
+- relay origin: `https://www.bet-up.it`;
+- status: `BLOCKED`;
+- block reason: `RELAY_INVALID`;
+- final path: `[relay-unresolved]`;
+- actions: `0/10`;
+- snapshots: `0`;
+- `authorizesProductionMapping: false`;
+- summary SHA-256: `834EEDF5B3885F21CBBBA6BB235265F71FDE8EAF6DE36E72EFF36BE045554865`.
+
+### SISAL DEVOPS-013 result
+
+- navigation kind: `BETUP_RELAY`;
+- relay origin: `https://www.bet-up.it`;
+- status: `BLOCKED`;
+- block reason: `RELAY_INVALID`;
+- final path: `[relay-unresolved]`;
+- actions: `0/10`;
+- snapshots: `0`;
+- `authorizesProductionMapping: false`;
+- summary SHA-256: `CA0E5DC39C406C388CE9BC215088AB080BD4D6BEA382842E6CC236BF6311A83F`.
+
+Exactly one qualifying run was executed per bookmaker. No retry, action-budget increase, delay/hop tuning, proxy/bypass behavior, or sensitive/session/transaction artifact retention occurred.
+
+### BOOK-020 interpretation
+
+The new results still stop **inside the shared relay resolver before bookmaker arrival**. They therefore do not establish anything about the live SISAL/BET365 DOM, event, competition/time, full-match total-corners market, exact line, side, displayed odds, or selected state.
+
+The initial upstream relay inputs themselves are not obviously malformed or stale in format: they are exact lowercase canonical relay URLs, were previously accepted into the relay phase, and had produced `RELAY_REDIRECT_LIMIT` under the older one-hop resolver.
+
+Under the current BOOK-019/SEC-005 implementation, `RELAY_INVALID` is intentionally coarse and can represent multiple distinct safe-failure categories, including:
+
+- a non-GET top-level relay-phase navigation;
+- malformed top-level navigation;
+- query/fragment/userinfo canonical-boundary violation;
+- an unreviewed same-origin path;
+- malformed relay signal syntax;
+- canonical identity mismatch;
+- start-URL mismatch or resolver-entry contract failure.
+
+The retained BOOK-012 summary does not include the internal resolver message or any raw redirect target, so the actual DEVOPS-013 subtype cannot be determined from the authorized evidence without guessing.
+
+Therefore:
+
+- the current relay-aware live path remains **Blocked**;
+- SISAL and BET365 remain **Testable** through deterministic fixtures;
+- bookmaker-specific live feasibility remains **unobserved** in these runs;
+- no live selector mapping or support promotion is justified;
+- ADR-0005 must not be widened from these results;
+- another live run is not justified until the relay invalid subtype can be recorded safely.
+
+BOOK-021/#156 is the smallest next step: add a fixed redacted `relayInvalidCategory` diagnostic allowed by ADR-0005, with no change to accepted relay grammar/state. Security and QA must approve that diagnostic path before any further live run.
+
