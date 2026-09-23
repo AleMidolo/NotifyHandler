@@ -162,11 +162,12 @@ export function validatePortableExplorerSummary(rawSummary) {
     ) ||
     !validStatuses.has(summary.status) ||
     (
-      summary.relayInvalidCategory !== undefined
-      && (
-        summary.blockReason !== "RELAY_INVALID"
-        || !validRelayInvalidCategories.has(summary.relayInvalidCategory)
-      )
+      summary.blockReason === "RELAY_INVALID"
+        ? (
+            summary.navigationKind !== "BETUP_RELAY"
+            || !validRelayInvalidCategories.has(summary.relayInvalidCategory)
+          )
+        : summary.relayInvalidCategory !== undefined
     ) ||
     summary.authorizesProductionMapping !== false ||
     !Number.isInteger(summary.actionBudget) ||
