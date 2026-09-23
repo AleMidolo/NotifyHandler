@@ -35,8 +35,19 @@ Required environment variable:
 Optional variables:
 
 - `NH_LIVE_EXPLORER_URL` — must remain on the exact approved origin for the selected bookmaker;
+- `NH_LIVE_EXPLORER_RELAY_URL` — BOOK-016 relay input for SISAL/BET365 only; must exactly match `https://www.bet-up.it/lnk/<canonical-uuid>/<selected-bookmaker>` with no userinfo, query, or fragment;
 - `NH_LIVE_EXPLORER_MAX_ACTIONS` — integer `1..12`, default `10`;
 - `NH_LIVE_EXPLORER_DELAY_MS` — integer `750..5000`, default `1000`.
+
+`NH_LIVE_EXPLORER_URL` and `NH_LIVE_EXPLORER_RELAY_URL` are mutually exclusive.
+
+For relay-aware BOOK-016 evidence, for example:
+
+```text
+NH_LIVE_EXPLORER_BOOKMAKER=bet365 \
+NH_LIVE_EXPLORER_RELAY_URL=<credential-free-bet-up-relay> \
+npm run live:explore --workspace @notify-handler/automation
+```
 
 The explorer always launches **headed Chromium** with a fresh ephemeral context, downloads disabled, and service workers blocked. There is no headless runtime switch for live evidence collection.
 
@@ -73,7 +84,9 @@ For `EXPANSION`, the explorer may click only the narrowly qualified disclosure/t
 
 ## Browser/network boundary
 
-The browser context independently enforces the selected origin for every top-level navigation, including redirects and popup navigation. HTTP(S) requests containing URL credentials or targeting internal/private hostnames are aborted. Additional pages/popups are closed rather than used as a new interaction surface.
+For direct-bookmaker exploration, the browser context independently enforces the selected origin for every top-level navigation, including redirects and popup navigation. HTTP(S) requests containing URL credentials or targeting internal/private hostnames are aborted. Additional pages/popups are closed rather than used as a new interaction surface.
+
+For BOOK-016 relay-aware exploration, the diagnostic reuses the merged BOOK-017 worker page-runtime resolver. Before evidence collection it permits only the exact validated `https://www.bet-up.it` relay and then one direct top-level transition to the selected bookmaker's registered origin. Relay revisits/loops, third-party intermediaries, a different registered bookmaker, private/uncertain DNS, unresolved relays, and relay-origin challenges fail safely. After expected-bookmaker arrival the resolver revokes relay-origin permission and the existing bookmaker-only navigation policy remains authoritative.
 
 The explorer does not inspect protected/private API responses or use arbitrary page evaluation to bypass the visible UI.
 
@@ -102,14 +115,15 @@ It does not attempt to solve, dismiss, bypass, or work around those conditions.
 The JSON output contains only bounded engineering evidence:
 
 - selected bookmaker and approved origin;
-- start/final **path** (not query strings or fragments);
+- navigation kind; relay-aware runs may expose only the constant relay origin `https://www.bet-up.it`;
+- start/final **bookmaker path** (not query strings or fragments); relay-aware failure before bookmaker arrival uses a constant placeholder rather than the relay path;
 - run status and sanitized block reason;
 - fixed action budget and action count;
 - page snapshots with title, control counts, and a bounded sample of relevant controls;
 - for sampled controls: short label, tag/role, allow/deny result, reason code, same-origin path, selected stable attributes (`aria-expanded`, `aria-controls`, `data-testid`), short parent context, and child-interactive count;
 - action records with sequence number, navigation/expansion class, short label, and before/after same-origin paths.
 
-The tool does **not** persist full HTML, cookies/storage, credentials, account data, screenshots, traces, form values, authenticated page captures, stake values, or wager data.
+The tool does **not** persist full HTML, cookies/storage, credentials, account data, screenshots, traces, form values, authenticated page captures, stake values, wager data, the full relay URL, or the relay signal UUID.
 
 Every output hard-codes:
 
@@ -139,7 +153,8 @@ Repository tests cover:
 - auth/transaction/consent controls denied;
 - ambiguous controls denied by default;
 - safe navigation executed directly with `page.goto()` rather than a page-controlled anchor click;
-- unsafe configuration rejected before Chromium launch;
+- unsafe direct and relay configuration rejected before Chromium launch;
+- relay-aware source path forced through the shared BOOK-017 resolver without exposing the relay UUID in summary output;
 - source-level absence of credential/form/storage/screenshot/trace/arbitrary-evaluation capabilities;
 - headed mode, fixed interaction budget, minimum delay, navigation policy, internal-host blocking, and non-authorizing output.
 
