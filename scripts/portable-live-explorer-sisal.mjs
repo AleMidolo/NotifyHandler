@@ -133,6 +133,16 @@ export function validatePortableExplorerSummary(rawSummary) {
   }
 
   const validStatuses = new Set(["COMPLETE", "BLOCKED", "BUDGET_EXHAUSTED"]);
+  const validRelayInvalidCategories = new Set([
+    "ENTRY_CONTRACT",
+    "TOP_LEVEL_METHOD",
+    "MALFORMED_NAVIGATION",
+    "CANONICAL_URL_BOUNDARY",
+    "UNREVIEWED_SAME_ORIGIN_PATH",
+    "MALFORMED_SIGNAL",
+    "CANONICAL_IDENTITY_MISMATCH",
+    "START_URL_MISMATCH",
+  ]);
   if (
     summary === null ||
     typeof summary !== "object" ||
@@ -151,6 +161,13 @@ export function validatePortableExplorerSummary(rawSummary) {
         : summary.startPath !== PORTABLE_START_PATH
     ) ||
     !validStatuses.has(summary.status) ||
+    (
+      summary.relayInvalidCategory !== undefined
+      && (
+        summary.blockReason !== "RELAY_INVALID"
+        || !validRelayInvalidCategories.has(summary.relayInvalidCategory)
+      )
+    ) ||
     summary.authorizesProductionMapping !== false ||
     !Number.isInteger(summary.actionBudget) ||
     summary.actionBudget < 1 ||
