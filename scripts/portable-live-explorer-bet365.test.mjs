@@ -120,6 +120,22 @@ test("portable summary validator only accepts sanitized BET365 BOOK-012 summarie
   assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({
       ...invalidRelaySummary,
+      relayInvalidCategory: undefined,
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...base,
+      status: "BLOCKED",
+      blockReason: "RELAY_INVALID",
+      relayInvalidCategory: "TOP_LEVEL_METHOD",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...invalidRelaySummary,
       relayInvalidCategory: "RAW_PATH_/secret",
     })),
     /boundary validation/i,
