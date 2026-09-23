@@ -102,6 +102,20 @@ test("portable summary validator only accepts sanitized BET365 BOOK-012 summarie
   };
 
   assert.deepEqual(validatePortableExplorerSummary(JSON.stringify(base)), base);
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...base,
+      blockReason: "RELAY_UNRESOLVED",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...base,
+      status: "BLOCKED",
+    })),
+    /boundary validation/i,
+  );
 
   const relaySummary = {
     ...base,
