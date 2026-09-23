@@ -144,5 +144,5 @@ Therefore:
 - ADR-0005 must not be widened from these results;
 - another live run is not justified until the relay invalid subtype can be recorded safely.
 
-BOOK-021/#156 is the smallest next step: add a fixed redacted `relayInvalidCategory` diagnostic allowed by ADR-0005, with no change to accepted relay grammar/state. Security and QA must approve that diagnostic path before any further live run.
+BOOK-021/#156 has now added the fixed redacted `relayInvalidCategory` diagnostic allowed by ADR-0005, with no change to accepted relay grammar/state. SEC-006/#159 and QA-004/#160 approved that diagnostic boundary. DEVOPS-014/#161 is authorized to execute exactly one new non-CI diagnostic run per target bookmaker using merged commit `d343fc2ff9c519aa216c0d4b339d9ec2074002bc`; no retry, resolver widening, hop/action-budget/delay tuning, credentials, private APIs, or transaction action is authorized.
 
