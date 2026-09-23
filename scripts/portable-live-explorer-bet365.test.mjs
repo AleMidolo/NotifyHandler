@@ -118,6 +118,20 @@ test("portable summary validator only accepts sanitized BET365 BOOK-012 summarie
     /boundary validation/i,
   );
   assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...relaySummary,
+      note: "Leaked relay id 11111111-2222-4333-8444-555555555555",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...relaySummary,
+      snapshots: [{ path: "/event/11111111-2222-4333-8444-555555555555", title: "Corners", controlCount: 0, allowedControlCount: 0, samples: [] }],
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({ ...base, bookmaker: "sisal" })),
     /boundary validation/i,
   );
