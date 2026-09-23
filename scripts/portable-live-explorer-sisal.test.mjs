@@ -126,6 +126,20 @@ test("portable summary validator only accepts sanitized SISAL BOOK-012 summaries
   assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({
       ...invalidRelaySummary,
+      resolverMessage: "raw rejected path or internal diagnostic",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...invalidRelaySummary,
+      rawRedirectTarget: "https://example.invalid/secret-path?token=secret",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...invalidRelaySummary,
       status: "COMPLETE",
     })),
     /boundary validation/i,
