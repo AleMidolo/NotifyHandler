@@ -143,6 +143,23 @@ export function validatePortableExplorerSummary(rawSummary) {
     "CANONICAL_IDENTITY_MISMATCH",
     "START_URL_MISMATCH",
   ]);
+  const allowedTopLevelKeys = new Set([
+    "bookmaker",
+    "approvedOrigin",
+    "navigationKind",
+    "relayOrigin",
+    "startPath",
+    "finalPath",
+    "status",
+    "blockReason",
+    "relayInvalidCategory",
+    "actionBudget",
+    "actionsTaken",
+    "snapshots",
+    "actions",
+    "authorizesProductionMapping",
+    "note",
+  ]);
   const isObject = summary !== null && typeof summary === "object";
   const isRelayNavigation = isObject && summary.navigationKind === "BETUP_RELAY";
   const isDirectNavigation = isObject && summary.navigationKind === "BOOKMAKER_DIRECT";
@@ -155,6 +172,7 @@ export function validatePortableExplorerSummary(rawSummary) {
     && summary.finalPath === "[relay-unresolved]";
   if (
     !isObject ||
+    Object.keys(summary).some((key) => !allowedTopLevelKeys.has(key)) ||
     summary.bookmaker !== PORTABLE_BOOKMAKER ||
     summary.approvedOrigin !== PORTABLE_APPROVED_ORIGIN ||
     (!isRelayNavigation && !isDirectNavigation) ||
