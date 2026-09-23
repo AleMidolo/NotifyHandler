@@ -84,9 +84,29 @@ export type RelayResolutionFailureCode =
   | "RELAY_UNRESOLVED"
   | "RELAY_CHALLENGE_UNSUPPORTED";
 
+export type RelayInvalidCategory =
+  | "ENTRY_CONTRACT"
+  | "TOP_LEVEL_METHOD"
+  | "MALFORMED_NAVIGATION"
+  | "CANONICAL_URL_BOUNDARY"
+  | "UNREVIEWED_SAME_ORIGIN_PATH"
+  | "MALFORMED_SIGNAL"
+  | "CANONICAL_IDENTITY_MISMATCH"
+  | "START_URL_MISMATCH";
+
 export type RelayResolutionResult =
   | { readonly kind: "RESOLVED"; readonly finalLocation: SafeLocation }
-  | { readonly kind: "FAILED"; readonly code: RelayResolutionFailureCode; readonly message: string };
+  | {
+      readonly kind: "FAILED";
+      readonly code: "RELAY_INVALID";
+      readonly invalidCategory: RelayInvalidCategory;
+      readonly message: string;
+    }
+  | {
+      readonly kind: "FAILED";
+      readonly code: Exclude<RelayResolutionFailureCode, "RELAY_INVALID">;
+      readonly message: string;
+    };
 
 export interface RelayResolutionOptions {
   readonly relayUrl: string;
@@ -128,6 +148,13 @@ interface CanonicalRelayIdentity {
 
 const BETUP_RELAY_ORIGIN = "https://www.bet-up.it";
 const RELAY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+function relayInvalidFailure(
+  invalidCategory: RelayInvalidCategory,
+  message: string,
+): Extract<RelayResolutionResult, { readonly kind: "FAILED"; readonly code: "RELAY_INVALID" }> {
+  return { kind: "FAILED", code: "RELAY_INVALID", invalidCategory, message };
+}
 
 function parseCanonicalRelayIdentity(rawUrl: string): CanonicalRelayIdentity | undefined {
   let parsed: URL;
@@ -337,7 +364,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
     const relayIdentity = parseCanonicalRelayIdentity(options.relayUrl);
     if (relayIdentity === undefined) {
-      return { kind: "FAILED", code: "RELAY_INVALID", message: "Relay URL violates the canonical restricted navigation contract." };
+      return relayInvalidFailure("ENTRY_CONTRACT", "Relay URL violates the canonical restricted navigation contract.");
     }
     const relay = new URL(relayIdentity.href);
 
@@ -346,7 +373,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       expectedOrigins.size === 0 ||
       options.timeoutMs <= 0
     ) {
-      return { kind: "FAILED", code: "RELAY_INVALID", message: "Relay resolution options violate the restricted navigation contract." };
+      return relayInvalidFailure("ENTRY_CONTRACT", "Relay resolution options violate the restricted navigation contract.");
     }
 
     this.invalidateReferences();
@@ -442,11 +469,10 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
         && this.relayResolution !== undefined
         && request.method() !== "GET"
       ) {
-        this.relayResolution.failure = {
-          kind: "FAILED",
-          code: "RELAY_INVALID",
-          message: "Relay top-level navigation used an unreviewed HTTP method.",
-        };
+        this.relayResolution.failure = relayInvalidFailure(
+          "TOP_LEVEL_METHOD",
+          "Relay top-level navigation used an unreviewed HTTP method.",
+        );
         await route.abort("blockedbyclient");
         return;
       }
@@ -577,7 +603,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
     try {
       parsed = new URL(rawUrl, active.relayUrl);
     } catch {
-      active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay navigation produced a malformed top-level URL." };
+      active.failure = relayInvalidFailure("MALFORMED_NAVIGATION", "Relay navigation produced a malformed top-level URL.");
       return { ok: false };
     }
 
@@ -589,20 +615,20 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
         parsed.search !== "" ||
         parsed.hash !== ""
       ) {
-        active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay revisit violated the canonical URL boundary." };
+        active.failure = relayInvalidFailure("CANONICAL_URL_BOUNDARY", "Relay revisit violated the canonical URL boundary.");
         return { ok: false };
       }
 
       const match = /^\/lnk\/([0-9a-fA-F-]+)\/([a-z0-9]+)$/u.exec(parsed.pathname);
       if (match === null) {
-        active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay revisit used an unreviewed same-origin path." };
+        active.failure = relayInvalidFailure("UNREVIEWED_SAME_ORIGIN_PATH", "Relay revisit used an unreviewed same-origin path.");
         return { ok: false };
       }
 
       const signalId = (match[1] ?? "").toLowerCase();
       const bookmakerSuffix = match[2] ?? "";
       if (!RELAY_UUID.test(signalId)) {
-        active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay revisit contained a malformed signal identifier." };
+        active.failure = relayInvalidFailure("MALFORMED_SIGNAL", "Relay revisit contained a malformed signal identifier.");
         return { ok: false };
       }
       if (signalId !== active.signalId) {
@@ -616,7 +642,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
       const canonicalHref = `${active.relayOrigin}/lnk/${signalId}/${bookmakerSuffix}`;
       if (parsed.href !== canonicalHref || canonicalHref !== active.relayUrl) {
-        active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay revisit was not the exact canonical relay URL." };
+        active.failure = relayInvalidFailure("CANONICAL_IDENTITY_MISMATCH", "Relay revisit was not the exact canonical relay URL.");
         return { ok: false };
       }
       if (active.sameOriginHopCount >= 1) {
@@ -700,7 +726,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
     if (active.phase === "EXPECT_RELAY") {
       if (parsed.href !== active.relayUrl) {
-        active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay navigation did not start from the exact validated relay URL." };
+        active.failure = relayInvalidFailure("START_URL_MISMATCH", "Relay navigation did not start from the exact validated relay URL.");
         return false;
       }
       if (!(await active.relayPolicy.isResolvedTargetAllowed(parsed.href))) {
