@@ -519,7 +519,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
           if (fixture.kind === "html") {
             await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: fixture.body });
           } else if (this.relayResolution !== undefined && url === this.relayResolution.relayUrl) {
-            const candidate = await this.validateRelayDestinationCandidate(this.relayResolution, fixture.location);
+            const candidate = await this.validateRelayDestinationCandidate(this.relayResolution, fixture.location, false);
             if (!candidate.ok) {
               await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: "<!doctype html><html><body></body></html>" });
               return;
