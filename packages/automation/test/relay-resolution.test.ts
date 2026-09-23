@@ -273,6 +273,98 @@ test("second canonical relay revisit hits the fixed redirect limit", async () =>
   }
 });
 
+test("relay invalid diagnostics distinguish POST top-level navigation without leaking request data", async () => {
+  const relay = relayUrl("sisal");
+  const session = await launchFixtureLegSession({
+    bookmaker: "sisal",
+    fixtures: {
+      [relay]: {
+        kind: "html",
+        body: `<!doctype html><html><body>
+          <form id="revisit" method="post" action="${relay}">
+            <input type="hidden" name="state" value="relay-post-body-secret">
+          </form>
+          <script>document.getElementById("revisit").submit()</script>
+        </body></html>`,
+      },
+    },
+    resolveHostname: async () => ["93.184.216.34"],
+  });
+  try {
+    const result = await session.resolveRelay({
+      relayUrl: relay,
+      timeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+      signal: new AbortController().signal,
+    });
+    assert.equal(result.kind, "FAILED");
+    if (result.kind === "FAILED") {
+      assert.equal(result.code, "RELAY_INVALID");
+      if (result.code === "RELAY_INVALID") assert.equal(result.invalidCategory, "TOP_LEVEL_METHOD");
+      const diagnostic = JSON.stringify(result);
+      assert.equal(diagnostic.includes(SIGNAL_ID), false);
+      assert.equal(diagnostic.includes(relay), false);
+      assert.equal(diagnostic.includes("relay-post-body-secret"), false);
+    }
+  } finally {
+    await session.close();
+  }
+});
+
+test("relay invalid diagnostics distinguish unreviewed same-origin path", async () => {
+  const relay = relayUrl("sisal");
+  const session = await launchFixtureLegSession({
+    bookmaker: "sisal",
+    fixtures: {
+      [relay]: { kind: "redirect", location: `${RELAY_ORIGIN}/other/path` },
+    },
+    resolveHostname: async () => ["93.184.216.34"],
+  });
+  try {
+    const result = await session.resolveRelay({
+      relayUrl: relay,
+      timeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+      signal: new AbortController().signal,
+    });
+    assert.equal(result.kind, "FAILED");
+    if (result.kind === "FAILED") {
+      assert.equal(result.code, "RELAY_INVALID");
+      if (result.code === "RELAY_INVALID") assert.equal(result.invalidCategory, "UNREVIEWED_SAME_ORIGIN_PATH");
+      assert.equal(JSON.stringify(result).includes("/other/path"), false);
+      assert.equal(JSON.stringify(result).includes(SIGNAL_ID), false);
+    }
+  } finally {
+    await session.close();
+  }
+});
+
+test("relay invalid diagnostics distinguish canonical URL boundary mutation", async () => {
+  const relay = relayUrl("sisal");
+  const session = await launchFixtureLegSession({
+    bookmaker: "sisal",
+    fixtures: {
+      [relay]: { kind: "redirect", location: relay + "?next=1" },
+    },
+    resolveHostname: async () => ["93.184.216.34"],
+  });
+  try {
+    const result = await session.resolveRelay({
+      relayUrl: relay,
+      timeoutMs: RELAY_FIXTURE_TIMEOUT_MS,
+      signal: new AbortController().signal,
+    });
+    assert.equal(result.kind, "FAILED");
+    if (result.kind === "FAILED") {
+      assert.equal(result.code, "RELAY_INVALID");
+      if (result.code === "RELAY_INVALID") assert.equal(result.invalidCategory, "CANONICAL_URL_BOUNDARY");
+      const diagnostic = JSON.stringify(result);
+      assert.equal(diagnostic.includes("?next=1"), false);
+      assert.equal(diagnostic.includes(SIGNAL_ID), false);
+    }
+  } finally {
+    await session.close();
+  }
+});
+
 test("relay phase rejects a POST revisit to the exact canonical relay URL", async () => {
   const relay = relayUrl("sisal");
   const worker = createFixtureAutomationWorker({

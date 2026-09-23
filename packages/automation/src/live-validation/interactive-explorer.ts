@@ -2,7 +2,10 @@ import { chromium, type Locator, type Page } from "playwright-core";
 
 import { domMappingFor, type WorkerBookmaker } from "../dom-mapping.ts";
 import { NavigationPolicy, isInternalHostname } from "../navigation-policy.ts";
-import { createWorkerPageRuntime } from "../page-runtime.ts";
+import {
+  createWorkerPageRuntime,
+  type RelayInvalidCategory,
+} from "../page-runtime.ts";
 
 export type ExplorerBookmaker = "admiralbet" | "sisal" | "bet365";
 type RelayExplorerBookmaker = Extract<ExplorerBookmaker, WorkerBookmaker>;
@@ -139,12 +142,13 @@ export type ExplorerBlockReason =
 export interface ExplorerSummary {
   readonly bookmaker: ExplorerBookmaker;
   readonly approvedOrigin: string;
-  readonly navigationKind?: "BOOKMAKER_DIRECT" | "BETUP_RELAY";
+  readonly navigationKind: "BOOKMAKER_DIRECT" | "BETUP_RELAY";
   readonly relayOrigin?: typeof BETUP_RELAY_ORIGIN;
   readonly startPath: string;
   readonly finalPath: string;
   readonly status: "COMPLETE" | "BLOCKED" | "BUDGET_EXHAUSTED";
   readonly blockReason?: ExplorerBlockReason;
+  readonly relayInvalidCategory?: RelayInvalidCategory;
   readonly actionBudget: number;
   readonly actionsTaken: number;
   readonly snapshots: readonly ExplorerEvidenceSnapshot[];
@@ -657,6 +661,9 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
             : "[relay-unresolved]",
           status: "BLOCKED",
           blockReason: resolution.code,
+          ...(resolution.code === "RELAY_INVALID"
+            ? { relayInvalidCategory: resolution.invalidCategory }
+            : {}),
           actionBudget,
           actionsTaken: 0,
           snapshots,

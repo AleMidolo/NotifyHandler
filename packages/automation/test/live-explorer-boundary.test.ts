@@ -236,6 +236,8 @@ test("interactive explorer source keeps the evidence collector outside sensitive
   assert.match(source, /new NavigationPolicy\(\[approvedOrigin\]\)/);
   assert.match(source, /createWorkerPageRuntime\(/);
   assert.match(source, /runtime\.resolveRelay\(/);
+  assert.match(source, /relayInvalidCategory: resolution\.invalidCategory/);
+  assert.doesNotMatch(source, /resolution\.message/);
   assert.match(source, /relayOrigin: BETUP_RELAY_ORIGIN/);
   assert.match(source, /\[bet-up-relay\]/);
   assert.equal(source.includes("signalId:"), false);

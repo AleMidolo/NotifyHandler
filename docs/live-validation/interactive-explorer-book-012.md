@@ -118,12 +118,13 @@ The JSON output contains only bounded engineering evidence:
 - navigation kind; relay-aware runs may expose only the constant relay origin `https://www.bet-up.it`;
 - start/final **bookmaker path** (not query strings or fragments); relay-aware failure before bookmaker arrival uses a constant placeholder rather than the relay path;
 - run status and sanitized block reason;
+- for relay-aware `RELAY_INVALID`, a required finite `relayInvalidCategory` such as `TOP_LEVEL_METHOD` or `UNREVIEWED_SAME_ORIGIN_PATH`; the field is forbidden for other failure codes/navigation kinds and contains no URL, UUID, path, query, fragment, request body, headers, or resolver message; portable validators enforce an explicit top-level field allowlist and reject contradictory status/block-reason combinations;
 - fixed action budget and action count;
 - page snapshots with title, control counts, and a bounded sample of relevant controls;
 - for sampled controls: short label, tag/role, allow/deny result, reason code, same-origin path, selected stable attributes (`aria-expanded`, `aria-controls`, `data-testid`), short parent context, and child-interactive count;
 - action records with sequence number, navigation/expansion class, short label, and before/after same-origin paths.
 
-The tool does **not** persist full HTML, cookies/storage, credentials, account data, screenshots, traces, form values, authenticated page captures, stake values, wager data, the full relay URL, or the relay signal UUID.
+The tool does **not** persist full HTML, cookies/storage, credentials, account data, screenshots, traces, form values, authenticated page captures, stake values, wager data, the full relay URL, the relay signal UUID, raw rejected redirect targets, request bodies, or internal resolver messages.
 
 Every output hard-codes:
 

@@ -88,6 +88,7 @@ test("Windows launcher exposes no alternate bookmaker or origin selector", () =>
 test("portable summary validator only accepts sanitized SISAL BOOK-012 summaries", () => {
   const base = {
     bookmaker: PORTABLE_BOOKMAKER,
+    navigationKind: "BOOKMAKER_DIRECT",
     approvedOrigin: PORTABLE_APPROVED_ORIGIN,
     startPath: PORTABLE_START_PATH,
     finalPath: "/scommesse/calcio",
@@ -101,6 +102,20 @@ test("portable summary validator only accepts sanitized SISAL BOOK-012 summaries
   };
 
   assert.deepEqual(validatePortableExplorerSummary(JSON.stringify(base)), base);
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...base,
+      blockReason: "RELAY_UNRESOLVED",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...base,
+      status: "BLOCKED",
+    })),
+    /boundary validation/i,
+  );
 
   const relaySummary = {
     ...base,
@@ -109,6 +124,99 @@ test("portable summary validator only accepts sanitized SISAL BOOK-012 summaries
     startPath: "/resolved/event/123",
   };
   assert.deepEqual(validatePortableExplorerSummary(JSON.stringify(relaySummary)), relaySummary);
+
+  const invalidRelaySummary = {
+    ...relaySummary,
+    startPath: "[bet-up-relay]",
+    finalPath: "[relay-unresolved]",
+    status: "BLOCKED",
+    blockReason: "RELAY_INVALID",
+    relayInvalidCategory: "TOP_LEVEL_METHOD",
+    actionsTaken: 0,
+    snapshots: [],
+    actions: [],
+  };
+  const sanitizedRelayFailure = {
+    ...invalidRelaySummary,
+    note: "Relay-aware explorer stopped safely during the shared restricted resolver phase. No relay signal identifier or full relay URL is included in this summary.",
+  };
+  assert.deepEqual(validatePortableExplorerSummary(JSON.stringify(sanitizedRelayFailure)), sanitizedRelayFailure);
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...sanitizedRelayFailure,
+      note: "Internal resolver message: rejected /secret/path",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...sanitizedRelayFailure,
+      resolverMessage: "raw rejected path or internal diagnostic",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...sanitizedRelayFailure,
+      rawRedirectTarget: "https://example.invalid/secret-path?token=secret",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...sanitizedRelayFailure,
+      status: "COMPLETE",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...sanitizedRelayFailure,
+      startPath: "/resolved/event/123",
+      finalPath: "/event",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...relaySummary,
+      status: "BLOCKED",
+      blockReason: "RELAY_REDIRECT_LIMIT",
+      startPath: "/resolved/event/123",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...sanitizedRelayFailure,
+      relayInvalidCategory: undefined,
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...base,
+      status: "BLOCKED",
+      blockReason: "RELAY_INVALID",
+      relayInvalidCategory: "TOP_LEVEL_METHOD",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...sanitizedRelayFailure,
+      relayInvalidCategory: "RAW_PATH_/secret",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...relaySummary,
+      relayInvalidCategory: "TOP_LEVEL_METHOD",
+      blockReason: "RELAY_REDIRECT_LIMIT",
+    })),
+    /boundary validation/i,
+  );
   assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({ ...relaySummary, signalId: "secret-signal" })),
     /boundary validation/i,

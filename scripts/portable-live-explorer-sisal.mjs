@@ -133,24 +133,91 @@ export function validatePortableExplorerSummary(rawSummary) {
   }
 
   const validStatuses = new Set(["COMPLETE", "BLOCKED", "BUDGET_EXHAUSTED"]);
+  const validRelayInvalidCategories = new Set([
+    "ENTRY_CONTRACT",
+    "TOP_LEVEL_METHOD",
+    "MALFORMED_NAVIGATION",
+    "CANONICAL_URL_BOUNDARY",
+    "UNREVIEWED_SAME_ORIGIN_PATH",
+    "MALFORMED_SIGNAL",
+    "CANONICAL_IDENTITY_MISMATCH",
+    "START_URL_MISMATCH",
+  ]);
+  const allowedTopLevelKeys = new Set([
+    "bookmaker",
+    "approvedOrigin",
+    "navigationKind",
+    "relayOrigin",
+    "startPath",
+    "finalPath",
+    "status",
+    "blockReason",
+    "relayInvalidCategory",
+    "actionBudget",
+    "actionsTaken",
+    "snapshots",
+    "actions",
+    "authorizesProductionMapping",
+    "note",
+  ]);
+  const isObject = summary !== null && typeof summary === "object";
+  const isRelayNavigation = isObject && summary.navigationKind === "BETUP_RELAY";
+  const isDirectNavigation = isObject && summary.navigationKind === "BOOKMAKER_DIRECT";
+  const isRelayFailure = isObject
+    && typeof summary.blockReason === "string"
+    && summary.blockReason.startsWith("RELAY_");
+  const isRelayInvalid = isObject && summary.blockReason === "RELAY_INVALID";
+  const isPreBookmakerRelayPlaceholder = isObject
+    && summary.startPath === "[bet-up-relay]"
+    && summary.finalPath === "[relay-unresolved]";
+  const relayFailureNote =
+    "Relay-aware explorer stopped safely during the shared restricted resolver phase. No relay signal identifier or full relay URL is included in this summary.";
   if (
-    summary === null ||
-    typeof summary !== "object" ||
+    !isObject ||
+    Object.keys(summary).some((key) => !allowedTopLevelKeys.has(key)) ||
     summary.bookmaker !== PORTABLE_BOOKMAKER ||
     summary.approvedOrigin !== PORTABLE_APPROVED_ORIGIN ||
+    (!isRelayNavigation && !isDirectNavigation) ||
     (
-      summary.navigationKind === "BETUP_RELAY"
+      isRelayNavigation
         ? (
             summary.relayOrigin !== "https://www.bet-up.it" ||
             typeof summary.startPath !== "string" ||
-            !summary.startPath.startsWith("/") ||
+            (summary.startPath !== "[bet-up-relay]" && !summary.startPath.startsWith("/")) ||
             "signalId" in summary ||
             "relayUrl" in summary ||
             RELAY_SECRET_PATTERN.test(rawText)
           )
-        : summary.startPath !== PORTABLE_START_PATH
+        : (
+            summary.relayOrigin !== undefined ||
+            summary.startPath !== PORTABLE_START_PATH
+          )
     ) ||
     !validStatuses.has(summary.status) ||
+    (
+      summary.status === "BLOCKED"
+        ? typeof summary.blockReason !== "string"
+        : summary.blockReason !== undefined
+    ) ||
+    (
+      isRelayFailure
+      && (
+        !isRelayNavigation
+        || summary.status !== "BLOCKED"
+        || !isPreBookmakerRelayPlaceholder
+        || summary.note !== relayFailureNote
+        || summary.actionsTaken !== 0
+        || !Array.isArray(summary.snapshots)
+        || summary.snapshots.length !== 0
+        || !Array.isArray(summary.actions)
+        || summary.actions.length !== 0
+      )
+    ) ||
+    (
+      isRelayInvalid
+        ? !validRelayInvalidCategories.has(summary.relayInvalidCategory)
+        : summary.relayInvalidCategory !== undefined
+    ) ||
     summary.authorizesProductionMapping !== false ||
     !Number.isInteger(summary.actionBudget) ||
     summary.actionBudget < 1 ||
