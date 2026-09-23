@@ -20,29 +20,18 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — SEC-004 / #125: Review bet-up relay resolution boundary
-Owner: Security & Compliance Engineer
-Milestone: 6 — Relay-aware live readiness
-
-The relay-aware implementation stack is merged. Review the concrete production path for:
-- exact relay grammar and bookmaker-suffix binding;
-- DNS/private/internal protections on relay and final bookmaker targets;
-- direct relay -> expected bookmaker transition enforcement;
-- intermediary/wrong-bookmaker/loop/challenge/cancellation handling;
-- evidence-epoch reset after arrival;
-- retry/reopen re-resolution;
-- privacy-safe diagnostics;
-- unchanged v1 direct-link and no-transaction boundaries.
-
 ### P0 external evidence — PRODUCT-016 / #109
 Owner: Product Coordinator / upstream surebet integration
+Milestone: 6 — Relay-aware live readiness
 
-The only external evidence still missing is a **current/still-reachable pre-match full-match total-corners O/U** signal emitted by the real upstream surebet flow, preferably covering SISAL and BET365. Existing double-chance and team-corners samples remain valid parser/relay fixtures but are not substitutes.
+All relay-aware application, domain, worker, matching, and security prerequisites are merged. The only remaining immediate blocker is a **current/still-reachable pre-match full-match total-corners O/U** signal emitted by the real upstream surebet flow.
+
+Prefer samples covering SISAL and BET365. Existing double-chance and team-corners samples remain useful fixtures but do not satisfy the target scope.
 
 ### P0 after #109 — BOOK-016 / #104
 Owner: Bookmaker Automation Engineer
 
-Use the merged typed v2 ingestion, restricted BOOK-017 relay resolver, and explicit full-match period matching to validate the real relay path:
+Use the merged typed v2 ingestion, explicit `full_match` identity, BOOK-017 relay resolver, BOOK-018 period matching, and SEC-004 network/redirect hardening to validate:
 
 `validated bet-up relay -> expected bookmaker -> event -> competition/time -> full-match total-corners -> exact line -> side -> displayed odds`.
 
@@ -97,6 +86,7 @@ The unsigned alpha channel and diagnostic validation bundle are not substitutes 
 - #123 / APP-006 — typed relay-aware direct-pair v2 ingestion: complete via PR #126.
 - #131 / BOOK-018 — full-match period enforcement in SISAL/BET365 matching: complete.
 - #124 / BOOK-017 — restricted bet-up relay resolver: complete via PR #134.
+- #125 / SEC-004 — relay network/redirect security review and hardening: complete via PR #137; relay suite 40/40 green.
 - #105 / APP-005 — authenticated loopback structured direct-pair ingress: complete via PR #112.
 - #106 / SEC-002 — loopback ingress and direct-link DNS/token hardening: complete via PR #114.
 - #113 / SEC-003 — restart-safe structured-ingress idempotency: complete via PR #115.
