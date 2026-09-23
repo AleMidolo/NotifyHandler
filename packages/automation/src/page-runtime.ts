@@ -437,6 +437,20 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       && (request.isNavigationRequest() || request.resourceType() === "document");
 
     try {
+      if (
+        topLevelNavigation
+        && this.relayResolution !== undefined
+        && request.method() !== "GET"
+      ) {
+        this.relayResolution.failure = {
+          kind: "FAILED",
+          code: "RELAY_INVALID",
+          message: "Relay top-level navigation used an unreviewed HTTP method.",
+        };
+        await route.abort("blockedbyclient");
+        return;
+      }
+
       if (!topLevelNavigation && this.relayResolution !== undefined) {
         const active = this.relayResolution;
         const allowed = await active.relayPolicy.isResolvedPublicHttpsTarget(request.url());
