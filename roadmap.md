@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** The relay-aware v2 stack is merged. SEC-004/#125 is the immediate autonomous task; PRODUCT-016/#109 is the external evidence blocker for the final BOOK-016/#104 live validation.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** The relay-aware v2 stack and SEC-004 hardening are complete. PRODUCT-016/#109 is now the sole immediate blocker; BOOK-016/#104 is ready as soon as target-market evidence arrives.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -129,21 +129,27 @@ Completed:
 
 Relay resolution itself remains non-authorizing navigation metadata. Matching starts only after arrival at the expected bookmaker origin in a fresh evidence epoch.
 
-### Current parallel tracks
+### Relay security — COMPLETE
 
-**#125 SEC-004 — READY NOW**
+**#125 SEC-004 / PR #137 — COMPLETE**
 
-Security-review the concrete merged relay path. This work does not depend on live bookmaker evidence.
+Security review found and closed two concrete gaps:
+- relay-page subresources now fail closed on private/internal network targets;
+- HTTP redirects are terminated and their `Location` validated before any destination request.
 
-**#109 PRODUCT-016 — EXTERNAL EVIDENCE BLOCKER**
+The comprehensive pinned-Chromium relay suite passes **40/40**, including valid SISAL/BET365 resolution, intermediary/wrong-bookmaker rejection, loop/challenge handling, private DNS/subresources, retry, auth-resume, capability revocation, cancellation, and relay-evidence isolation. No additional live-support blocker was found.
 
-Existing samples prove real relay syntax and include double-chance plus team-corners markets. They do **not** satisfy the current narrow target.
+### Current blocker
+
+**#109 PRODUCT-016 — SOLE IMMEDIATE P0 BLOCKER**
 
 Still required: one current/still-reachable upstream `bet-up.it` signal for pre-match football **full-match total-corners O/U**, with exact event/context/line/side/expected odds for the bookmaker(s) BOOK-016 will validate.
 
+Recorded double-chance and team-corners examples remain useful fixtures but are not substitutes for the target market.
+
 **#104 BOOK-016 — READY WHEN #109 IS SATISFIED**
 
-Run live relay-aware evidence collection through the merged v2/resolver stack and independently prove:
+All technical prerequisites are now complete. Run relay-aware live validation through the merged v2/resolver/security stack and independently prove:
 `relay -> expected bookmaker -> event -> competition/time context -> full-match total-corners -> exact numeric line -> requested side -> displayed odds`.
 
 If feasible, create a separate restricted live-mapping implementation issue. If the required pair remains blocked, return to Product Coordination for candidate-pool or explicit market-scope reconsideration.
