@@ -109,6 +109,29 @@ test("portable summary validator only accepts sanitized SISAL BOOK-012 summaries
     startPath: "/resolved/event/123",
   };
   assert.deepEqual(validatePortableExplorerSummary(JSON.stringify(relaySummary)), relaySummary);
+
+  const invalidRelaySummary = {
+    ...relaySummary,
+    status: "BLOCKED",
+    blockReason: "RELAY_INVALID",
+    relayInvalidCategory: "TOP_LEVEL_METHOD",
+  };
+  assert.deepEqual(validatePortableExplorerSummary(JSON.stringify(invalidRelaySummary)), invalidRelaySummary);
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...invalidRelaySummary,
+      relayInvalidCategory: "RAW_PATH_/secret",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...relaySummary,
+      relayInvalidCategory: "TOP_LEVEL_METHOD",
+      blockReason: "RELAY_REDIRECT_LIMIT",
+    })),
+    /boundary validation/i,
+  );
   assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({ ...relaySummary, signalId: "secret-signal" })),
     /boundary validation/i,
