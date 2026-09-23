@@ -88,6 +88,7 @@ test("Windows launcher exposes no alternate bookmaker or origin selector", () =>
 test("portable summary validator only accepts sanitized SISAL BOOK-012 summaries", () => {
   const base = {
     bookmaker: PORTABLE_BOOKMAKER,
+    navigationKind: "BOOKMAKER_DIRECT",
     approvedOrigin: PORTABLE_APPROVED_ORIGIN,
     startPath: PORTABLE_START_PATH,
     finalPath: "/scommesse/calcio",
@@ -112,11 +113,40 @@ test("portable summary validator only accepts sanitized SISAL BOOK-012 summaries
 
   const invalidRelaySummary = {
     ...relaySummary,
+    startPath: "[bet-up-relay]",
+    finalPath: "[relay-unresolved]",
     status: "BLOCKED",
     blockReason: "RELAY_INVALID",
     relayInvalidCategory: "TOP_LEVEL_METHOD",
+    actionsTaken: 0,
+    snapshots: [],
+    actions: [],
   };
   assert.deepEqual(validatePortableExplorerSummary(JSON.stringify(invalidRelaySummary)), invalidRelaySummary);
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...invalidRelaySummary,
+      status: "COMPLETE",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...invalidRelaySummary,
+      startPath: "/resolved/event/123",
+      finalPath: "/event",
+    })),
+    /boundary validation/i,
+  );
+  assert.throws(
+    () => validatePortableExplorerSummary(JSON.stringify({
+      ...relaySummary,
+      status: "BLOCKED",
+      blockReason: "RELAY_REDIRECT_LIMIT",
+      startPath: "/resolved/event/123",
+    })),
+    /boundary validation/i,
+  );
   assert.throws(
     () => validatePortableExplorerSummary(JSON.stringify({
       ...invalidRelaySummary,
