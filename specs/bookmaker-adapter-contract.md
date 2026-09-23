@@ -1,6 +1,6 @@
 # Bookmaker adapter contract
 
-Status: **Accepted architecture contract for Milestone 1, amended by ARCH-004, ARCH-005, and ARCH-006**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-004, ARCH-005, ARCH-006, and ARCH-007**
 
 This specification defines how bookmaker-specific code participates in execution without leaking DOM details into the core application or gaining transaction-submission capabilities.
 
@@ -149,11 +149,13 @@ The resolver must:
 
 1. revalidate exact `https://www.bet-up.it/lnk/<uuid>/<suffix>` syntax/binding;
 2. apply fail-closed DNS/private-target validation before opening the relay;
-3. allow only a direct top-level transition from the exact relay origin to an origin registered for the expected bookmaker adapter;
-4. reject third-party intermediary origins;
-5. DNS/private-target validate the expected-bookmaker request before permitting it;
-6. stop relay resolution on first successful expected-bookmaker arrival;
-7. hand the page/session to the adapter only after current origin is revalidated.
+3. allow either the expected-bookmaker transition or exactly one additional visit to the exact same canonical relay URL;
+4. on the permitted revisit, revalidate public HTTPS/DNS and require the same normalized UUID and bookmaker suffix;
+5. after the revisit budget is consumed, reject any further relay-origin navigation;
+6. reject third-party intermediary origins and wrong-bookmaker destinations;
+7. DNS/private-target validate the expected-bookmaker request before permitting it;
+8. stop relay resolution on first successful expected-bookmaker arrival;
+9. hand the page/session to the adapter only after current origin is revalidated.
 
 No event/market/outcome/odds evidence may be emitted by relay resolution.
 
@@ -330,3 +332,21 @@ Adapters must not mark market evidence `MATCHED` until they have deterministical
 Period evidence must come from reviewed bookmaker metadata/labels/container identity or another explicit tested mapping. DOM proximity, section order, matching line, matching side, or matching odds cannot substitute for period evidence.
 
 Shared fixture contracts should expose a deterministic period attribute/label and include a near-miss first-half market with the same family/context/line/side/odds to prove it cannot activate.
+
+
+### 7.4 Finite relay-state requirement
+
+The shared resolver must model the relay as explicit states, not as an arbitrary redirect counter.
+
+Conceptually:
+
+```text
+EXPECT_ENTRY
+  -> EXPECT_BOOKMAKER_OR_CANONICAL_REVISIT
+      -> EXPECT_BOOKMAKER_AFTER_REVISIT
+          -> ARRIVED
+```
+
+Only the transition to the exact canonical initial relay href is valid for the single revisit. A different same-origin path is a protocol violation, not another allowable hop.
+
+The resolver state must carry the immutable signal/bookmaker binding and a non-configurable `sameOriginHopCount` bounded to `0|1`.
