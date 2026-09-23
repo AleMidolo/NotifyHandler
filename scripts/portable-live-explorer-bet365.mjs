@@ -12,6 +12,7 @@ export const PORTABLE_PLAYWRIGHT_VERSION = "1.63.0";
 export const PORTABLE_SUMMARY_FILE = "ExplorerSummary.json";
 
 const MAX_SUMMARY_BYTES = 1_000_000;
+const RELAY_SECRET_PATTERN = /(?:https:\/\/www\.bet-up\.it\/lnk\/|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/iu;
 const ciSignals = Object.freeze([
   "CI",
   "GITHUB_ACTIONS",
@@ -123,9 +124,10 @@ async function assertBet365NetworkPrerequisite() {
 }
 
 export function validatePortableExplorerSummary(rawSummary) {
+  const rawText = String(rawSummary).trim();
   let summary;
   try {
-    summary = JSON.parse(String(rawSummary).trim());
+    summary = JSON.parse(rawText);
   } catch {
     throw new Error("BOOK-012 did not emit valid sanitized ExplorerSummary JSON.");
   }
@@ -143,7 +145,8 @@ export function validatePortableExplorerSummary(rawSummary) {
             typeof summary.startPath !== "string" ||
             !summary.startPath.startsWith("/") ||
             "signalId" in summary ||
-            "relayUrl" in summary
+            "relayUrl" in summary ||
+            RELAY_SECRET_PATTERN.test(rawText)
           )
         : summary.startPath !== PORTABLE_START_PATH
     ) ||
