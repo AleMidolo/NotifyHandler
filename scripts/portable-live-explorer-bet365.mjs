@@ -193,6 +193,11 @@ export function validatePortableExplorerSummary(rawSummary) {
     ) ||
     !validStatuses.has(summary.status) ||
     (
+      summary.status === "BLOCKED"
+        ? typeof summary.blockReason !== "string"
+        : summary.blockReason !== undefined
+    ) ||
+    (
       isRelayFailure
       && (
         !isRelayNavigation
