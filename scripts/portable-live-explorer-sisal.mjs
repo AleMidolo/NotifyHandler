@@ -170,6 +170,8 @@ export function validatePortableExplorerSummary(rawSummary) {
   const isPreBookmakerRelayPlaceholder = isObject
     && summary.startPath === "[bet-up-relay]"
     && summary.finalPath === "[relay-unresolved]";
+  const relayFailureNote =
+    "Relay-aware explorer stopped safely during the shared restricted resolver phase. No relay signal identifier or full relay URL is included in this summary.";
   if (
     !isObject ||
     Object.keys(summary).some((key) => !allowedTopLevelKeys.has(key)) ||
@@ -203,6 +205,7 @@ export function validatePortableExplorerSummary(rawSummary) {
         !isRelayNavigation
         || summary.status !== "BLOCKED"
         || !isPreBookmakerRelayPlaceholder
+        || summary.note !== relayFailureNote
         || summary.actionsTaken !== 0
         || !Array.isArray(summary.snapshots)
         || summary.snapshots.length !== 0
