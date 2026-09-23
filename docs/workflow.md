@@ -161,11 +161,12 @@ Any accepted transport triggers the same automatic two-leg processing path witho
 For a `betup-relay` leg:
 
 1. core validates relay syntax, suffix/bookmaker binding, and pair signal consistency;
-2. worker opens the relay in the isolated leg browser with zero positive identity evidence;
-3. only a direct transition to the expected adapter-approved bookmaker origin is accepted;
-4. unexpected intermediary/wrong-bookmaker/private-target/loop/challenge states fail safely;
-5. after expected-bookmaker arrival, matching starts from a fresh evidence epoch;
-6. bookmaker login may then pause at `AUTH_REQUIRED`;
-7. wrong event/market/line/outcome/odds fails through the normal deterministic policy.
+2. worker opens the immutable canonical relay in the isolated leg browser with zero positive identity evidence;
+3. the resolver accepts either the expected adapter-approved bookmaker origin or one additional top-level visit to the exact same canonical relay URL;
+4. if the canonical revisit occurs, the next accepted cross-origin destination must be the expected bookmaker; another relay visit or any different same-origin path fails safely;
+5. unexpected intermediary/wrong-bookmaker/private-target/challenge states fail safely;
+6. after expected-bookmaker arrival, matching starts from a fresh evidence epoch;
+7. bookmaker login may then pause at `AUTH_REQUIRED`;
+8. wrong event/market/period/line/outcome/odds fails through the normal deterministic policy.
 
-A relay never authorizes generic discovery, selection activation, credentials, stake entry, or wager submission.
+A relay never authorizes generic discovery, arbitrary same-origin crawling, selection activation, credentials, stake entry, or wager submission. The one-revisit budget is fixed and non-configurable.
