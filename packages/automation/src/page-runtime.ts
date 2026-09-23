@@ -75,6 +75,8 @@ class FixtureRouter {
 
 export type RelayResolutionFailureCode =
   | "RELAY_INVALID"
+  | "RELAY_SIGNAL_MISMATCH"
+  | "RELAY_BOOKMAKER_MISMATCH"
   | "RELAY_NETWORK_TARGET_BLOCKED"
   | "RELAY_INTERMEDIARY_BLOCKED"
   | "RELAY_WRONG_FINAL_BOOKMAKER"
@@ -107,12 +109,55 @@ export interface WorkerPageRuntime {
 interface ActiveRelayResolution {
   readonly relayUrl: string;
   readonly relayOrigin: string;
+  readonly signalId: string;
+  readonly bookmakerSuffix: string;
   readonly relayPolicy: NavigationPolicy;
   readonly bookmakerPolicy: NavigationPolicy;
   readonly expectedOrigins: ReadonlySet<string>;
   readonly knownBookmakerOrigins: ReadonlySet<string>;
   phase: "EXPECT_RELAY" | "EXPECT_BOOKMAKER" | "ARRIVED";
+  sameOriginHopCount: 0 | 1;
   failure?: Extract<RelayResolutionResult, { readonly kind: "FAILED" }>;
+}
+
+interface CanonicalRelayIdentity {
+  readonly href: string;
+  readonly signalId: string;
+  readonly bookmakerSuffix: string;
+}
+
+const BETUP_RELAY_ORIGIN = "https://www.bet-up.it";
+const RELAY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+function parseCanonicalRelayIdentity(rawUrl: string): CanonicalRelayIdentity | undefined {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return undefined;
+  }
+
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.origin !== BETUP_RELAY_ORIGIN ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    parsed.search !== "" ||
+    parsed.hash !== ""
+  ) {
+    return undefined;
+  }
+
+  const match = /^\/lnk\/([0-9a-fA-F-]+)\/([a-z0-9]+)$/u.exec(parsed.pathname);
+  if (match === null) return undefined;
+
+  const signalId = (match[1] ?? "").toLowerCase();
+  const bookmakerSuffix = match[2] ?? "";
+  if (!RELAY_UUID.test(signalId) || bookmakerSuffix === "") return undefined;
+
+  const href = `${BETUP_RELAY_ORIGIN}/lnk/${signalId}/${bookmakerSuffix}`;
+  if (parsed.href !== href) return undefined;
+  return { href, signalId, bookmakerSuffix };
 }
 
 class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
@@ -290,16 +335,14 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       return { kind: "FAILED", code: "RELAY_UNRESOLVED", message: "Relay resolution cannot start on an unavailable browser page." };
     }
 
-    let relay: URL;
-    try {
-      relay = new URL(options.relayUrl);
-    } catch {
-      return { kind: "FAILED", code: "RELAY_INVALID", message: "Relay URL is malformed." };
+    const relayIdentity = parseCanonicalRelayIdentity(options.relayUrl);
+    if (relayIdentity === undefined) {
+      return { kind: "FAILED", code: "RELAY_INVALID", message: "Relay URL violates the canonical restricted navigation contract." };
     }
+    const relay = new URL(relayIdentity.href);
 
     const expectedOrigins = new Set(options.expectedOrigins);
     if (
-      relay.origin !== "https://www.bet-up.it" ||
       expectedOrigins.size === 0 ||
       options.timeoutMs <= 0
     ) {
@@ -309,13 +352,16 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
     this.invalidateReferences();
     this.policy = options.relayPolicy;
     this.relayResolution = {
-      relayUrl: relay.href,
+      relayUrl: relayIdentity.href,
       relayOrigin: relay.origin,
+      signalId: relayIdentity.signalId,
+      bookmakerSuffix: relayIdentity.bookmakerSuffix,
       relayPolicy: options.relayPolicy,
       bookmakerPolicy: options.bookmakerPolicy,
       expectedOrigins,
       knownBookmakerOrigins: new Set(options.knownBookmakerOrigins),
       phase: "EXPECT_RELAY",
+      sameOriginHopCount: 0,
     };
     this.blockingOperation = true;
 
@@ -508,7 +554,11 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   private async validateRelayDestinationCandidate(
     active: ActiveRelayResolution,
     rawUrl: string,
-  ): Promise<{ readonly ok: true; readonly href: string } | { readonly ok: false }> {
+    consumeSameOriginHop: boolean,
+  ): Promise<
+    | { readonly ok: true; readonly href: string; readonly kind: "RELAY_REVISIT" | "BOOKMAKER" }
+    | { readonly ok: false }
+  > {
     let parsed: URL;
     try {
       parsed = new URL(rawUrl, active.relayUrl);
@@ -518,8 +568,54 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
     }
 
     if (parsed.origin === active.relayOrigin) {
-      active.failure = { kind: "FAILED", code: "RELAY_REDIRECT_LIMIT", message: "Relay origin was revisited before bookmaker arrival." };
-      return { ok: false };
+      if (
+        parsed.protocol !== "https:" ||
+        parsed.username !== "" ||
+        parsed.password !== "" ||
+        parsed.search !== "" ||
+        parsed.hash !== ""
+      ) {
+        active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay revisit violated the canonical URL boundary." };
+        return { ok: false };
+      }
+
+      const match = /^\/lnk\/([0-9a-fA-F-]+)\/([a-z0-9]+)$/u.exec(parsed.pathname);
+      if (match === null) {
+        active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay revisit used an unreviewed same-origin path." };
+        return { ok: false };
+      }
+
+      const signalId = (match[1] ?? "").toLowerCase();
+      const bookmakerSuffix = match[2] ?? "";
+      if (!RELAY_UUID.test(signalId)) {
+        active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay revisit contained a malformed signal identifier." };
+        return { ok: false };
+      }
+      if (signalId !== active.signalId) {
+        active.failure = { kind: "FAILED", code: "RELAY_SIGNAL_MISMATCH", message: "Relay revisit did not preserve the immutable signal identity." };
+        return { ok: false };
+      }
+      if (bookmakerSuffix !== active.bookmakerSuffix) {
+        active.failure = { kind: "FAILED", code: "RELAY_BOOKMAKER_MISMATCH", message: "Relay revisit did not preserve the immutable bookmaker binding." };
+        return { ok: false };
+      }
+
+      const canonicalHref = `${active.relayOrigin}/lnk/${signalId}/${bookmakerSuffix}`;
+      if (parsed.href !== canonicalHref || canonicalHref !== active.relayUrl) {
+        active.failure = { kind: "FAILED", code: "RELAY_INVALID", message: "Relay revisit was not the exact canonical relay URL." };
+        return { ok: false };
+      }
+      if (active.sameOriginHopCount >= 1) {
+        active.failure = { kind: "FAILED", code: "RELAY_REDIRECT_LIMIT", message: "Relay revisit exceeded the fixed same-origin hop budget." };
+        return { ok: false };
+      }
+      if (!(await active.relayPolicy.isResolvedTargetAllowed(parsed.href))) {
+        active.failure = { kind: "FAILED", code: "RELAY_NETWORK_TARGET_BLOCKED", message: "Relay revisit failed network-target validation." };
+        return { ok: false };
+      }
+
+      if (consumeSameOriginHop) active.sameOriginHopCount = 1;
+      return { ok: true, href: parsed.href, kind: "RELAY_REVISIT" };
     }
 
     if (active.expectedOrigins.has(parsed.origin)) {
@@ -527,7 +623,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
         active.failure = { kind: "FAILED", code: "RELAY_NETWORK_TARGET_BLOCKED", message: "Bookmaker destination failed network-target validation." };
         return { ok: false };
       }
-      return { ok: true, href: parsed.href };
+      return { ok: true, href: parsed.href, kind: "BOOKMAKER" };
     }
 
     if (active.knownBookmakerOrigins.has(parsed.origin)) {
@@ -556,7 +652,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
           await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: "<!doctype html><html><body></body></html>" });
           return;
         }
-        const candidate = await this.validateRelayDestinationCandidate(active, location);
+        const candidate = await this.validateRelayDestinationCandidate(active, location, false);
         if (!candidate.ok) {
           await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: "<!doctype html><html><body></body></html>" });
           return;
@@ -601,8 +697,9 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       return true;
     }
 
-    const candidate = await this.validateRelayDestinationCandidate(active, parsed.href);
+    const candidate = await this.validateRelayDestinationCandidate(active, parsed.href, true);
     if (!candidate.ok) return false;
+    if (candidate.kind === "RELAY_REVISIT") return true;
     active.phase = "ARRIVED";
     return true;
   }
