@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** BOOK-024/#177, SEC-007/#178, QA-006/#179, DEVOPS-016/#182, and BOOK-025/#183 are complete. ARCH-008/#184 is the immediate P0 diagnostic-design task.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** ARCH-008/#184 is complete via PR #187. BOOK-026/#188 is the immediate P0 implementation, followed by SEC-008/#186 and QA-007/#189 before any new live diagnostic.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -254,9 +254,21 @@ Neither candidate reaches `Feasible for implementation`.
 
 ### Current P0
 
-**#184 ARCH-008 — READY NOW**
+**#184 ARCH-008 — COMPLETE via PR #187**
 
-Define the smallest finite redacted transport/render-state diagnostic contract needed to distinguish the BOOK-024 ambiguous states while keeping current fail-closed network, origin, timing, privacy, interaction, and transaction boundaries unchanged.
+ADR-0006 and `passive-provenance.v1` define the finite redacted transport/render-state provenance contract. Architecture changes observability only and authorizes no live run.
+
+**#188 BOOK-026 — READY NOW**
+
+Implement the schema in the source-locked passive probe with first-trigger-only transport provenance, bounded render-state booleans/readiness/title predicates, fixed DOM population bucket, and explicit artifact allowlists.
+
+**#186 SEC-008 — AFTER #188**
+
+Review privacy/network/capability invariance on the exact implementation.
+
+**#189 QA-007 — AFTER #186**
+
+Certify deterministic/browser/artifact regressions and explicitly authorize or block the next separately scoped live diagnostic.
 
 No BOOK-024 retry under the old schema, timeout/readiness widening, WebSocket allowance, DNS/origin weakening, broader click policy, Betup fallback, generic discovery, private API access, outcome activation, or transaction capability is authorized.
 
