@@ -1,6 +1,6 @@
 # Matching, confidence, and odds policy
 
-Status: **Accepted architecture contract for Milestone 1, amended by ARCH-006**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-006 and ARCH-010**
 
 This specification defines the shared evidence model and minimum authorization rules for bookmaker selection preparation. Bookmaker adapters may be stricter, but may not weaken these rules.
 
@@ -8,7 +8,7 @@ This specification defines the shared evidence model and minimum authorization r
 
 NotifyHandler optimizes for precision, not click completion.
 
-Fuzzy similarity, visual proximity, matching odds, or a single matching label may help discover candidates, but may not by themselves authorize a selection click.
+Fuzzy similarity, visual proximity, price similarity, or a single matching label may help discover candidates, but may not by themselves authorize a selection click. Price is informational and never an authorizing identity dimension.
 
 A click is permitted only after the exact target identity is established across the required dimensions for the current evidence epoch.
 
@@ -189,52 +189,62 @@ Origin evidence is `MATCHED` only when the current top-level location is an appr
 
 A redirect invalidates prior evidence and must be re-evaluated.
 
-## 11. Odds representation
+## 11. Odds/price representation
 
-Use a decimal-safe representation:
+Bookmaker price is observational metadata, not selection identity.
+
+When present, use decimal-safe representation:
 
 ```ts
-type DecimalOddsString = string; // canonical decimal syntax, e.g. "1.87"
+type DecimalOddsString = string;
 
-type OddsComparison =
-  | "EQUAL"
-  | "HIGHER"
-  | "LOWER"
-  | "UNAVAILABLE";
-
-type ObservedOdds = Readonly<{
-  expected: DecimalOddsString;
+type OddsObservation = Readonly<{
+  expected?: DecimalOddsString;
   observed?: DecimalOddsString;
-  comparison: OddsComparison;
+  comparison?: "EQUAL" | "HIGHER" | "LOWER";
+  status: "NOT_OBSERVED" | "OBSERVED" | "UNAVAILABLE" | "INVALID";
 }>;
 ```
 
-Expected and observed odds remain separate values at all times.
+Exact implementation types may differ, but the semantics are mandatory:
 
-## 12. Odds comparison
+- expected/notified odds may be absent;
+- observed odds may be absent;
+- comparison is optional and meaningful only when both values are valid;
+- no price field belongs to `MatchingEvidenceSnapshot`;
+- no price state authorizes or blocks selection activation.
 
-Decimal odds are compared numerically after canonical decimal parsing:
+Expected and observed odds remain distinct metadata whenever both exist.
+
+## 12. Odds observation
+
+If the target price is visible without broadening the normal target-selection flow, the adapter may observe it and expose it to the user.
+
+When both valid values exist:
 
 - observed == expected -> `EQUAL`;
 - observed > expected -> `HIGHER`;
-- observed < expected -> `LOWER`;
-- unable to obtain a reliable displayed price -> `UNAVAILABLE`.
+- observed < expected -> `LOWER`.
 
-Odds must never be used to repair a failed event/market/line/outcome identity check. Matching the expected price on a wrong candidate has zero authorization value.
+If the displayed price cannot be read or parsed, telemetry may report `UNAVAILABLE` or `INVALID`.
 
-## 13. MVP changed-odds behavior
+None of these states changes target identity.
 
-For the MVP:
+Odds must never repair a failed event/market/period/line/outcome identity check, and a changed/missing/unreadable price must never invalidate an otherwise exact target.
 
-- `EQUAL`: selection activation may proceed if all identity rules pass;
-- `HIGHER` or `LOWER`: do **not** activate the selection yet; return `ODDS_CHANGED` and show both expected and observed odds to the user;
-- the user may explicitly continue with the exact observed odds value shown;
-- continuation invalidates prior evidence and re-runs page/event/market/line/outcome/odds validation;
-- activation may proceed only if the revalidated observed odds still equal the value the user acknowledged;
-- if odds change again, return `ODDS_CHANGED` again;
-- `UNAVAILABLE`: return safe failure `ODDS_UNAVAILABLE` for the MVP and do not activate the selection.
+## 13. Non-gating price behavior
 
-This policy makes any price change visible and prevents a stale acknowledgement from authorizing a later price.
+There is no changed-odds acknowledgement gate.
+
+- price equality is not required before activation;
+- a higher/lower observed value does not produce `ODDS_CHANGED`;
+- missing/unreadable odds do not produce a safe failure by themselves;
+- no user acknowledgement is required to continue preparation;
+- price observation must not introduce additional retry, wait, navigation, or interaction solely to satisfy an authorization predicate.
+
+NotifyHandler does not calculate surebet validity, ROI, profitability, stake sizing, or whether a displayed price is acceptable.
+
+The user makes those decisions after handoff.
 
 ## 14. Selection authorization predicate
 
@@ -243,8 +253,6 @@ Conceptually:
 ```ts
 function mayActivateSelection(
   evidence: MatchingEvidenceSnapshot,
-  odds: ObservedOdds,
-  acknowledgedObservedOdds: DecimalOddsString | undefined,
   cancelled: boolean,
 ): boolean {
   return !cancelled
@@ -252,18 +260,13 @@ function mayActivateSelection(
     && evidence.event.overall.status === "MATCHED"
     && evidence.market.status === "MATCHED"
     && (lineNotRequired || evidence.line.status === "MATCHED")
-    && evidence.outcome.status === "MATCHED"
-    && (
-      odds.comparison === "EQUAL"
-      || (
-        acknowledgedObservedOdds !== undefined
-        && odds.observed === acknowledgedObservedOdds
-      )
-    );
+    && evidence.outcome.status === "MATCHED";
 }
 ```
 
-The real implementation must additionally verify attempt/evidence-epoch freshness.
+The real implementation must additionally verify attempt/evidence-epoch freshness and the current browser/network policy.
+
+Odds are deliberately absent from this predicate.
 
 ## 15. Post-activation verification
 
