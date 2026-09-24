@@ -75,15 +75,16 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-BOOK-024/#177, SEC-007/#178, QA-006/#179, and DEVOPS-016/#182 are complete. BOOK-025/#183 has interpreted the qualified passive summaries; neither bookmaker is feasible for implementation.
+BOOK-024/#177, DEVOPS-016/#182, BOOK-025/#183, and ARCH-008/#184 are complete. ADR-0006 / `passive-provenance.v1` defines the only approved diagnostic refinement.
 
-1. **#184 ARCH-008 — immediate P0.** Define a finite redacted passive transport/render-state diagnostic contract.
-2. BET365 `PRIVATE_OR_INTERNAL_DESTINATION` is diagnostic network-boundary evidence only: the current reason is shared by WebSocket attempts, HTTPS targets failing public-DNS validation, and other disallowed protocols. Do not infer a private/internal bookmaker navigation or support status from it.
-3. SISAL preserved the exact event route but exposed zero target-relevant visible-text signals at the fixed passive observation point. Do not infer why without new evidence and do not use URL/path preservation as target evidence.
-4. Do not retry BOOK-024 unchanged, increase readiness/timeout/budget, broaden clicks, allow WebSockets, weaken DNS/origin policy, resume generic discovery, or use Betup fallback.
-5. Architecture may define only bounded redacted provenance; any implementation requires a separate Bookmaker issue plus Security and QA review before another live run.
-6. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
-7. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#188 BOOK-026 — immediate P0.** Implement the finite redacted provenance schema inside the source-locked passive diagnostic only.
+2. Keep network/timing/action behavior unchanged: no timeout/readiness/retry/budget increase, WebSocket allowance, DNS/origin exception, broader click policy, generic discovery, private API, or Betup fallback.
+3. **#186 SEC-008 — after BOOK-026.** Review exact implementation/artifact for destination non-reconstruction, content minimization, allowlist enforcement, and capability invariance.
+4. **#189 QA-007 — after SEC-008.** Certify deterministic/browser/privacy/portable regressions and explicitly authorize or block any next live run.
+5. No real bookmaker run is authorized until both #186 and #189 pass.
+6. Diagnostic provenance never becomes matching evidence, production mapping, feasibility/support evidence, or activation authorization.
+7. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
+8. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 
