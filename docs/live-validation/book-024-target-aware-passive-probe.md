@@ -142,3 +142,27 @@ After merge:
 3. Only if both approve may Release/DevOps execute at most one BET365 and one SISAL non-CI passive diagnostic run, with no timeout/action-budget tuning.
 
 No Betup fallback or generic homepage discovery is part of BOOK-024.
+
+
+## ARCH-008 provenance amendment
+
+BOOK-025 showed that the original BOOK-024 retained schema was intentionally too coarse to distinguish:
+
+- which fail-closed transport-policy class produced the BET365 `PRIVATE_OR_INTERNAL_DESTINATION` result;
+- target predicate absent from DOM vs present but not visibly observed for SISAL.
+
+ARCH-008 / ADR-0006 defines `passive-provenance.v1` as the only approved refinement.
+
+The implementation may add only:
+
+- first transport trigger category/scope from the finite reviewed enum;
+- target-predicate `domPresent` and `visibleObservedWithinBound` booleans;
+- finite DOMContentLoaded observation;
+- participant-pair/competition title predicate booleans;
+- fixed `EMPTY | SPARSE | POPULATED` DOM population bucket.
+
+It must not retain blocked destination data, raw title, hidden text, body text, HTML, screenshots/traces/HAR, selectors, raw counts, dynamic browser/network errors, cookies/storage/session state, or any new page-content channel.
+
+The existing source-locked targets, 20-second navigation timeout, 1-second readiness delay, zero-interaction capability, DNS/origin/protocol/WebSocket fail-closed behavior, popup handling, and `authorizesProductionMapping:false` requirement remain unchanged.
+
+No new live run is authorized by this documentation. A separate Bookmaker implementation must pass SEC-008 and dedicated QA certification first.
