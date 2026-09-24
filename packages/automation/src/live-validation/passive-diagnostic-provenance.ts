@@ -356,6 +356,28 @@ function validateEvidence(value: unknown): void {
   assertExactKeys(dimensions, dimensionKeys, [], "evidence.dimensionsObserved");
   for (const key of dimensionKeys) assertBoolean(dimensions[key], "evidence.dimensionsObserved." + key);
   assertBoolean(object.requiredChainObserved, "evidence.requiredChainObserved");
+
+  const signalObserved = (key: typeof SIGNAL_KEYS[number]): boolean =>
+    (object[key] as JsonObject).observed === true;
+  const expectedDimensions: Readonly<Record<string, boolean>> = {
+    event: signalObserved("participantA") && signalObserved("participantB"),
+    competition: signalObserved("competition"),
+    scheduledTime: signalObserved("scheduledDate") && signalObserved("scheduledTime"),
+    totalCornersMarket: signalObserved("totalCornersMarket"),
+    fullMatchPeriod: signalObserved("fullMatchContext"),
+    exactLine: signalObserved("exactLine"),
+    requestedSide: signalObserved("requestedSideAtLine"),
+    displayedOdds: object.displayedOddsCandidates.length > 0,
+  };
+  for (const key of dimensionKeys) {
+    if (dimensions[key] !== expectedDimensions[key]) {
+      throw new Error("evidence.dimensionsObserved is inconsistent with retained bounded evidence.");
+    }
+  }
+  const expectedRequiredChain = Object.values(expectedDimensions).every(Boolean);
+  if (object.requiredChainObserved !== expectedRequiredChain) {
+    throw new Error("evidence.requiredChainObserved is inconsistent with retained bounded evidence.");
+  }
 }
 
 function validateTarget(value: unknown): void {
