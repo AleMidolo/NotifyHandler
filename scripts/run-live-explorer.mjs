@@ -65,6 +65,9 @@ export function assertRelayDiagnosticRunnerPreflight(bookmaker, environment = pr
   if (requireRelay !== "1") {
     throw new Error("NH_LIVE_EXPLORER_REQUIRE_RELAY must be exactly 1 when set.");
   }
+  if (environment.NH_LIVE_EXPLORER_REQUIRE_DIRECT !== undefined) {
+    throw new Error("Relay diagnostic preflight cannot be combined with direct-required mode.");
+  }
   if (environment.NH_LIVE_EXPLORER_URL !== undefined) {
     throw new Error("Relay diagnostic preflight forbids NH_LIVE_EXPLORER_URL direct-bookmaker navigation.");
   }
@@ -95,6 +98,46 @@ export function assertRelayDiagnosticRunnerPreflight(bookmaker, environment = pr
     observedSuffix !== bookmaker
   ) {
     throw new Error(`Relay diagnostic preflight requires canonical BETUP_RELAY input for ${bookmaker}.`);
+  }
+}
+
+export function assertDirectDiagnosticRunnerPreflight(bookmaker, environment = process.env) {
+  const requireDirect = environment.NH_LIVE_EXPLORER_REQUIRE_DIRECT;
+  if (requireDirect === undefined) return;
+  if (requireDirect !== "1") {
+    throw new Error("NH_LIVE_EXPLORER_REQUIRE_DIRECT must be exactly 1 when set.");
+  }
+  if (environment.NH_LIVE_EXPLORER_REQUIRE_RELAY !== undefined) {
+    throw new Error("Direct diagnostic preflight cannot be combined with relay-required mode.");
+  }
+  if (environment.NH_LIVE_EXPLORER_RELAY_URL !== undefined) {
+    throw new Error("Direct diagnostic preflight forbids NH_LIVE_EXPLORER_RELAY_URL.");
+  }
+
+  const rawTarget = environment.NH_LIVE_EXPLORER_URL;
+  if (typeof rawTarget !== "string" || rawTarget.length === 0) {
+    throw new Error(
+      "Direct diagnostic preflight requires NH_LIVE_EXPLORER_URL before any browser/network activity; generic homepage fallback is forbidden.",
+    );
+  }
+
+  let target;
+  try {
+    target = new URL(rawTarget);
+  } catch {
+    throw new Error("Direct diagnostic preflight received a malformed bookmaker URL.");
+  }
+
+  const expectedOrigin = originForBookmaker(bookmaker);
+  if (
+    target.protocol !== "https:" ||
+    target.origin !== expectedOrigin ||
+    target.username !== "" ||
+    target.password !== ""
+  ) {
+    throw new Error(
+      `Direct diagnostic preflight requires credential-free HTTPS navigation on ${expectedOrigin}.`,
+    );
   }
 }
 
@@ -208,7 +251,7 @@ async function assertNetworkPrerequisite(bookmaker) {
   }
 }
 
-async function runExplorer(bookmaker) {
+async function runExplorer(bookmaker, environment = process.env) {
   const explorerPath = join(
     root,
     "packages",
@@ -221,7 +264,7 @@ async function runExplorer(bookmaker) {
     const child = spawn(process.execPath, ["--experimental-strip-types", explorerPath], {
       cwd: root,
       env: {
-        ...process.env,
+        ...environment,
         NH_LIVE_EXPLORER_BOOKMAKER: bookmaker,
       },
       stdio: ["inherit", "inherit", "inherit"],
@@ -242,6 +285,7 @@ export async function runLocalLiveExplorer(bookmaker, options = {}) {
   const environment = options.environment ?? process.env;
   assertNonCiEnvironment(environment);
   assertRelayDiagnosticRunnerPreflight(bookmaker, environment);
+  assertDirectDiagnosticRunnerPreflight(bookmaker, environment);
 
   const pinned = await loadPinnedVersions();
   assertExactVersion("Node.js", process.version, pinned.node);
@@ -250,7 +294,7 @@ export async function runLocalLiveExplorer(bookmaker, options = {}) {
   await ensurePinnedChromiumInstalled();
   await assertNetworkPrerequisite(bookmaker);
 
-  return runExplorer(bookmaker);
+  return runExplorer(bookmaker, environment);
 }
 
 async function main() {
