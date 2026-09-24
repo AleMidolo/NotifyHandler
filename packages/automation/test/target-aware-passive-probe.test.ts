@@ -29,10 +29,12 @@ test("BOOK-024 rejects unsafe direct targets before browser launch", () => {
     "http://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/",
     "https://user:secret@www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/",
     "https://example.com/#/AC/B1/C1/D8/E201149499/F3/I1/",
+    "https://www.bet365.it/#/AC/B1/C1/D8/E201149500/F3/I1/",
+    "https://www.bet365.it/",
   ]) {
     assert.throws(
       () => parseApprovedPassiveTarget("bet365", url),
-      /only accepts credential-free HTTPS URLs on https:\/\/www\.bet365\.it/,
+      /exact source-locked credential-free HTTPS target/,
     );
   }
   assert.doesNotThrow(() =>
@@ -99,6 +101,10 @@ test("BOOK-024 probe source is passive, non-authorizing, bounded, and retains no
   assert.match(source, /chromium\.launch\(\{ headless: options\.headless \?\? false \}\)/);
   assert.match(source, /acceptDownloads: false/);
   assert.match(source, /serviceWorkers: "block"/);
-  assert.match(source, /isInternalHostname\(parsed\.hostname\)/);
+  assert.match(source, /parsed\.href !== lockedUrl/);
+  assert.match(source, /isResolvedPublicHttpsTarget\(parsed\.href\)/);
+  assert.match(source, /context\.routeWebSocket\("\*\*\/\*"/);
+  assert.doesNotMatch(source, /error instanceof Error \? error\.message/);
+  assert.match(source, /failed safely before a sanitized summary could be produced/);
   assert.match(source, /intentionally disabled in CI/);
 });
