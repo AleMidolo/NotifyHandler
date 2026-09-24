@@ -94,6 +94,16 @@ test("structured v1 rejects protocol drift, stale input, and ambiguous pair iden
   if (!sides.ok) assert.equal(sides.errors.some((item) => item.code === "INVALID_OUTCOME"), true);
 });
 
+test("structured v1 remains wire-frozen and still requires expectedOdds", () => {
+  const value = payload();
+  Reflect.deleteProperty(value.legs[0], "expectedOdds");
+  const result = normalizeDirectPairNotificationV1(value, { now });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.errors.some((item) => item.code === "INVALID_ODDS"), true);
+  }
+});
+
 test("structured v1 rejects unknown bookmakers and unsafe navigation candidates before orchestration", () => {
   const unsupported = payload();
   unsupported.legs[0].bookmaker = "unknownbet";
@@ -202,6 +212,44 @@ test("structured v2 normalizes typed bet-up relay navigation without projecting 
     notificationId: "surebet-20260922-v2-001",
     legIndex: 0,
   });
+});
+
+test("structured v2 accepts absent expectedOdds and preserves valid present price only as metadata", () => {
+  const withoutPrice = payloadV2();
+  Reflect.deleteProperty(withoutPrice.legs[0], "expectedOdds");
+  Reflect.deleteProperty(withoutPrice.legs[1], "expectedOdds");
+
+  const absent = normalizeDirectPairNotificationV2(withoutPrice, { now: nowV2 });
+  assert.equal(absent.ok, true);
+  if (!absent.ok) return;
+  assert.equal(absent.value.canonical.legs[0].expectedOdds, undefined);
+  assert.equal(absent.value.canonical.legs[1].expectedOdds, undefined);
+  assert.equal(absent.value.plan.legs[0].target.expectedOdds, undefined);
+  assert.equal(absent.value.plan.legs[1].target.expectedOdds, undefined);
+
+  const withPrice = payloadV2();
+  withPrice.legs[0].expectedOdds = "2.100";
+  const present = normalizeDirectPairNotificationV2(withPrice, { now: nowV2 });
+  assert.equal(present.ok, true);
+  if (present.ok) {
+    assert.equal(present.value.canonical.legs[0].expectedOdds, "2.1");
+    assert.equal(present.value.plan.legs[0].target.expectedOdds, "2.1");
+  }
+});
+
+test("structured v2 rejects malformed present expectedOdds as metadata validation", () => {
+  const value = payloadV2();
+  value.legs[0].expectedOdds = "not-a-price";
+  const result = normalizeDirectPairNotificationV2(value, { now: nowV2 });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(
+      result.errors.some(
+        (item) => item.code === "INVALID_ODDS" && item.field === "legs[0].expectedOdds",
+      ),
+      true,
+    );
+  }
 });
 
 test("structured v2 supports typed direct-bookmaker candidates and exact schema dispatch", () => {
