@@ -56,19 +56,19 @@ The structured-ingress implementation and security-hardening track is complete:
 - **SEC-002/#106** — DNS/private-target validation, local token hardening/rotation, Host/Origin/privacy regressions, merged via PR #114;
 - **SEC-003/#113** — restart-safe bounded idempotency tombstones with user-only persistence and zero sensitive payload storage, merged via PR #115.
 
-User-supplied production examples revealed an important refinement: the surebet bot does **not** emit bookmaker-origin match URLs. It emits credential-free relay URLs shaped as `https://www.bet-up.it/lnk/<signal-uuid>/<bookmaker>`, which are expected to redirect to the bookmaker match page.
+Earlier production examples used credential-free relay URLs shaped as `https://www.bet-up.it/lnk/<signal-uuid>/<bookmaker>`. That path is now historical/fail-closed: PRODUCT-026/#167 switched the active upstream contract to bookmaker-origin direct links, and BOOK-023/#170 has completed the first direct-link revalidation.
 
 ARCH-005 introduced `notifyhandler.direct-pair.v2` with a typed `betup-relay` navigation candidate while keeping v1 frozen as direct-bookmaker-only. Qualifying BOOK-016 runs then showed one additional `bet-up.it` top-level visit before bookmaker arrival. ARCH-007/ADR-0005 narrowly permits exactly one revisit to the **same canonical relay URL** before requiring the expected bookmaker; arbitrary same-origin paths and larger redirect chains remain blocked.
 
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. **#170 BOOK-023 — immediate P0:** revalidate Portogallo-Galles from the exact direct bookmaker URLs supplied by the upstream owner/user;
-2. BET365 target: `https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/` -> OVER 6.5, expected odds 1.14;
-3. SISAL target: `https://www.sisal.it/scommesse-matchpoint/evento/calcio/nations-league/portogallo-galles` -> UNDER 6.5, expected odds 4.25;
-4. classify feasibility only from bookmaker-page evidence: event -> competition/time -> full-match total corners -> line 6.5 -> side -> displayed odds;
-5. create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`; otherwise return to Product Coordination without falling back to Betup;
-6. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
+1. **#170 BOOK-023 — COMPLETE:** qualifying direct-link evidence was collected for the exact Portogallo-Galles BET365/SISAL targets.
+2. BET365 remains live Blocked / fixture-backed Testable because the retained direct summary contains only a generic landing snapshot and no target event/context/market/line/side/odds chain.
+3. SISAL remains live Blocked / fixture-backed Testable: the direct event page binds Portogallo-Galles / Nations League and a broad CORNER category context, but not scheduled time, full-match total-corners identity, line 6.5, UNDER, or bound displayed odds.
+4. Neither candidate is `Feasible for implementation`; no restricted live-mapping issue is created.
+5. **#175 PRODUCT-028 — immediate P0:** replan around a new evidence-backed current/future direct-link target or pair without weakening deterministic matching or falling back to Betup/generic discovery.
+6. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
 7. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 PRODUCT-026/#167 is complete via the alternative direct integration contract: the upstream Telegram bot is being changed to emit bookmaker-origin URLs instead of `bet-up.it` relays. No new ADR is required for this path: structured v1 already supports direct bookmaker links, v2 supports typed `bookmaker-direct`, and current normalization preserves the BET365 fragment route.
