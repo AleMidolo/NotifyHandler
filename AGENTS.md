@@ -77,11 +77,11 @@ PRODUCT-015 changes the evidence and ingestion strategy because the real surebet
 ### Live-readiness / ingestion track
 ARCH-010/#200 and ARCH-011/#203 are complete via PR #205. The current work is implementation of those accepted contracts plus parallel second-bookmaker evidence.
 
-1. **#206 DOMAIN-003 — immediate P0 root for odds migration.** Make SelectionTarget/input price optional informational metadata while preserving frozen structured-v1 compatibility.
-2. **#209 BOOK-029 — parallel P0.** Implement the default-deny bookmaker WSS gateway policy framework and passive-provenance.v2 with no guessed live hostname rules.
-3. **#207 APP-008 — after #206.** Remove ODDS_CHANGED/acknowledgement state and UI commands.
-4. **#208 BOOK-028 — after #206.** Remove price gating from adapters/SelectionActivationGate while preserving exact identity and selected-state verification.
-5. **#211 SEC-009 — after #206/#207/#208/#209.** Review non-gating odds migration and WSS boundary.
+1. **#206 DOMAIN-003 — COMPLETE via PR #214.** SelectionTarget/input price is optional informational metadata while frozen structured-v1 compatibility is preserved.
+2. **#209 BOOK-029 — implemented in PR #215.** Default-deny bookmaker WSS gateway policy and passive-provenance.v2 are implemented with an empty live BET365/SISAL host registry; no host was guessed or learned at runtime.
+3. **#207 APP-008 — immediate cross-agent P0.** Remove ODDS_CHANGED/acknowledgement state and UI commands.
+4. **#208 BOOK-028 — ready Bookmaker P0 after #206.** Remove price gating from adapters/SelectionActivationGate while preserving exact identity and selected-state verification.
+5. **#211 SEC-009 — after #207/#208/#209 integration.** Review non-gating odds migration and WSS boundary.
 6. **#212 QA-008 — after SEC-009.** Certify state, adapter, WSS, privacy, browser, and transaction regressions.
 7. **#210 BOOK-030 — only after Security approves the controlled evidence procedure.** Establish the narrowest evidence-backed BET365 WSS host rule; do not guess or auto-learn a host.
 8. **#197 PRODUCT-030 — parallel external evidence.** Fresh direct-link second-bookmaker targets may be supplied when available; stable odds are not required.
