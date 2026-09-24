@@ -157,7 +157,8 @@ A release is blocked if any known path can:
 - expose sensitive authentication/session data in logs or artifacts;
 - let a passive/live diagnostic accept an alternative same-origin URL when its evidence scope is source-locked to an exact direct page;
 - let passive-diagnostic HTTP(S) subresources bypass public-DNS/private-address validation or expose a WebSocket surface;
-- retain passive-diagnostic full page/DOM dumps, screenshots, traces, HAR, cookies/storage/session state, form values, authenticated captures, raw document title, hidden/body text, blocked destination data, raw element counts, or raw browser/runtime failure messages;
+- retain passive-diagnostic full page/DOM dumps, screenshots, traces, HAR, cookies/storage/session state, form values, authenticated captures, raw document title, hidden/body text, blocked destination data, dynamic unapproved final-route strings, raw element counts, or raw browser/runtime failure messages;
+- accept a passive-diagnostic artifact whose source-locked metadata, transport/block reason, bounded snippets, displayed odds, or derived evidence booleans are inconsistent with the reviewed schema;
 - let passive diagnostic provenance authorize retry/timing changes, WebSockets, DNS/origin/protocol exceptions, production mapping, bookmaker support, matching evidence, or outcome activation;
 - let passive diagnostic evidence authorize production mapping, outcome activation, or transaction behavior;
 - allow relay-page subresources to reach loopback/private/internal network targets;
