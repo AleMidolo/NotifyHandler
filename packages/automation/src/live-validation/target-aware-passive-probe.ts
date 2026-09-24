@@ -228,6 +228,19 @@ async function detectPassiveBlock(page: Page): Promise<PassiveBlockReason | unde
   return undefined;
 }
 
+async function boundedContextText(item: Locator): Promise<string> {
+  const directText = sanitizePassiveEvidenceText(await item.innerText().catch(() => ""));
+  const contextText = sanitizePassiveEvidenceText(
+    await item
+      .locator(
+        "xpath=ancestor-or-self::*[self::button or self::a or self::div or self::li or self::section or self::article][1]",
+      )
+      .innerText()
+      .catch(() => ""),
+  );
+  return contextText.length > directText.length ? contextText : directText;
+}
+
 async function boundedSignalEvidence(page: Page, pattern: RegExp): Promise<PassiveSignalEvidence> {
   const locator = page.getByText(pattern);
   const count = await locator.count();
@@ -242,11 +255,7 @@ async function boundedSignalEvidence(page: Page, pattern: RegExp): Promise<Passi
     const item = locator.nth(index);
     if (!(await item.isVisible().catch(() => false))) continue;
 
-    const directText = sanitizePassiveEvidenceText(await item.innerText().catch(() => ""));
-    const parentText = sanitizePassiveEvidenceText(
-      await item.locator("xpath=..").innerText().catch(() => ""),
-    );
-    const candidate = parentText.length > directText.length ? parentText : directText;
+    const candidate = await boundedContextText(item);
     if (candidate === "" || seen.has(candidate)) continue;
     seen.add(candidate);
     snippets.push(candidate);
@@ -280,11 +289,7 @@ async function collectDisplayedOddsCandidates(
   for (let index = 0; index < Math.min(count, 30); index += 1) {
     const item = locator.nth(index);
     if (!(await item.isVisible().catch(() => false))) continue;
-    const directText = sanitizePassiveEvidenceText(await item.innerText().catch(() => ""));
-    const parentText = sanitizePassiveEvidenceText(
-      await item.locator("xpath=..").innerText().catch(() => ""),
-    );
-    const context = parentText.length > directText.length ? parentText : directText;
+    const context = await boundedContextText(item);
     if (
       !TOTAL_CORNERS_PATTERN.test(context) &&
       !linePattern.test(context) &&
