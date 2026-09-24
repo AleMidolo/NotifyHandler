@@ -1,6 +1,6 @@
 # ADR-0003: Loopback structured direct-pair ingress
 
-Status: **Accepted**
+Status: **Accepted, amended by ADR-0007**
 
 Date: 2026-09-21
 
@@ -20,7 +20,7 @@ A v1 message:
 
 - carries one event/market target;
 - carries exactly two explicit, distinct bookmaker legs;
-- includes bookmaker, outcome, expected odds, and a required direct match-page link per leg;
+- includes bookmaker, outcome, the frozen v1 `expectedOdds` compatibility field, and a required direct match-page link per leg; the price field is informational only;
 - treats that explicit pair as authoritative;
 - does not use `recommendedOptions` or any pair chooser;
 - normalizes into the existing two `SelectionTarget` values and existing `ExecutionPlan`.
@@ -63,7 +63,7 @@ Before use it must pass:
 - DNS/private-target defenses;
 - redirect/final-origin validation.
 
-After page load, the adapter must still independently verify event, competition/time context where applicable, market/context, exact line, requested side, and displayed odds.
+After page load, the adapter must still independently verify event, competition/time context where applicable, market/context/period, exact line, and requested side. Displayed odds may be observed as informational telemetry but do not gate activation.
 
 ## Fallback decision
 
@@ -99,7 +99,7 @@ The existing:
 - independent leg states;
 - evidence epochs;
 - manual-auth pause/resume;
-- odds-change acknowledgement;
+- optional price observability without acknowledgement;
 - cancellation;
 - SelectionActivationGate;
 - selected-state verification;
