@@ -186,6 +186,22 @@ Every bookmaker adapter and the browser runtime must enforce all of the followin
 
 Adapters should prefer a small explicit set of canonical bookmaker origins. Broad suffix rules such as `*.example.com` require separate security review because subdomain ownership and takeover risk differ by bookmaker.
 
+## Passive direct-page diagnostics
+
+BOOK-024-style diagnostics are a separate non-authorizing surface and must not inherit production selection capabilities.
+
+Controls:
+- the bookmaker and full direct URL are source-locked; same-origin alternative paths/fragments are not accepted as substitutes;
+- the browser runs in a fresh ephemeral context with downloads disabled and service workers blocked;
+- every routed HTTP(S) request must pass public-HTTPS and fail-closed DNS/private/internal-address validation before the request is allowed to continue;
+- WebSockets are not required by this diagnostic and are blocked rather than inspected or proxied;
+- popups are closed and cannot create a second navigation/evidence surface;
+- evidence collection is visible-text only, bounded by fixed candidate/sample/length limits, and redacts UUIDs, email-shaped values, visible URLs, and long opaque tokens;
+- full DOM/page dumps, screenshots, traces, HAR, cookies, storage/session state, form values, authenticated captures, and private/protected API responses are prohibited;
+- summaries hard-code `authorizesProductionMapping: false`; passive evidence cannot authorize adapter selectors, outcome activation, or bookmaker support promotion;
+- CLI failures use fixed sanitized text and must not echo browser/runtime errors containing direct URLs or BET365 fragment state;
+- no live run is permitted until Security and QA gates explicitly approve the exact diagnostic implementation.
+
 ## Logging and privacy policy
 
 Relay-resolution failures and worker events must not include the full relay URL or signal UUID. Relay diagnostics are limited to typed kind, normalized bookmaker id/suffix, bounded transition count, sanitized origin/path category, failure code, and optionally a one-way truncated signal hash when explicitly needed.
