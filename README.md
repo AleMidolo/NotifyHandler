@@ -68,11 +68,15 @@ Current Milestone 6 sequence:
 3. **ARCH-010/#200** removes `ODDS_CHANGED`, price acknowledgement, and price readability/equality from shared selection authorization.
 4. PRODUCT-032/#202 corrects the browser-network boundary: normal bookmaker rendering may use narrowly reviewed public `wss://`.
 5. **ARCH-011/#203** defines bookmaker-scoped WSS policy: `wss://` port 443 only, public DNS/private-network validation, version-controlled exact/suffix host rules, no runtime learning, and no socket payload/API exposure.
-6. New passive diagnostics use `passive-provenance.v2`; historical v1 artifacts remain unchanged.
-7. **#197 PRODUCT-030** continues in parallel to source a fresh current/future full-match total-corners direct-link second-bookmaker target. Stable odds are not required.
-8. No new BET365 live run is authorized by architecture alone; implementation must pass Security and QA first.
-9. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
-10. **#46 DEVOPS-003** remains blocked until #45 passes.
+6. **#206 DOMAIN-003 — immediate P0:** implement optional informational price metadata while preserving v1 compatibility.
+7. **#209 BOOK-029 — parallel P0:** implement the default-deny bookmaker WSS gateway framework and passive-provenance.v2 without guessing a live host rule.
+8. **#207 APP-008** and **#208 BOOK-028** follow DOMAIN-003 to remove changed-price state/UI and adapter/activation price gates.
+9. **#211 SEC-009 -> #212 QA-008** review and certify the combined migration.
+10. **#210 BOOK-030** may establish a BET365 WSS rule only through a Security-approved hostname-evidence procedure; the default remains deny until then.
+11. **#197 PRODUCT-030** continues in parallel to source a fresh current/future full-match total-corners direct-link second-bookmaker target. Stable odds are not required.
+12. No new BET365 live run is authorized until implementation, Security/QA, and an evidence-backed WSS rule are approved.
+13. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
+14. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 PRODUCT-029/#194 is complete with this hybrid plan. The full-match total-corners product target remains unchanged.
 PRODUCT-028/#175 is complete. The product target remains pre-match football full-match total-corners O/U. The replan distinguishes target content that exists on the authoritative page but was not retained by the generic explorer from target content that is genuinely unavailable, without adding outcome activation or broader navigation capability.

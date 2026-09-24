@@ -290,17 +290,37 @@ Neither candidate reaches `Feasible for implementation`.
 
 NotifyHandler's responsibility is selection preparation only. Odds are informational: a changed, missing or unreadable price does not invalidate an otherwise exact event/market/period/line/side selection and does not require acknowledgement. The application does not calculate surebet validity, ROI, profitability, stakes, or price acceptability.
 
-**#200 ARCH-010 — READY NOW / IMMEDIATE P0**
+**#200 ARCH-010 — COMPLETE via PR #205**
 
-Remove odds equality/readability/acknowledgement from matching/activation/state-machine contracts and retire blocking `ODDS_CHANGED` semantics while preserving exact identity and selected-state verification.
+Odds are optional informational metadata and no longer participate in selection authorization.
 
 **#196 ARCH-009 — SUPERSEDED / CLOSED**
 
 The product no longer wants unconditional WebSocket denial.
 
-**#203 ARCH-011 — READY NOW WITH ARCH-010**
+**#203 ARCH-011 — COMPLETE via PR #205**
 
-Define a bounded allow policy for normal public bookmaker `wss://` page transport. Keep public-DNS/private-network checks, source-controlled destination policy, browser isolation, no raw payload retention/matching, no protected/private API reverse engineering, and no auth/transaction capability expansion.
+Bounded bookmaker-scoped public `wss://` page transport is accepted behind version-controlled host policy, public-DNS/private-network checks, payload opacity, and default-deny behavior.
+
+**#206 DOMAIN-003 — READY NOW**
+
+Implement optional informational price metadata and v1/v2 compatibility.
+
+**#209 BOOK-029 — READY NOW IN PARALLEL**
+
+Implement the default-deny WSS gateway framework and passive-provenance.v2 without adding a guessed live bookmaker host.
+
+**#207 APP-008 / #208 BOOK-028 — AFTER #206**
+
+Remove changed-price state/UI and adapter/activation price gates.
+
+**#211 SEC-009 -> #212 QA-008**
+
+Review/certify the exact implementation before live reuse.
+
+**#210 BOOK-030 — SECURITY-GATED**
+
+Establish the narrowest evidence-backed BET365 WSS host rule only through an approved controlled hostname-evidence procedure.
 
 **#197 PRODUCT-030 — PARALLEL EXTERNAL EVIDENCE**
 
@@ -313,7 +333,7 @@ For each candidate marked `Feasible for implementation`:
 - create a dedicated live-mapping implementation issue;
 - reuse/implement the adapter behind restricted browser/selection contracts;
 - add sanitized deterministic fixtures learned from permitted live structure;
-- preserve exact origin/event/market/line/side/odds/freshness/cancellation/auth gates;
+- preserve exact origin/event/market/period/line/side/freshness/cancellation/auth gates; optional odds telemetry remains non-gating;
 - verify selected state only through the authorized production activation path;
 - never add stake or wager-submission capability.
 
