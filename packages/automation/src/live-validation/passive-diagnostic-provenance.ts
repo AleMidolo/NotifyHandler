@@ -364,21 +364,34 @@ export function validatePassiveDiagnosticSummary(value: unknown): void {
 
   const transport = validateTransport(object.transportProvenance);
 
-  if (object.renderProvenance !== undefined) {
-    if (transport.state !== "CLEAR" || object.status !== "COMPLETE") {
-      throw new Error("renderProvenance is forbidden after a transport or page block.");
+  if (object.status === "COMPLETE") {
+    if (object.blockReason !== undefined) {
+      throw new Error("COMPLETE summary cannot contain blockReason.");
     }
+    if (transport.state !== "CLEAR") {
+      throw new Error("COMPLETE summary requires CLEAR transport provenance.");
+    }
+    if (object.renderProvenance === undefined || object.evidence === undefined) {
+      throw new Error("COMPLETE summary requires render provenance and bounded evidence.");
+    }
+  } else {
+    if (object.blockReason === undefined) {
+      throw new Error("BLOCKED summary requires blockReason.");
+    }
+    if (object.renderProvenance !== undefined || object.evidence !== undefined) {
+      throw new Error("BLOCKED summary must omit render provenance and target evidence.");
+    }
+  }
+
+  if (transport.state === "BLOCKED" && object.blockReason !== "PRIVATE_OR_INTERNAL_DESTINATION") {
+    throw new Error("Blocked transport provenance requires the compatibility network block reason.");
+  }
+
+  if (object.renderProvenance !== undefined) {
     validateRender(object.renderProvenance);
   }
 
   if (object.evidence !== undefined) {
-    if (object.status !== "COMPLETE" || transport.state !== "CLEAR") {
-      throw new Error("evidence is forbidden after a transport block.");
-    }
     validateEvidence(object.evidence);
-  }
-
-  if (transport.state === "BLOCKED" && object.renderProvenance !== undefined) {
-    throw new Error("renderProvenance must be omitted when transport is blocked.");
   }
 }
