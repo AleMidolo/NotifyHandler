@@ -47,7 +47,7 @@ The generic interactive-validation queue is complete. ADMIRALBET/BOOK-013, SISAL
 
 PRODUCT-015 keeps the full-match total-corners product target and changes the evidence strategy instead of weakening matching or adding more generic homepage exploration. The production surebet source will provide the exact two bookmaker legs plus a deep link intended to open each match page directly. Those links are now treated as first-class **preferred navigation candidates** for the next validation round.
 
-A notification-provided match link remains untrusted input. NotifyHandler must validate HTTPS, exact approved bookmaker origin, URL/redirect safety, and final origin before navigation, and must still independently verify event identity, competition/time context, full-match total-corners market identity, exact line, requested side, and displayed odds. A correct-looking URL never substitutes for page evidence.
+A notification-provided match link remains untrusted input. NotifyHandler must validate HTTPS, exact approved bookmaker origin, URL/redirect safety, and final origin before navigation, and must still independently verify event identity, competition/time context, full-match total-corners market identity, exact line, and requested side. Displayed odds are optional informational metadata. A correct-looking URL never substitutes for page evidence.
 
 The structured-ingress implementation and security-hardening track is complete:
 
@@ -63,15 +63,16 @@ ARCH-005 introduced `notifyhandler.direct-pair.v2` with a typed `betup-relay` na
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. BOOK-024 through BOOK-027 are complete, including `passive-provenance.v1`, Security/QA certification, DEVOPS-017 execution, and BOOK-027 interpretation.
-2. BET365 preserves the exact fragment-bearing route; prior diagnostics stopped on `WEBSOCKET_ATTEMPT / SOCKET`. PRODUCT-032 now supersedes blanket blocking so a reviewed public bookmaker `wss://` connection may be allowed for normal rendering.
-3. SISAL preserves the exact Portogallo-Galles route with a populated DOM, but the reviewed target participant/time/corners/full-match/line/side/odds predicates are absent. Unrelated competition/date snippets do not count as target evidence.
-4. **#196 ARCH-009 — immediate autonomous P0:** decide whether passive render observation may continue after a WebSocket attempt is denied, while keeping the socket blocked and all timing/network/action/privacy boundaries unchanged.
-5. **#197 PRODUCT-030 — parallel external evidence P0:** source a fresh current/future full-match total-corners signal with direct bookmaker-origin URLs and a materially different second bookmaker/target; prefer BET365 + a different second bookmaker when available.
-6. SISAL is not retried unchanged, and no Bookmaker implementation/Security/QA live-run issue is created for BET365 unless ARCH-009 first approves a finite diagnostic amendment.
-7. Do not allow WebSockets, increase readiness/timeout/budget, weaken DNS/origin policy, broaden clicks, use private APIs, resume generic discovery, or fall back to Betup.
-8. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
-9. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. BOOK-024 through BOOK-027 are complete, including the historical `passive-provenance.v1` evidence.
+2. PRODUCT-031/#199 corrects the price boundary: expected/displayed odds are informational only and cannot gate activation.
+3. **ARCH-010/#200** removes `ODDS_CHANGED`, price acknowledgement, and price readability/equality from shared selection authorization.
+4. PRODUCT-032/#202 corrects the browser-network boundary: normal bookmaker rendering may use narrowly reviewed public `wss://`.
+5. **ARCH-011/#203** defines bookmaker-scoped WSS policy: `wss://` port 443 only, public DNS/private-network validation, version-controlled exact/suffix host rules, no runtime learning, and no socket payload/API exposure.
+6. New passive diagnostics use `passive-provenance.v2`; historical v1 artifacts remain unchanged.
+7. **#197 PRODUCT-030** continues in parallel to source a fresh current/future full-match total-corners direct-link second-bookmaker target. Stable odds are not required.
+8. No new BET365 live run is authorized by architecture alone; implementation must pass Security and QA first.
+9. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
+10. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 PRODUCT-029/#194 is complete with this hybrid plan. The full-match total-corners product target remains unchanged.
 PRODUCT-028/#175 is complete. The product target remains pre-match football full-match total-corners O/U. The replan distinguishes target content that exists on the authoritative page but was not retained by the generic explorer from target content that is genuinely unavailable, without adding outcome activation or broader navigation capability.
@@ -90,7 +91,7 @@ Selection authorization is predicate-based, not a fuzzy confidence score. Event,
 
 The architecture has no pre-execution user-review, pair-selection, confirmation, or renderer-driven start gate. Legacy text uses deterministic recommendation index 0; structured v1/v2 carry the authoritative two legs directly. V1 is direct-bookmaker-only; v2 adds typed direct or `bet-up.it` relay navigation. All paths converge on the same execution/matching/activation contracts.
 
-See `docs/architecture.md` and ADR-0001 through ADR-0006 for the accepted runtime, automatic-start, structured-ingress, relay-resolution, bounded relay revisit, and redacted passive-diagnostic provenance decisions.
+See `docs/architecture.md` and ADR-0001 through ADR-0008 for the accepted runtime, automatic-start, structured-ingress, relay-resolution, passive-diagnostic provenance, non-gating odds, and bounded bookmaker WSS decisions.
 
 ## Development
 
@@ -119,6 +120,8 @@ Repository documentation and specifications are authoritative. Start with:
 - `docs/adr/0004-betup-relay-resolution.md` — v2 typed navigation and restricted `bet-up.it` relay-resolution decision;
 - `docs/adr/0005-bounded-betup-same-origin-revisit.md` — evidence-backed one-revisit relay state-machine amendment;
 - `docs/adr/0006-redacted-passive-diagnostic-provenance.md` — finite non-authorizing transport/render diagnostic provenance decision;
+- `docs/adr/0007-informational-non-gating-odds.md` — odds/price as optional informational metadata, never an activation gate;
+- `docs/adr/0008-bounded-bookmaker-wss-transport.md` — bounded bookmaker-scoped public WSS page-transport decision;
 - `docs/development.md` — reproducible local setup, CI, browser runtime, diagnostics, and release baseline;
 - `docs/release.md` — CI preview, unsigned alpha prerelease, production artifact policy, signing gates, checksums/SBOM/provenance, and rollback;
 - `docs/workflow.md` — end-to-end user/application workflow;
@@ -133,9 +136,11 @@ Repository documentation and specifications are authoritative. Start with:
 - `specs/selection-target.md` — immutable target for one bookmaker leg;
 - `specs/execution-contract.md` — automatic start trigger, exact two-leg state machine, attempts, evidence epochs, and commands;
 - `specs/bookmaker-adapter-contract.md` — worker/adapter interface and restricted browser/selection capability boundary;
-- `specs/matching-policy.md` — deterministic matching evidence, exact-line rules, and odds-change policy;
-- `specs/passive-diagnostic-provenance-v1.md` — live-validation-only redacted passive diagnostic schema.
+- `specs/matching-policy.md` — deterministic identity matching, exact-line rules, and non-gating price observability;
+- `specs/bookmaker-network-policy.md` — bookmaker-scoped browser network/WSS authorization;
+- `specs/passive-diagnostic-provenance-v1.md` — historical redacted passive diagnostic schema;
+- `specs/passive-diagnostic-provenance-v2.md` — current WSS-aware passive diagnostic schema.
 
 ## Development principle
 
-Correctness is more important than clicking something. Automatic startup removes unnecessary user delay, but never weakens validation. When event, market family/context/period, line, side, origin, odds state, freshness, or live mapping evidence is insufficient, the system must fail or pause safely instead of selecting a candidate.
+Correctness is more important than clicking something. Automatic startup removes unnecessary user delay, but never weakens validation. When event, market family/context/period, line, side, origin/network policy, freshness, or live mapping evidence is insufficient, the system must fail or pause safely instead of selecting a candidate. Price availability/equality is not an identity gate.
