@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** PRODUCT-026/#167 is complete via direct bookmaker-origin URLs. BOOK-023/#170 is the immediate P0 live-evidence task; Betup is no longer on the active critical path.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** BOOK-023/#170 is complete; qualifying direct-link evidence still leaves BET365 and SISAL live Blocked for the narrow full-match total-corners scope. PRODUCT-028/#175 is the immediate P0 replan.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -176,26 +176,42 @@ Both qualified runs used relay mode and returned:
 
 The category is precise but intentionally redacted: same `https://www.bet-up.it` origin, HTTPS, no userinfo/query/fragment, but pathname outside `/lnk/<uuid>/<bookmaker-suffix>`. The actual path template is unknown, so no evidence-backed resolver expansion exists.
 
-### Direct bookmaker integration — ACTIVE PATH
+### Direct bookmaker integration — BOOK-023 COMPLETE / BLOCKED
 
 **#167 PRODUCT-026 — COMPLETE**
 
-The upstream owner/user supplied the direct bookmaker destinations corresponding to the prior Portogallo-Galles signal:
-- BET365: `https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/`;
-- SISAL: `https://www.sisal.it/scommesse-matchpoint/evento/calcio/nations-league/portogallo-galles`.
+The upstream owner/user supplied direct BET365 and SISAL bookmaker-origin destinations for the Portogallo-Galles full-match total-corners 6.5 signal. Existing direct-link architecture accepted both origins, and PR #173 added a source-locked fail-closed BOOK-023 runner with no Betup or generic-page fallback.
 
-The upstream Telegram bot is being changed to emit these bookmaker-origin URLs rather than Betup relays. Existing architecture already supports direct bookmaker navigation: v1 is direct-link native and v2 supports typed `bookmaker-direct`. The BET365 SPA fragment route is preserved by current direct-link normalization.
+**#174 DEVOPS-015 — COMPLETE**
 
-No new relay ADR is needed. The previous Betup resolver remains fail-closed/historical and must not be widened.
+The qualifying non-CI workstation executed both source-locked direct targets from merged source `b169832418bb9eaff348365ca1e6c8ef9b1b0d71`.
+
+**#170 BOOK-023 — COMPLETE / BOTH CANDIDATES BLOCKED**
+
+BET365:
+- `BOOKMAKER_DIRECT`, approved origin reached;
+- sanitized `/` -> `/`, `COMPLETE`, actions `0/10`;
+- only a generic BET365 landing snapshot was retained;
+- no Portogallo-Galles, competition/time, full-match total-corners, line 6.5, OVER, or displayed-odds evidence;
+- summary SHA-256 `0AB239A1B5308826D730F18EC1FABD43A35422A633414F5ED55CF82866CF064A`.
+
+SISAL:
+- `BOOKMAKER_DIRECT` on the exact Portogallo-Galles Nations League path;
+- initial event title positively binds Portogallo-Galles / Nations League;
+- sampled market-navigation context includes a broad `CORNER` category family;
+- no retained scheduled-time, full-match total-corners, line 6.5, UNDER, or bound displayed-odds evidence;
+- fixed budget exhausted `10/10` and the run ended at `/totocalcio`;
+- summary SHA-256 `8FB9B75BC66D614957CB8453B8C4D1B873C50595099DA62CFC19AFF3F34626FD`.
+
+Neither candidate reaches `Feasible for implementation`. Both remain fixture-backed `Testable` and live `Blocked` for the narrow target scope. No restricted production selector-mapping issue is created.
 
 ### Current P0
 
-**#170 BOOK-023 — READY NOW**
+**#175 PRODUCT-028 — READY NOW**
 
-Run bounded direct-link validation for Portogallo-Galles and independently establish:
-`approved bookmaker origin -> event -> competition/time -> full-match total corners -> exact line 6.5 -> requested side -> displayed odds`.
+Replan Milestone 6 around a new evidence-backed current/future direct-link target or bookmaker pair. Preserve pre-match football full-match total-corners O/U and all deterministic identity gates unless Product explicitly changes the requirement.
 
-The direct URL itself contributes no matching evidence. No generic homepage fallback and no Betup fallback are permitted for this authoritative direct-link validation.
+Do not retry BOOK-023 with a larger budget, weaker matching, Betup fallback, generic homepage discovery, protected/private APIs, or transaction-capable exploration.
 
 ### Implementation and qualification
 
