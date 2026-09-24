@@ -65,7 +65,7 @@ export type DirectPairNavigationV2 =
 export interface DirectPairLegV2 {
   readonly bookmaker: BookmakerId;
   readonly outcome: OutcomeSide;
-  readonly expectedOdds: string;
+  readonly expectedOdds?: string;
   readonly navigation: DirectPairNavigationV2;
 }
 
@@ -81,7 +81,7 @@ export interface DirectPairNotificationV2 {
 export interface CanonicalDirectPairLegV2 {
   readonly bookmaker: BookmakerId;
   readonly outcome: OutcomeSide;
-  readonly expectedOdds: string;
+  readonly expectedOdds?: string;
   readonly navigation:
     | Readonly<{ kind: "bookmaker-direct"; url: string }>
     | Readonly<{
@@ -643,16 +643,18 @@ export function normalizeDirectPairNotificationV2(
   }
 
   const canonicalNavigations: Array<CanonicalDirectPairLegV2["navigation"] | null> = [];
+  const canonicalExpectedOdds: Array<string | undefined> = [];
   const syntheticLegs: Array<Record<string, unknown>> = [];
   for (let index = 0; index < rawLegs.length && index < 2; index += 1) {
     const raw = rawLegs[index];
     if (!isRecord(raw) || !hasOnlyKeys(raw, LEG_V2_KEYS)) {
       errors.push(issue("INVALID_LEGS", "legs[" + index + "]", "Each v2 leg must be a strict object."));
       canonicalNavigations.push(null);
+      canonicalExpectedOdds.push(undefined);
       syntheticLegs.push({
         bookmaker: "",
         outcome: "",
-        expectedOdds: "",
+        expectedOdds: "2",
         deepLink: "invalid:",
       });
       continue;
@@ -666,10 +668,23 @@ export function normalizeDirectPairNotificationV2(
       ? null
       : directNavigationForV2(raw.navigation, bookmaker, "legs[" + index + "].navigation", errors);
     canonicalNavigations.push(navigation);
+
+    const expectedOdds = raw.expectedOdds === undefined ? undefined : canonicalDecimal(raw.expectedOdds);
+    if (raw.expectedOdds !== undefined && (expectedOdds === null || !isDecimalOdds(expectedOdds))) {
+      errors.push(issue("INVALID_ODDS", "legs[" + index + "].expectedOdds", "When present, expected decimal odds must be greater than 1."));
+    }
+    const validExpectedOdds = expectedOdds !== null && expectedOdds !== undefined && isDecimalOdds(expectedOdds)
+      ? expectedOdds
+      : undefined;
+    canonicalExpectedOdds.push(validExpectedOdds);
+
     syntheticLegs.push({
       bookmaker: raw.bookmaker,
       outcome: raw.outcome,
-      expectedOdds: raw.expectedOdds,
+      // Frozen v1 validation is reused for common identity/freshness semantics.
+      // A valid internal sentinel satisfies only v1's required wire-price field;
+      // it is never emitted into the v2 canonical model or SelectionTarget.
+      expectedOdds: validExpectedOdds ?? "2",
       deepLink: navigation?.url ?? "invalid:",
     });
   }
@@ -708,15 +723,16 @@ export function normalizeDirectPairNotificationV2(
   const legFor = (
     leg: DirectPairLegV1,
     navigation: CanonicalDirectPairLegV2["navigation"],
+    expectedOdds: string | undefined,
   ): CanonicalDirectPairLegV2 => ({
     bookmaker: leg.bookmaker,
     outcome: leg.outcome,
-    expectedOdds: leg.expectedOdds,
+    ...(expectedOdds === undefined ? {} : { expectedOdds }),
     navigation,
   });
   const canonicalLegs: readonly [CanonicalDirectPairLegV2, CanonicalDirectPairLegV2] = [
-    legFor(base.value.canonical.legs[0], firstNavigation),
-    legFor(base.value.canonical.legs[1], secondNavigation),
+    legFor(base.value.canonical.legs[0], firstNavigation, canonicalExpectedOdds[0]),
+    legFor(base.value.canonical.legs[1], secondNavigation, canonicalExpectedOdds[1]),
   ];
   const canonical: CanonicalDirectPairV2 = {
     schemaVersion: DIRECT_PAIR_SCHEMA_VERSION_V2,
@@ -754,7 +770,7 @@ export function normalizeDirectPairNotificationV2(
         side: leg.outcome,
         sourceLabel: leg.outcome.toLocaleUpperCase("en-US"),
       },
-      expectedOdds: leg.expectedOdds,
+      ...(leg.expectedOdds === undefined ? {} : { expectedOdds: leg.expectedOdds }),
       navigation,
       provenance: {
         kind: "structured-direct-pair",
