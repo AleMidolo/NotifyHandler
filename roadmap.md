@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** ARCH-008/#184 is complete via PR #187. BOOK-026/#188 is the immediate P0 implementation, followed by SEC-008/#186 and QA-007/#189 before any new live diagnostic.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** BOOK-027 and PRODUCT-029 are complete. ARCH-009/#196 is the immediate autonomous P0 while PRODUCT-030/#197 sources a fresh direct-link second-bookmaker target in parallel.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -284,13 +284,21 @@ Interpretation:
 
 Neither candidate reaches `Feasible for implementation`.
 
-### Current P0
+### Current P0 — hybrid BET365 + second-bookmaker path
 
-**#194 PRODUCT-029 — READY NOW**
+**#194 PRODUCT-029 — COMPLETE**
 
-Replan the first live-supported pair. Product must decide whether a BET365-only architecture amendment for render observation after a still-blocked WebSocket is worth pursuing and must identify a new second-bookmaker/current-target strategy.
+Product selected a hybrid plan.
 
-No Bookmaker implementation issue is justified until that product decision. No unchanged retry, WebSocket allowance, timeout/readiness widening, DNS/origin weakening, broader click policy, Betup fallback, generic discovery, private API access, outcome activation, or transaction capability is authorized.
+**#196 ARCH-009 — READY NOW**
+
+Decide whether passive render observation may continue after a denied BET365 WebSocket attempt while the socket remains blocked and no destination/network data is retained. No live run is authorized by architecture alone.
+
+**#197 PRODUCT-030 — PARALLEL EXTERNAL EVIDENCE**
+
+Source a fresh current/future full-match total-corners signal with direct bookmaker-origin URLs and a materially different second bookmaker/target. Prefer BET365 + a different second bookmaker when available; do not retry SISAL unchanged.
+
+No Bookmaker implementation/Security/QA live-run task is justified for BET365 unless ARCH-009 approves a finite diagnostic amendment.
 
 ### Implementation and qualification
 
