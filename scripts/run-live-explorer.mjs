@@ -57,6 +57,47 @@ export function originForBookmaker(bookmaker) {
   return origin;
 }
 
+const relayUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+export function assertRelayDiagnosticRunnerPreflight(bookmaker, environment = process.env) {
+  const requireRelay = environment.NH_LIVE_EXPLORER_REQUIRE_RELAY;
+  if (requireRelay === undefined) return;
+  if (requireRelay !== "1") {
+    throw new Error("NH_LIVE_EXPLORER_REQUIRE_RELAY must be exactly 1 when set.");
+  }
+  if (environment.NH_LIVE_EXPLORER_URL !== undefined) {
+    throw new Error("Relay diagnostic preflight forbids NH_LIVE_EXPLORER_URL direct-bookmaker navigation.");
+  }
+  const rawRelay = environment.NH_LIVE_EXPLORER_RELAY_URL;
+  if (typeof rawRelay !== "string" || rawRelay.length === 0) {
+    throw new Error("Relay diagnostic preflight requires NH_LIVE_EXPLORER_RELAY_URL before any browser/network activity.");
+  }
+
+  let relay;
+  try {
+    relay = new URL(rawRelay);
+  } catch {
+    throw new Error("Relay diagnostic preflight received a malformed relay URL.");
+  }
+  const match = /^\/lnk\/([0-9a-fA-F-]+)\/([a-z0-9]+)$/u.exec(relay.pathname);
+  const signalId = (match?.[1] ?? "").toLowerCase();
+  const observedSuffix = match?.[2] ?? "";
+  if (
+    (bookmaker !== "sisal" && bookmaker !== "bet365") ||
+    relay.protocol !== "https:" ||
+    relay.origin !== "https://www.bet-up.it" ||
+    relay.username !== "" ||
+    relay.password !== "" ||
+    relay.search !== "" ||
+    relay.hash !== "" ||
+    match === null ||
+    !relayUuid.test(signalId) ||
+    observedSuffix !== bookmaker
+  ) {
+    throw new Error(`Relay diagnostic preflight requires canonical BETUP_RELAY input for ${bookmaker}.`);
+  }
+}
+
 async function readJson(path) {
   return JSON.parse(await readFile(path, "utf8"));
 }
@@ -200,6 +241,7 @@ async function runExplorer(bookmaker) {
 export async function runLocalLiveExplorer(bookmaker, options = {}) {
   const environment = options.environment ?? process.env;
   assertNonCiEnvironment(environment);
+  assertRelayDiagnosticRunnerPreflight(bookmaker, environment);
 
   const pinned = await loadPinnedVersions();
   assertExactVersion("Node.js", process.version, pinned.node);

@@ -275,6 +275,21 @@ function parseTarget(options: ExplorerOptions): ExplorerStart {
   return { kind: "BOOKMAKER_DIRECT", target };
 }
 
+export function assertRequiredRelayMode(options: ExplorerOptions): void {
+  const start = parseTarget(options);
+  if (start.kind !== "BETUP_RELAY") {
+    throw new Error(
+      "Relay diagnostic preflight requires BETUP_RELAY navigation. Set NH_LIVE_EXPLORER_RELAY_URL to the exact reviewed relay input; direct-bookmaker mode is not permitted for this run.",
+    );
+  }
+}
+
+function parseRequireRelayMode(value: string | undefined): boolean {
+  if (value === undefined) return false;
+  if (value === "1") return true;
+  throw new Error("NH_LIVE_EXPLORER_REQUIRE_RELAY must be exactly 1 when set.");
+}
+
 function priorityFor(text: string): number {
   if (/corner|angol/i.test(text)) return 100;
   if (/mercat|market/i.test(text)) return 80;
@@ -828,13 +843,17 @@ async function main(): Promise<void> {
   const relayUrl = process.env.NH_LIVE_EXPLORER_RELAY_URL;
   const maxActions = parseOptionalInteger(process.env.NH_LIVE_EXPLORER_MAX_ACTIONS, "max actions");
   const delayMs = parseOptionalInteger(process.env.NH_LIVE_EXPLORER_DELAY_MS, "delay milliseconds");
-  const summary = await runInteractiveLiveExplorer({
+  const options: ExplorerOptions = {
     bookmaker,
     ...(url === undefined ? {} : { url }),
     ...(relayUrl === undefined ? {} : { relayUrl }),
     ...(maxActions === undefined ? {} : { maxActions }),
     ...(delayMs === undefined ? {} : { delayMs }),
-  });
+  };
+  if (parseRequireRelayMode(process.env.NH_LIVE_EXPLORER_REQUIRE_RELAY)) {
+    assertRequiredRelayMode(options);
+  }
+  const summary = await runInteractiveLiveExplorer(options);
   process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
   process.exitCode = summary.status === "BLOCKED" ? 2 : 0;
 }

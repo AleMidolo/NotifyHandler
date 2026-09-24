@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   assertExactVersion,
   assertNonCiEnvironment,
+  assertRelayDiagnosticRunnerPreflight,
   originForBookmaker,
   parseRunnerBookmaker,
   npmVersionInvocation,
@@ -36,6 +37,35 @@ test("local live explorer runner requires exact repository toolchain versions", 
   assert.doesNotThrow(() => assertExactVersion("npm", "11.19.0", "11.19.0"));
   assert.throws(() => assertExactVersion("Node.js", "24.22.0", "24.21.0"), /24\.21\.0 is required/);
   assert.throws(() => assertExactVersion("npm", "11.20.0", "11.19.0"), /11\.19\.0 is required/);
+});
+
+test("local relay diagnostic preflight fails closed before network prerequisites", () => {
+  assert.throws(
+    () => assertRelayDiagnosticRunnerPreflight("bet365", { NH_LIVE_EXPLORER_REQUIRE_RELAY: "1" }),
+    /requires NH_LIVE_EXPLORER_RELAY_URL before any browser\/network activity/i,
+  );
+  assert.throws(
+    () => assertRelayDiagnosticRunnerPreflight("bet365", {
+      NH_LIVE_EXPLORER_REQUIRE_RELAY: "1",
+      NH_LIVE_EXPLORER_URL: "https://www.bet365.it/hub/it-it/football",
+      NH_LIVE_EXPLORER_RELAY_URL: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365",
+    }),
+    /forbids NH_LIVE_EXPLORER_URL/i,
+  );
+  assert.throws(
+    () => assertRelayDiagnosticRunnerPreflight("bet365", {
+      NH_LIVE_EXPLORER_REQUIRE_RELAY: "1",
+      NH_LIVE_EXPLORER_RELAY_URL: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/sisal",
+    }),
+    /canonical BETUP_RELAY input for bet365/i,
+  );
+  assert.doesNotThrow(
+    () => assertRelayDiagnosticRunnerPreflight("bet365", {
+      NH_LIVE_EXPLORER_REQUIRE_RELAY: "1",
+      NH_LIVE_EXPLORER_RELAY_URL: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365",
+    }),
+  );
+  assert.doesNotThrow(() => assertRelayDiagnosticRunnerPreflight("bet365", {}));
 });
 
 test("local live explorer runner keeps bookmaker origins hard-coded", () => {

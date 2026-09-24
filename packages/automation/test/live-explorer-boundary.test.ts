@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  assertRequiredRelayMode,
   classifyPublicControl,
   runInteractiveLiveExplorer,
   sanitizeExplorerEvidencePath,
@@ -178,6 +179,39 @@ test("interactive explorer rejects unsafe configuration before Chromium launch",
   );
 });
 
+test("QA-required relay preflight rejects direct mode before Chromium launch", () => {
+  assert.throws(
+    () => assertRequiredRelayMode({ bookmaker: "bet365" }),
+    /requires BETUP_RELAY navigation/u,
+  );
+  assert.throws(
+    () => assertRequiredRelayMode({
+      bookmaker: "bet365",
+      url: "https://www.bet365.it/hub/it-it/football",
+    }),
+    /requires BETUP_RELAY navigation/u,
+  );
+  assert.throws(
+    () => assertRequiredRelayMode({
+      bookmaker: "bet365",
+      relayUrl: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/sisal",
+    }),
+    /requires exact https:\/\/www\.bet-up\.it\/lnk\/.*\/bet365/u,
+  );
+  assert.doesNotThrow(
+    () => assertRequiredRelayMode({
+      bookmaker: "bet365",
+      relayUrl: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365",
+    }),
+  );
+  assert.doesNotThrow(
+    () => assertRequiredRelayMode({
+      bookmaker: "sisal",
+      relayUrl: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/sisal",
+    }),
+  );
+});
+
 test("relay-aware explorer rejects invalid relay grammar and bookmaker suffix before Chromium launch", async () => {
   await assert.rejects(
     runInteractiveLiveExplorer({
@@ -229,6 +263,11 @@ test("interactive explorer source keeps the evidence collector outside sensitive
   ]) {
     assert.equal(source.includes(forbidden), false, `unexpected sensitive capability token: ${forbidden}`);
   }
+
+  const preflightCall = source.indexOf("assertRequiredRelayMode(options);");
+  const explorerCall = source.indexOf("runInteractiveLiveExplorer(options);");
+  assert.ok(preflightCall >= 0, "relay preflight call must exist");
+  assert.ok(explorerCall > preflightCall, "relay preflight must run before explorer/browser launch");
 
   assert.match(source, /chromium\.launch\(\{ headless: false \}\)/);
   assert.match(source, /const MAX_ACTIONS = 12/);

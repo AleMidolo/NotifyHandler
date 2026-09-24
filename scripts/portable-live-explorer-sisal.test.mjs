@@ -11,6 +11,7 @@ import {
   PORTABLE_PLAYWRIGHT_VERSION,
   PORTABLE_START_PATH,
   assertPortableNonCiEnvironment,
+  assertPortableRelayDiagnosticPreflight,
   buildPortableExplorerEnvironment,
   parsePortableArguments,
   validatePortableExplorerSummary,
@@ -51,6 +52,35 @@ test("portable live mode refuses common CI environments", () => {
   );
 });
 
+test("portable relay diagnostic preflight fails closed before network prerequisites", () => {
+  assert.throws(
+    () => assertPortableRelayDiagnosticPreflight({ NH_LIVE_EXPLORER_REQUIRE_RELAY: "1" }),
+    /requires NH_LIVE_EXPLORER_RELAY_URL before any browser\/network activity/i,
+  );
+  assert.throws(
+    () => assertPortableRelayDiagnosticPreflight({
+      NH_LIVE_EXPLORER_REQUIRE_RELAY: "1",
+      NH_LIVE_EXPLORER_URL: "https://example.com",
+      NH_LIVE_EXPLORER_RELAY_URL: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/sisal",
+    }),
+    /forbids NH_LIVE_EXPLORER_URL/i,
+  );
+  assert.throws(
+    () => assertPortableRelayDiagnosticPreflight({
+      NH_LIVE_EXPLORER_REQUIRE_RELAY: "1",
+      NH_LIVE_EXPLORER_RELAY_URL: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365",
+    }),
+    /canonical BETUP_RELAY input for sisal/i,
+  );
+  assert.doesNotThrow(
+    () => assertPortableRelayDiagnosticPreflight({
+      NH_LIVE_EXPLORER_REQUIRE_RELAY: "1",
+      NH_LIVE_EXPLORER_RELAY_URL: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/sisal",
+    }),
+  );
+  assert.doesNotThrow(() => assertPortableRelayDiagnosticPreflight({}));
+});
+
 test("portable child environment locks bookmaker, browser path, and removes explorer overrides", () => {
   const bundleRoot = join("C:", "notifyhandler-book012");
   const environment = buildPortableExplorerEnvironment(
@@ -58,6 +88,7 @@ test("portable child environment locks bookmaker, browser path, and removes expl
       NH_LIVE_EXPLORER_BOOKMAKER: "admiralbet",
       NH_LIVE_EXPLORER_URL: "https://example.com",
       NH_LIVE_EXPLORER_RELAY_URL: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/sisal",
+      NH_LIVE_EXPLORER_REQUIRE_RELAY: "1",
       NH_LIVE_EXPLORER_MAX_ACTIONS: "12",
       NH_LIVE_EXPLORER_DELAY_MS: "750",
       PLAYWRIGHT_BROWSERS_PATH: "C:\\other-browser",
@@ -72,6 +103,7 @@ test("portable child environment locks bookmaker, browser path, and removes expl
   assert.equal(environment.KEEP_ME, "yes");
   assert.equal(environment.NH_LIVE_EXPLORER_URL, undefined);
   assert.equal(environment.NH_LIVE_EXPLORER_RELAY_URL, "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/sisal");
+  assert.equal(environment.NH_LIVE_EXPLORER_REQUIRE_RELAY, "1");
   assert.equal(environment.NH_LIVE_EXPLORER_MAX_ACTIONS, undefined);
   assert.equal(environment.NH_LIVE_EXPLORER_DELAY_MS, undefined);
   assert.equal(environment.NODE_OPTIONS, undefined);
