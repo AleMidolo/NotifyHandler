@@ -14,7 +14,7 @@
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present && node --test scripts/run-live-explorer.test.mjs scripts/portable-live-explorer.test.mjs scripts/portable-live-explorer-sisal.test.mjs scripts/portable-live-explorer-bet365.test.mjs",
+    "test": "npm run test --workspaces --if-present && node --test scripts/run-live-explorer.test.mjs scripts/run-book-023-direct-validation.test.mjs scripts/portable-live-explorer.test.mjs scripts/portable-live-explorer-sisal.test.mjs scripts/portable-live-explorer-bet365.test.mjs",
     "check": "npm run build && npm run lint && npm run typecheck && npm test",
     "desktop:dev": "npm run dev --workspace @notify-handler/desktop",
     "browser:install": "node ./node_modules/playwright-core/cli.js install chromium",
@@ -28,7 +28,8 @@
     "live:sisal:bundle:build": "node scripts/build-sisal-live-validation-bundle.mjs",
     "live:sisal:bundle:verify": "node scripts/verify-sisal-live-validation-bundle.mjs",
     "live:bet365:bundle:build": "node scripts/build-bet365-live-validation-bundle.mjs",
-    "live:bet365:bundle:verify": "node scripts/verify-bet365-live-validation-bundle.mjs"
+    "live:bet365:bundle:verify": "node scripts/verify-bet365-live-validation-bundle.mjs",
+    "live:book023:local": "node scripts/run-book-023-direct-validation.mjs"
   },
   "devDependencies": {
     "electron": "44.3.0",
