@@ -1,6 +1,20 @@
 import { chromium, type Locator, type Page } from "playwright-core";
 
 import { NavigationPolicy } from "../navigation-policy.ts";
+import {
+  PASSIVE_DIAGNOSTIC_SCHEMA_VERSION,
+  type PassiveReadinessProvenance,
+  type PassiveRenderProvenance,
+  type PassiveTargetPresenceKey,
+  type PassiveTransportProvenance,
+  type TargetPredicatePresence,
+  domPopulationBucket,
+  ordinaryTransportProvenance,
+  readinessProvenance,
+  retainFirstTransportProvenance,
+  validatePassiveDiagnosticSummary,
+  webSocketTransportProvenance,
+} from "./passive-diagnostic-provenance.ts";
 
 export type TargetAwareBookmaker = "sisal" | "bet365";
 
@@ -112,6 +126,7 @@ export interface TargetAwareEvidence {
 }
 
 export interface TargetAwarePassiveSummary {
+  readonly diagnosticSchemaVersion: typeof PASSIVE_DIAGNOSTIC_SCHEMA_VERSION;
   readonly bookmaker: TargetAwareBookmaker;
   readonly approvedOrigin: string;
   readonly navigationKind: "BOOKMAKER_DIRECT";
@@ -122,6 +137,8 @@ export interface TargetAwarePassiveSummary {
   readonly status: "COMPLETE" | "BLOCKED";
   readonly blockReason?: PassiveBlockReason;
   readonly target: Omit<PassiveTargetDefinition, "bookmaker" | "url">;
+  readonly transportProvenance: PassiveTransportProvenance;
+  readonly renderProvenance?: PassiveRenderProvenance;
   readonly evidence?: TargetAwareEvidence;
   readonly authorizesProductionMapping: false;
   readonly note: string;
@@ -282,6 +299,43 @@ async function boundedSignalEvidence(page: Page, pattern: RegExp): Promise<Passi
   return { observed: snippets.length > 0, snippets };
 }
 
+async function boundedSignalPresence(
+  page: Page,
+  pattern: RegExp,
+): Promise<TargetPredicatePresence> {
+  const locator = page.getByText(pattern);
+  const count = await locator.count();
+  let visibleObservedWithinBound = false;
+  for (let index = 0; index < Math.min(count, MAX_LOCATOR_CANDIDATES); index += 1) {
+    if (await locator.nth(index).isVisible().catch(() => false)) {
+      visibleObservedWithinBound = true;
+      break;
+    }
+  }
+  return {
+    domPresent: count > 0,
+    visibleObservedWithinBound,
+  };
+}
+
+function targetPresencePatterns(
+  target: PassiveTargetDefinition,
+): Readonly<Record<PassiveTargetPresenceKey, RegExp>> {
+  return {
+    participantA: new RegExp(escapeRegex(target.participantA), "i"),
+    participantB: new RegExp(escapeRegex(target.participantB), "i"),
+    competition: new RegExp(escapeRegex(target.competition), "i"),
+    scheduledDate: new RegExp(escapeRegex(target.scheduledDate), "i"),
+    scheduledTime: new RegExp(escapeRegex(target.scheduledTime), "i"),
+    broadCornerContext: BROAD_CORNER_PATTERN,
+    totalCornersMarket: TOTAL_CORNERS_PATTERN,
+    fullMatchContext: FULL_MATCH_PATTERN,
+    exactLine: decimalPattern(target.line),
+    requestedSideAtLine: targetSideAtLinePattern(target),
+    expectedOdds: decimalPattern(target.expectedOdds),
+  };
+}
+
 function stripTargetLineBeforeOddsScan(value: string, targetLine: string): string {
   const [whole, fraction] = targetLine.split(".");
   if (whole === undefined || fraction === undefined) return value;
@@ -366,17 +420,18 @@ export async function collectTargetAwarePageEvidence(
   page: Page,
   target: PassiveTargetDefinition,
 ): Promise<TargetAwareEvidence> {
-  const participantA = await boundedSignalEvidence(page, new RegExp(escapeRegex(target.participantA), "i"));
-  const participantB = await boundedSignalEvidence(page, new RegExp(escapeRegex(target.participantB), "i"));
-  const competition = await boundedSignalEvidence(page, new RegExp(escapeRegex(target.competition), "i"));
-  const scheduledDate = await boundedSignalEvidence(page, new RegExp(escapeRegex(target.scheduledDate), "i"));
-  const scheduledTime = await boundedSignalEvidence(page, new RegExp(escapeRegex(target.scheduledTime), "i"));
-  const broadCornerContext = await boundedSignalEvidence(page, BROAD_CORNER_PATTERN);
-  const totalCornersMarket = await boundedSignalEvidence(page, TOTAL_CORNERS_PATTERN);
-  const fullMatchContext = await boundedSignalEvidence(page, FULL_MATCH_PATTERN);
-  const exactLine = await boundedSignalEvidence(page, decimalPattern(target.line));
-  const requestedSideAtLine = await boundedSignalEvidence(page, targetSideAtLinePattern(target));
-  const expectedOdds = await boundedSignalEvidence(page, decimalPattern(target.expectedOdds));
+  const patterns = targetPresencePatterns(target);
+  const participantA = await boundedSignalEvidence(page, patterns.participantA);
+  const participantB = await boundedSignalEvidence(page, patterns.participantB);
+  const competition = await boundedSignalEvidence(page, patterns.competition);
+  const scheduledDate = await boundedSignalEvidence(page, patterns.scheduledDate);
+  const scheduledTime = await boundedSignalEvidence(page, patterns.scheduledTime);
+  const broadCornerContext = await boundedSignalEvidence(page, patterns.broadCornerContext);
+  const totalCornersMarket = await boundedSignalEvidence(page, patterns.totalCornersMarket);
+  const fullMatchContext = await boundedSignalEvidence(page, patterns.fullMatchContext);
+  const exactLine = await boundedSignalEvidence(page, patterns.exactLine);
+  const requestedSideAtLine = await boundedSignalEvidence(page, patterns.requestedSideAtLine);
+  const expectedOdds = await boundedSignalEvidence(page, patterns.expectedOdds);
 
   const displayedOddsCandidates = [
     ...new Set([
@@ -417,9 +472,55 @@ export async function collectTargetAwarePageEvidence(
   };
 }
 
-export async function waitForPassiveReadiness(page: Page): Promise<void> {
+export async function collectPassiveRenderProvenance(
+  page: Page,
+  target: PassiveTargetDefinition,
+  readiness: PassiveReadinessProvenance,
+): Promise<PassiveRenderProvenance> {
+  const patterns = targetPresencePatterns(target);
+  const presenceEntries = await Promise.all(
+    Object.entries(patterns).map(async ([key, pattern]) => [
+      key,
+      await boundedSignalPresence(page, pattern),
+    ] as const),
+  );
+  const targetPresence = Object.fromEntries(presenceEntries) as Record<
+    PassiveTargetPresenceKey,
+    TargetPredicatePresence
+  >;
+
+  const transientTitle = await page.title().catch(() => "");
+  const participantPair =
+    new RegExp(escapeRegex(target.participantA), "i").test(transientTitle)
+    && new RegExp(escapeRegex(target.participantB), "i").test(transientTitle);
+  const competition = new RegExp(escapeRegex(target.competition), "i").test(transientTitle);
+  const descendantCount = await page.locator("body *").count().catch(() => 0);
+
+  return {
+    readiness,
+    titlePredicates: {
+      participantPair,
+      competition,
+    },
+    targetPresence,
+    domPopulation: domPopulationBucket(descendantCount),
+  };
+}
+
+export async function waitForPassiveReadiness(
+  page: Page,
+): Promise<PassiveReadinessProvenance> {
   await page.waitForTimeout(READINESS_DELAY_MS);
-  await page.waitForLoadState("domcontentloaded", { timeout: 3_000 }).catch(() => undefined);
+  const confirmed = await page
+    .waitForLoadState("domcontentloaded", { timeout: 3_000 })
+    .then(() => true)
+    .catch(() => false);
+  return readinessProvenance(confirmed);
+}
+
+function validatedSummary(summary: TargetAwarePassiveSummary): TargetAwarePassiveSummary {
+  validatePassiveDiagnosticSummary(summary);
+  return summary;
 }
 
 function summaryTarget(target: PassiveTargetDefinition): TargetAwarePassiveSummary["target"] {
@@ -453,8 +554,13 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
   });
   const page = await context.newPage();
   let routeBlockReason: PassiveBlockReason | undefined;
+  let transportProvenance: PassiveTransportProvenance = { state: "CLEAR" };
 
   await context.routeWebSocket("**/*", (socket) => {
+    transportProvenance = retainFirstTransportProvenance(
+      transportProvenance,
+      webSocketTransportProvenance(),
+    );
     routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
     void socket.close({ code: 1008, reason: "BOOK-024 WebSocket blocked" });
   });
@@ -469,21 +575,26 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
       return;
     }
 
-    if (parsed.protocol === "https:") {
-      const publicHttpsTarget = await navigationPolicy.isResolvedPublicHttpsTarget(parsed.href);
-      if (!publicHttpsTarget) {
-        routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
-        await route.abort("blockedbyclient");
-        return;
-      }
-    } else if (!["data:", "blob:", "about:"].includes(parsed.protocol)) {
+    const isTopLevelNavigation =
+      request.isNavigationRequest() && request.frame().parentFrame() === null;
+    const publicHttpsTarget = parsed.protocol === "https:"
+      ? await navigationPolicy.isResolvedPublicHttpsTarget(parsed.href)
+      : undefined;
+    const requestProvenance = ordinaryTransportProvenance(
+      parsed.protocol,
+      isTopLevelNavigation,
+      publicHttpsTarget,
+    );
+    if (requestProvenance.state === "BLOCKED") {
+      transportProvenance = retainFirstTransportProvenance(
+        transportProvenance,
+        requestProvenance,
+      );
       routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
       await route.abort("blockedbyclient");
       return;
     }
 
-    const isTopLevelNavigation =
-      request.isNavigationRequest() && request.frame().parentFrame() === null;
     if (isTopLevelNavigation && !navigationPolicy.isAllowed(request.url())) {
       routeBlockReason = "UNAPPROVED_NAVIGATION";
       await route.abort("blockedbyclient");
@@ -498,10 +609,11 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
 
   try {
     await page.goto(target.href, { waitUntil: "domcontentloaded", timeout: NAVIGATION_TIMEOUT_MS });
-    await waitForPassiveReadiness(page);
+    const readiness = await waitForPassiveReadiness(page);
 
     const finalUrl = new URL(page.url());
     const base = {
+      diagnosticSchemaVersion: PASSIVE_DIAGNOSTIC_SCHEMA_VERSION,
       bookmaker: options.bookmaker,
       approvedOrigin,
       navigationKind: "BOOKMAKER_DIRECT" as const,
@@ -510,17 +622,18 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
       requestedFragmentPresent: target.hash !== "",
       fragmentPreserved: target.hash === finalUrl.hash,
       target: summaryTarget(targetDefinition),
+      transportProvenance,
       authorizesProductionMapping: false as const,
     };
 
     if (routeBlockReason !== undefined) {
-      return {
+      return validatedSummary({
         ...base,
         status: "BLOCKED",
         blockReason: routeBlockReason,
         note:
           "Passive direct-page diagnostic stopped at the existing browser/network boundary. No target evidence was retained from an unsafe navigation state.",
-      };
+      });
     }
 
     if (
@@ -528,35 +641,41 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
       || finalUrl.origin !== approvedOrigin
       || !isApprovedPassiveFinalRoute(options.bookmaker, finalUrl.href)
     ) {
-      return {
+      return validatedSummary({
         ...base,
         status: "BLOCKED",
         blockReason: "UNAPPROVED_NAVIGATION",
         note:
           "Passive direct-page diagnostic stopped because the exact source-locked direct route was not preserved.",
-      };
+      });
     }
 
     const pageBlock = await detectPassiveBlock(page);
     if (pageBlock !== undefined) {
-      return {
+      return validatedSummary({
         ...base,
         status: "BLOCKED",
         blockReason: pageBlock,
         note:
           "Passive direct-page diagnostic observed an auth/access/consent boundary and retained no target evidence.",
-      };
+      });
     }
 
     const evidence = await collectTargetAwarePageEvidence(page, targetDefinition);
-    return {
+    const renderProvenance = await collectPassiveRenderProvenance(
+      page,
+      targetDefinition,
+      readiness,
+    );
+    return validatedSummary({
       ...base,
       status: "COMPLETE",
       evidence,
+      renderProvenance,
       authorizesProductionMapping: false,
       note:
-        "Target-aware evidence is bounded, sanitized, passive, and diagnostic only. It never authorizes production mapping or outcome activation.",
-    };
+        "Target-aware evidence and passive provenance are bounded, sanitized, diagnostic only, and never authorize production mapping or outcome activation.",
+    });
   } finally {
     await context.close().catch(() => undefined);
     await browser.close().catch(() => undefined);
