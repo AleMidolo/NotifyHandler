@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type { Page } from "playwright-core";
 
 import {
   BOOKMAKER_WEBSOCKET_RULES,
   BookmakerNetworkPolicy,
   createBookmakerNetworkPolicy,
 } from "../src/bookmaker-network-policy.ts";
+import { domMappingFor } from "../src/dom-mapping.ts";
+import { NavigationPolicy } from "../src/navigation-policy.ts";
+import { createWorkerPageRuntime } from "../src/page-runtime.ts";
 
 const PUBLIC = async () => ["93.184.216.34"] as const;
 
@@ -166,5 +170,89 @@ test("cancelled attempt never authorizes WSS transport", async () => {
       true,
     ),
     { allowed: false, code: "BOOKMAKER_WSS_UNAPPROVED" },
+  );
+});
+
+
+interface FakeSocket {
+  readonly url: () => string;
+  readonly connectToServer: () => void;
+  readonly close: (options?: { code?: number; reason?: string }) => Promise<void>;
+}
+
+async function runtimeWithSocketPolicy(
+  networkPolicy: BookmakerNetworkPolicy,
+): Promise<Readonly<{
+  handler: (socket: FakeSocket) => Promise<void> | void;
+  runtime: Awaited<ReturnType<typeof createWorkerPageRuntime>>;
+}>> {
+  let socketHandler: ((socket: FakeSocket) => Promise<void> | void) | undefined;
+  const fakePage = {
+    async route() {},
+    async routeWebSocket(_pattern: string, handler: (socket: FakeSocket) => Promise<void> | void) {
+      socketHandler = handler;
+    },
+    on() { return fakePage; },
+    isClosed() { return false; },
+    url() { return "https://www.sisal.it/event"; },
+    mainFrame() { return {}; },
+  } as unknown as Page;
+
+  const runtime = await createWorkerPageRuntime({
+    page: fakePage,
+    policy: new NavigationPolicy(["https://www.sisal.it"], PUBLIC),
+    networkPolicy,
+    mapping: domMappingFor("sisal"),
+  });
+  assert.ok(socketHandler);
+  return { handler: socketHandler, runtime };
+}
+
+test("browser gateway closes unapproved socket and revokes matching capability", async () => {
+  const { handler, runtime } = await runtimeWithSocketPolicy(
+    createBookmakerNetworkPolicy(
+      "sisal",
+      ["https://www.sisal.it"],
+      PUBLIC,
+    ),
+  );
+  let connects = 0;
+  let closes = 0;
+  await handler({
+    url: () => "wss://socket.example.com/feed",
+    connectToServer: () => { connects += 1; },
+    close: async () => { closes += 1; },
+  });
+  assert.equal(connects, 0);
+  assert.equal(closes, 1);
+  assert.equal(runtime.currentNetworkFailure(), "BOOKMAKER_WSS_UNAPPROVED");
+  assert.deepEqual(
+    await runtime.port.query({ kind: "event-candidate" }),
+    [],
+  );
+  assert.equal(runtime.isCurrentLocationAllowed(), false);
+});
+
+test("browser gateway connects reviewed public WSS without exposing socket data to matching API", async () => {
+  const { handler, runtime } = await runtimeWithSocketPolicy(
+    policy({ exactHosts: ["socket.example.com"] }),
+  );
+  let connects = 0;
+  let closes = 0;
+  await handler({
+    url: () => "wss://socket.example.com/feed?opaque=secret",
+    connectToServer: () => { connects += 1; },
+    close: async () => { closes += 1; },
+  });
+  assert.equal(connects, 1);
+  assert.equal(closes, 0);
+  assert.equal(runtime.currentNetworkFailure(), undefined);
+  assert.equal(
+    "websocket" in (runtime.port as unknown as Record<string, unknown>),
+    false,
+  );
+  assert.equal(
+    "socket" in (runtime.port as unknown as Record<string, unknown>),
+    false,
   );
 });
