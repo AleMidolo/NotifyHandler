@@ -454,13 +454,17 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
       return;
     }
 
-    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+    if (parsed.protocol === "https:") {
       const publicHttpsTarget = await navigationPolicy.isResolvedPublicHttpsTarget(parsed.href);
       if (!publicHttpsTarget) {
         routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
         await route.abort("blockedbyclient");
         return;
       }
+    } else if (!["data:", "blob:", "about:"].includes(parsed.protocol)) {
+      routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
+      await route.abort("blockedbyclient");
+      return;
     }
 
     const isTopLevelNavigation =
