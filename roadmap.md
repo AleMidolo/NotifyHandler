@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** BOOK-016 tooling is relay-ready via merged PR #142. DEVOPS-012/#143 is now the immediate P0 execution dependency; BOOK-016/#104 interprets the returned live evidence.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** DEVOPS-014 produced a non-qualifying BET365 direct-mode artifact. QA-005/#163 is now the immediate P0 gate before any replacement relay-aware execution; DEVOPS-014/#161 is paused pending that decision.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -159,17 +159,19 @@ The corrected recommendation odds are consistent with the authoritative offer od
 
 The controlled BOOK-012 explorer now accepts the reviewed relay-navigation extension, reuses the BOOK-017 resolver, preserves default-deny exploration, redacts relay identifiers, and keeps `authorizesProductionMapping: false`. Post-merge CI on `a9d07e8692a2a00bf4db1c336896bafc654e5e4c` is green.
 
-### Current P0
+### Current P0 — QA gate after non-qualifying live attempt
 
-**#143 DEVOPS-012 — READY NOW**
+**#163 QA-005 — READY NOW**
 
-Execute one qualifying non-CI BET365 run and one SISAL run from exact merged commit `a9d07e...` on a headed workstation with ordinary outbound DNS/HTTPS. Use only the already-recorded relay inputs. Retain sanitized summary + SHA-256.
+The first DEVOPS-014 BET365 artifact was hash-verified but ran as `BOOKMAKER_DIRECT`, with no relay origin, no `RELAY_INVALID`, and no `relayInvalidCategory`. It is therefore non-qualifying for the relay diagnostic and must not be used for bookmaker classification.
 
-Do not retry/increase the interaction budget, do not use proxy/bypass mechanisms, and do not classify a bookmaker from environment failure.
+QA-004 previously authorized at most one new non-CI run per bookmaker. Because the direct-mode run nevertheless performed live navigation, Product Coordination will not silently reinterpret that limit. QA-005 must explicitly authorize or deny one replacement BET365 relay-aware run and confirm SISAL's unused authorization.
 
-**#104 BOOK-016 — WAITING FOR #143 RESULTS**
+Before any further run, QA must require a deterministic fail-closed preflight proving relay mode is active before browser/network activity. If a diagnostics-only runner change is needed, it must be tested/reviewed before execution.
 
-After both actual summaries are available, Bookmaker Automation Engineer decides `Feasible for implementation` vs `Blocked` solely from post-relay bookmaker evidence.
+**#161 DEVOPS-014 — PAUSED ON #163**
+
+If QA authorizes, execute only the permitted relay-aware run(s), retain sanitized summary + SHA-256, and route them to Bookmaker Automation Engineer. No retry, resolver widening, hop/action-budget/delay/timeout tuning, or transaction-capability change is authorized.
 
 ### Implementation and qualification
 
