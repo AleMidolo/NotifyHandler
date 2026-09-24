@@ -63,17 +63,16 @@ ARCH-005 introduced `notifyhandler.direct-pair.v2` with a typed `betup-relay` na
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. **#170 BOOK-023 — COMPLETE:** qualifying direct-link evidence was collected for the exact Portogallo-Galles BET365/SISAL targets.
-2. BET365 remains live Blocked / fixture-backed Testable because the retained direct summary contains only a generic landing snapshot and no target event/context/market/line/side/odds chain.
-3. SISAL remains live Blocked / fixture-backed Testable: the direct event page binds Portogallo-Galles / Nations League and a broad CORNER category context, but not scheduled time, full-match total-corners identity, line 6.5, UNDER, or bound displayed odds.
-4. Neither candidate is `Feasible for implementation`; no restricted live-mapping issue is created.
-5. **#175 PRODUCT-028 — immediate P0:** replan around a new evidence-backed current/future direct-link target or pair without weakening deterministic matching or falling back to Betup/generic discovery.
-6. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
-7. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#177 BOOK-024 — immediate P0:** implement a target-aware passive direct-page evidence probe for the authoritative BET365/SISAL Portogallo-Galles URLs;
+2. the probe runs before any exploratory action and retains only bounded sanitized target-relevant evidence for event/context/time, market/period, line, side, and displayed odds;
+3. preserve BET365 SPA fragment routing and the exact SISAL event path, but treat URLs/fragments as navigation input only;
+4. **#178 SEC-007 — after BOOK-024:** review privacy, fragment/origin handling, non-authorizing diagnostics, and the unchanged transaction boundary;
+5. **#179 QA-006 — after SEC-007:** certify deterministic regressions and, if green, authorize at most one bounded passive live diagnostic per bookmaker;
+6. do not repeat BOOK-023 with larger budgets, broader click policy, Betup fallback, or generic homepage discovery;
+7. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
+8. **#46 DEVOPS-003** remains blocked until #45 passes.
 
-PRODUCT-026/#167 is complete via the alternative direct integration contract: the upstream Telegram bot is being changed to emit bookmaker-origin URLs instead of `bet-up.it` relays. No new ADR is required for this path: structured v1 already supports direct bookmaker links, v2 supports typed `bookmaker-direct`, and current normalization preserves the BET365 fragment route.
-
-The Betup relay stack remains historical/fail-closed and must not be broadened. Direct links remain untrusted navigation input and provide zero positive event/market/line/side/odds evidence by themselves.
+PRODUCT-028/#175 is complete. The product target remains pre-match football full-match total-corners O/U. The replan distinguishes target content that exists on the authoritative page but was not retained by the generic explorer from target content that is genuinely unavailable, without adding outcome activation or broader navigation capability.
 
 Remote Internet exposure of the desktop webhook is not part of this decision. The default integration is local/loopback; a remote surebet service would require a separately designed secure relay/outbound connection rather than opening the desktop listener to the public Internet.
 
