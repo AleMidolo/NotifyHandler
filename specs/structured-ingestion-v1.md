@@ -339,13 +339,13 @@ If direct-link navigation reaches an authentication boundary:
 - resume creates fresh evidence;
 - worker revalidates current origin;
 - if necessary, worker may reopen the same immutable validated direct link;
-- event/market/line/outcome/odds are re-verified from scratch.
+- event/market/period/line/outcome identity is re-verified from scratch. Price may be observed again as optional informational telemetry.
 
 No credentials/MFA/CAPTCHA values enter the protocol or application.
 
-### Odds change
+### Odds observability
 
-`ODDS_CHANGED` behavior is unchanged. Acknowledgement is post-start, bound to the exact observed value, and followed by full revalidation.
+The frozen v1 expected-odds field and any current displayed price are informational only. Price changes do not create an interruption, acknowledgement requirement, or safe failure by themselves.
 
 ### Cancellation
 
@@ -361,10 +361,9 @@ Selection activation remains permitted only when the current attempt/evidence ep
 
 - approved current origin;
 - matched event identity;
-- matched market/context;
+- matched market/context/period;
 - matched exact line when required;
 - matched requested outcome;
-- satisfied current odds policy;
 - no cancellation/staleness condition.
 
 Post-click selected-state verification remains required before `READY_FOR_USER`.
