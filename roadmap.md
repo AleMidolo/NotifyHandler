@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** QA-005 and DEVOPS-014 are complete. Both qualified BET365/SISAL relay runs stop pre-bookmaker at `UNREVIEWED_SAME_ORIGIN_PATH`; PRODUCT-026/#167 is the sole immediate P0 blocker for a stable upstream intermediate-path or direct-destination contract.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** PRODUCT-026/#167 is complete via direct bookmaker-origin URLs. BOOK-023/#170 is the immediate P0 live-evidence task; Betup is no longer on the active critical path.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -176,15 +176,26 @@ Both qualified runs used relay mode and returned:
 
 The category is precise but intentionally redacted: same `https://www.bet-up.it` origin, HTTPS, no userinfo/query/fragment, but pathname outside `/lnk/<uuid>/<bookmaker-suffix>`. The actual path template is unknown, so no evidence-backed resolver expansion exists.
 
-### Current P0 — upstream contract blocker
+### Direct bookmaker integration — ACTIVE PATH
 
-**#167 PRODUCT-026 — READY NOW / EXTERNAL CONTRACT NEEDED**
+**#167 PRODUCT-026 — COMPLETE**
 
-Obtain a stable non-sensitive intermediate path contract from the upstream owner, a sanitized owner-observed template with segment semantics/binding, or a supported direct bookmaker-origin destination contract.
+The upstream owner/user supplied the direct bookmaker destinations corresponding to the prior Portogallo-Galles signal:
+- BET365: `https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/`;
+- SISAL: `https://www.sisal.it/scommesse-matchpoint/evento/calcio/nations-league/portogallo-galles`.
 
-Public website/search review did not expose a usable relay/API/path specification. No additional live run or wildcard matcher is authorized simply to recover/guess the path.
+The upstream Telegram bot is being changed to emit these bookmaker-origin URLs rather than Betup relays. Existing architecture already supports direct bookmaker navigation: v1 is direct-link native and v2 supports typed `bookmaker-direct`. The BET365 SPA fragment route is preserved by current direct-link normalization.
 
-If a concrete contract is obtained, route to Software Architect for a new finite ADR/state-machine decision. If not, Product must replan away from this relay source.
+No new relay ADR is needed. The previous Betup resolver remains fail-closed/historical and must not be widened.
+
+### Current P0
+
+**#170 BOOK-023 — READY NOW**
+
+Run bounded direct-link validation for Portogallo-Galles and independently establish:
+`approved bookmaker origin -> event -> competition/time -> full-match total corners -> exact line 6.5 -> requested side -> displayed odds`.
+
+The direct URL itself contributes no matching evidence. No generic homepage fallback and no Betup fallback are permitted for this authoritative direct-link validation.
 
 ### Implementation and qualification
 
