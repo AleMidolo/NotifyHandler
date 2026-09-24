@@ -1,10 +1,10 @@
 # NotifyHandler architecture
 
-Status: **Accepted baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, ARCH-006, ARCH-007, and ARCH-008**
+Status: **Accepted baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, ARCH-006, ARCH-007, ARCH-008, ARCH-010, and ARCH-011**
 
-NotifyHandler is a local-first desktop application that receives either a legacy textual surebet notification or a versioned structured direct-pair notification, normalizes it into exactly two bookmaker-agnostic targets, and starts two independently prepared bookmaker legs as soon as deterministic validation and navigation-safety checks pass. Authentication, changed-odds acknowledgement where required, stake entry, review, and final bet submission remain manual boundaries.
+NotifyHandler is a local-first desktop application that receives either a legacy textual surebet notification or a versioned structured direct-pair notification, normalizes it into exactly two bookmaker-agnostic targets, and starts two independently prepared bookmaker legs as soon as deterministic validation and navigation-safety checks pass. Authentication, stake entry, review, and final bet submission remain manual boundaries. Odds are informational and do not create an acknowledgement gate.
 
-The runtime decision is recorded in `docs/adr/0001-local-desktop-playwright-runtime.md`. Automatic-start semantics are recorded in `docs/adr/0002-automatic-primary-option-startup.md`. The loopback structured-ingress/direct-bookmaker-link decision is recorded in `docs/adr/0003-loopback-structured-direct-pair-ingress.md`. Relay-aware typed navigation and restricted `bet-up.it` resolution are recorded in `docs/adr/0004-betup-relay-resolution.md`; the bounded same-origin relay revisit is recorded in ADR-0005; finite redacted passive-diagnostic provenance is recorded in `docs/adr/0006-redacted-passive-diagnostic-provenance.md`. Shared execution contracts are defined by ARCH-002 and subsequent amendments.
+The runtime decision is recorded in `docs/adr/0001-local-desktop-playwright-runtime.md`. Automatic-start semantics are recorded in `docs/adr/0002-automatic-primary-option-startup.md`. The loopback structured-ingress/direct-bookmaker-link decision is recorded in `docs/adr/0003-loopback-structured-direct-pair-ingress.md`. Relay-aware typed navigation and restricted `bet-up.it` resolution are recorded in `docs/adr/0004-betup-relay-resolution.md`; the bounded same-origin relay revisit is recorded in ADR-0005; finite redacted passive-diagnostic provenance is recorded in `docs/adr/0006-redacted-passive-diagnostic-provenance.md`; non-gating odds are recorded in ADR-0007; bounded bookmaker WSS page transport is recorded in ADR-0008. Shared execution contracts are defined by ARCH-002 and subsequent amendments.
 
 ## 1. Runtime model
 
@@ -73,8 +73,10 @@ Downstream implementation must use these shared contracts:
 - `specs/selection-target.md` — immutable bookmaker-agnostic identity target for one leg;
 - `specs/execution-contract.md` — automatic plan/start trigger, exact two-leg runtime model, states, attempts, evidence epochs, commands, and derived plan status;
 - `specs/bookmaker-adapter-contract.md` — core/worker/adapter interface and restricted browser/selection capability boundary;
-- `specs/matching-policy.md` — deterministic event/market/line/outcome evidence and odds policy;
-- `specs/passive-diagnostic-provenance-v1.md` — live-validation-only finite transport/render provenance and retention rules;
+- `specs/matching-policy.md` — deterministic event/market/line/outcome evidence and non-gating price observability;
+- `specs/bookmaker-network-policy.md` — bookmaker-scoped HTTPS/WSS browser network authorization;
+- `specs/passive-diagnostic-provenance-v1.md` — historical live-validation provenance schema;
+- `specs/passive-diagnostic-provenance-v2.md` — current passive provenance schema under bounded WSS policy;
 - `docs/error-model.md` — interruption, safe-failure, cancellation, and recovery taxonomy;
 - `docs/test-strategy.md` — notification-to-auto-start, unit, contract, browser integration, transaction-boundary, and release-gate tests;
 - `docs/safety-boundaries.md` — non-negotiable authentication/access/transaction boundaries.
@@ -164,8 +166,8 @@ The renderer is an unprivileged presentation and recovery surface. It may:
 - submit or receive notification input through a transport integration;
 - display normalized parsing results and the automatically resolved primary recommendation;
 - display the exact two immutable targets and execution status, including if execution has already started;
-- display independent leg states, evidence summaries, odds changes, failures, and safe recovery actions;
-- request manual-auth resume, changed-odds continuation, retry, reopen, cancel, and plan restart through typed IPC.
+- display independent leg states, evidence summaries, optional current/notified odds, failures, and safe recovery actions;
+- request manual-auth resume, retry, reopen, cancel, and plan restart through typed IPC.
 
 The renderer does **not** own or require:
 
@@ -237,7 +239,8 @@ The worker owns:
 - manual-login interruption coordination;
 - adapter execution;
 - shared matching/evidence policy;
-- observed-odds capture/comparison;
+- optional observed-odds capture/comparison as non-gating telemetry;
+- bookmaker-scoped browser network policy, including reviewed WSS transport;
 - final verified selection activation through the shared activation gate;
 - structured progress/result/error events.
 
@@ -269,7 +272,7 @@ If a bookmaker requires authentication:
 2. automated actions for that leg pause;
 3. the user authenticates directly in the visible bookmaker browser;
 4. the user requests resume;
-5. the worker creates a fresh evidence epoch and re-runs origin, event, market, line, outcome, and odds validation.
+5. the worker creates a fresh evidence epoch and re-runs origin, event, market/period, line, and outcome validation. Price may be observed again but is not a gate.
 
 This is a post-start interruption and does not reintroduce a normal pre-execution confirmation step.
 
@@ -281,24 +284,25 @@ Selection authorization is predicate-based, not score-based.
 
 Required identity dimensions are independently classified as `NOT_CHECKED`, `MATCHED`, `MISMATCHED`, `AMBIGUOUS`, or `UNAVAILABLE`. Only `MATCHED` authorizes a required identity dimension. Market identity includes family, context/subtype, and explicit market period; current executable targets require `period: "full_match"`.
 
-Fuzzy similarity may help discover candidates but cannot itself authorize selection. Approved aliases must be deterministic/version-controlled/tested. Exact numeric line matching uses decimal-safe semantics with no nearest-line tolerance. A first-half/other-period market can never satisfy a `full_match` target, even when line, side, and odds are identical.
+Fuzzy similarity may help discover candidates but cannot itself authorize selection. Approved aliases must be deterministic/version-controlled/tested. Exact numeric line matching uses decimal-safe semantics with no nearest-line tolerance. A first-half/other-period market can never satisfy a `full_match` target, even when line, side, and price happen to be identical.
 
 See `specs/matching-policy.md` for normative rules.
 
-## 11. Odds policy
+## 11. Odds observability policy
 
-Expected odds from the notification and observed bookmaker odds are always distinct values.
+Expected/notified and observed bookmaker odds are distinct **informational metadata**.
 
-For the MVP:
+- expected odds may be absent;
+- observed odds may be absent or unreadable;
+- equal/higher/lower comparison may be shown when both values are available;
+- no price state belongs to deterministic selection identity;
+- no price change creates an interruption or acknowledgement requirement;
+- missing/unreadable price alone does not fail an otherwise exact target;
+- price never compensates for wrong/ambiguous event/market/period/line/outcome identity.
 
-- equal odds can proceed when identity is fully matched;
-- higher/lower changed odds produce `ODDS_CHANGED` before selection activation;
-- the user must explicitly acknowledge the exact observed value;
-- continuation invalidates prior evidence and fully revalidates page/identity/odds;
-- if the value changes again, the application pauses again;
-- unavailable/unreadable odds fail safely and do not activate the selection.
+NotifyHandler does not calculate surebet validity, ROI, profitability, stake sizing, or price acceptability.
 
-This is an execution-time interruption after automatic startup, not a pre-execution approval gate. Odds never compensate for wrong/ambiguous identity.
+See ADR-0007 and `specs/matching-policy.md`.
 
 ## 12. State, attempts, and stale evidence
 
@@ -310,7 +314,7 @@ Key architecture rules:
 - two legs remain independently addressable;
 - every execution attempt has a unique attempt id;
 - matching evidence belongs to an evidence epoch;
-- manual login, redirect, refresh, reopen, browser replacement, changed-odds continuation, or meaningful page replacement invalidates stale positive evidence;
+- manual login, redirect, refresh, reopen, browser replacement, or meaningful page replacement invalidates stale positive evidence;
 - late events from obsolete attempts/epochs cannot mutate current state;
 - retry/reopen never skip matching stages;
 - cancellation prevents any later final selection activation for that attempt.
@@ -319,7 +323,7 @@ Key architecture rules:
 
 Adapters must not perform the final requested outcome click through an unrestricted public `click()` contract.
 
-The final candidate plus current evidence is submitted to a shared `SelectionActivationGate`. The gate permits activation only when current origin is approved; event, market/context, required exact line, and outcome are matched; odds policy is satisfied; evidence belongs to the current attempt/epoch; and cancellation has not occurred.
+The final candidate plus current evidence is submitted to a shared `SelectionActivationGate`. The gate permits activation only when current origin/network policy is approved; event, market/context/period, required exact line, and outcome are matched; evidence belongs to the current attempt/epoch; and cancellation has not occurred. Odds are not gate inputs.
 
 After activation, the adapter must verify that the exact target selection is visibly selected before reporting `SELECTION_PREPARED`/`READY_FOR_USER`.
 
@@ -360,9 +364,28 @@ A client-side/meta/script-driven top-level transition is not automatically trust
 
 A relay challenge/login/CAPTCHA on `bet-up.it` is a safe relay-resolution failure, not `AUTH_REQUIRED`. Manual `AUTH_REQUIRED` begins only after a valid expected-bookmaker origin has been reached.
 
+### 15.3 Bookmaker WSS page transport
+
+Once the browser is on an approved bookmaker origin, the worker/browser gateway may permit normal page `wss://` transport under `specs/bookmaker-network-policy.md`.
+
+Requirements:
+
+- `wss://` only; `ws://` is blocked;
+- default TLS port 443 only;
+- no URL credentials or IP-literal destinations;
+- fail-closed public DNS/private-network validation;
+- destination host must match a version-controlled policy for the selected bookmaker;
+- allow rules are trusted source/configuration, never notification/page/user/runtime-discovered input;
+- socket objects/messages/payloads are not exposed to adapters, core, renderer, matching, or activation;
+- allowed WSS is browser-native page transport and contributes zero matching evidence;
+- cancellation/context cleanup terminates transport;
+- unsafe/unapproved sockets fail safely and never auto-expand the allowlist.
+
+During `BETUP_RELAY` resolution, WebSockets remain blocked. Bookmaker WSS policy becomes eligible only after expected-bookmaker arrival.
+
 ### 15.3 Evidence boundary
 
-Successful relay resolution proves only that navigation reached an approved origin for the expected bookmaker. It proves nothing about event, competition/time, market, line, outcome, or odds.
+Successful relay resolution proves only that navigation reached an approved origin for the expected bookmaker. It proves nothing about event, competition/time, market, line, outcome, or price.
 
 Matching begins in a fresh evidence epoch after bookmaker arrival. Relay URL, UUID, suffix, hop result, and redirect destination cannot be positive `MatchingEvidenceSnapshot` dimensions and cannot authorize `SelectionActivationGate`.
 
@@ -394,15 +417,15 @@ Do not persist as application records credentials/MFA values, cookies/raw browse
 
 Diagnostics should prefer canonical ids, primary recommendation id/index, state transitions, error codes, sanitized candidate labels, expected/observed odds, notification-receipt/plan-ready/browser-open timing, and redacted origin/path information.
 
-### 16.1 ARCH-008 passive diagnostic provenance
+### 16.1 Passive diagnostic provenance
 
-The source-locked live-validation diagnostic may emit the versioned schema in `specs/passive-diagnostic-provenance-v1.md`.
+Historical BOOK-026 evidence uses `passive-provenance.v1`. New diagnostics after ARCH-011 use `specs/passive-diagnostic-provenance-v2.md`.
 
 This schema is **not** a production adapter/core/renderer telemetry contract.
 
 It adds only:
 
-- one first-trigger finite transport provenance category: WebSocket attempt, public-HTTPS target validation rejection, or disallowed protocol, plus finite scope;
+- finite transport provenance, including allowed reviewed WSS observation or finite WSS/HTTPS/protocol block categories without destination retention;
 - DOM-present / visible-observed booleans for already reviewed target predicates;
 - a finite DOMContentLoaded observation;
 - participant-pair and competition document-title predicate booleans;
@@ -412,7 +435,7 @@ It must not retain blocked destination data, raw title, hidden text, body text, 
 
 Passive diagnostic provenance remains categorically separate from `MatchingEvidenceSnapshot`, support maturity, production mapping, retry policy, and selection activation. `authorizesProductionMapping` remains `false`.
 
-The current source lock, DNS/origin/protocol/WebSocket policy, navigation/readiness timing, zero-interaction capability, and transaction boundary are unchanged.
+The current source lock, navigation/readiness timing, zero-interaction capability, and transaction boundary are unchanged. ARCH-011 changes only socket transport: reviewed public WSS may continue rendering; unsafe/unapproved WSS remains blocked.
 
 ## 17. Testability and latency observability
 
@@ -442,7 +465,7 @@ Exact package manager, Electron/Node/Playwright versions, bundler, installer/sig
 
 ## 19. Architecture completion state
 
-ARCH-001 through ARCH-008 establish the current shared architecture:
+ARCH-001 through ARCH-008 plus ARCH-010/ARCH-011 establish the current shared architecture:
 
 - ARCH-001 — local desktop + headed Playwright runtime;
 - ARCH-002 — execution/adapter/matching/error contracts;
@@ -451,15 +474,18 @@ ARCH-001 through ARCH-008 establish the current shared architecture:
 - ARCH-005 — typed direct/relay navigation and restricted `bet-up.it` resolution;
 - ARCH-006 — explicit market-period identity;
 - ARCH-007 — one evidence-backed canonical same-origin relay revisit with fixed hop budget;
-- ARCH-008 — finite, versioned, redacted passive transport/render-state diagnostic provenance.
+- ARCH-008 — finite, versioned, redacted passive transport/render-state diagnostic provenance;
+- ARCH-010 — odds are optional informational metadata and no longer gate preparation;
+- ARCH-011 — bounded bookmaker-scoped public WSS page transport through the browser gateway.
 
 ARCH-008 changes **diagnostic observability only**. It does not alter product matching, selection, authentication, network access, or transaction capabilities.
 
 Current downstream responsibilities:
 
-- **Bookmaker Automation Engineer:** implement `passive-provenance.v1` only inside the source-locked passive diagnostic and its artifact validator; do not modify production matching/adapter authorization.
-- **Security & Compliance Engineer / SEC-008:** review the exact implementation for destination non-reconstruction, finite enums, hidden/raw-content exclusion, capability invariance, and artifact allowlists.
-- **QA / Integration Engineer:** certify every finite category/presence/readiness/bucket case, schema rejection, existing pinned-browser safety regressions, and non-authorizing semantics.
-- **Release / DevOps Engineer:** do not perform another live bookmaker diagnostic until Security and QA explicitly authorize the exact implementation/artifact.
+- **Domain/Application:** remove legacy odds-gating states/commands while preserving optional price metadata and v1 wire compatibility.
+- **Bookmaker Automation/worker:** remove price gating from adapters/activation, implement bookmaker-scoped WSS network policy, and migrate passive diagnostics to provenance v2.
+- **Security & Compliance:** review WSS allow policy/DNS/privacy and prove no socket payload/API capability leaks into application logic.
+- **QA / Integration:** certify non-gating odds behavior, WSS allow/block matrices, state-machine migration, and unchanged transaction/auth boundaries.
+- **Release / DevOps:** do not run new live BET365 diagnostics until the ARCH-011 implementation passes Security and QA.
 
 QA-002 remains blocked until two bookmakers reach narrowly scoped evidence-backed live `Supported` status. Production release remains blocked behind that qualification.
