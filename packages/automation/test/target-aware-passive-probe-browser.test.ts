@@ -4,6 +4,7 @@ import { chromium, type Page } from "playwright-core";
 
 import {
   BOOK_024_TARGETS,
+  collectPassiveRenderProvenance,
   collectTargetAwarePageEvidence,
   waitForPassiveReadiness,
 } from "../src/live-validation/target-aware-passive-probe.ts";
@@ -159,4 +160,112 @@ test("changed odds are observed but never become expected-odds evidence", async 
       }),
     );
   });
+});
+
+
+test("passive render provenance distinguishes DOM absence from non-visible target presence", async () => {
+  const target = BOOK_024_TARGETS.sisal;
+  await withFixture(
+    target.url,
+    "<!doctype html><html><head><title>Portogallo Galles - Nations League</title></head>" +
+      "<body><div style=\"display:none\">Portogallo</div><main>shell</main></body></html>",
+    async (page) => {
+      const render = await collectPassiveRenderProvenance(
+        page,
+        target,
+        "DOMCONTENTLOADED_CONFIRMED",
+      );
+      assert.equal(render.targetPresence.participantA.domPresent, true);
+      assert.equal(render.targetPresence.participantA.visibleObservedWithinBound, false);
+      assert.equal(render.targetPresence.scheduledTime.domPresent, false);
+      assert.equal(render.targetPresence.scheduledTime.visibleObservedWithinBound, false);
+      assert.equal(render.titlePredicates.participantPair, true);
+      assert.equal(render.titlePredicates.competition, true);
+      const serialized = JSON.stringify(render);
+      assert.equal(serialized.includes("Portogallo Galles - Nations League"), false);
+    },
+  );
+});
+
+test("passive render provenance marks visibly observed target predicates without retaining hidden text", async () => {
+  const target = BOOK_024_TARGETS.sisal;
+  await withFixture(target.url, completeTargetHtml("UNDER", "4.25"), async (page) => {
+    const render = await collectPassiveRenderProvenance(
+      page,
+      target,
+      "DOMCONTENTLOADED_CONFIRMED",
+    );
+    assert.deepEqual(
+      render.targetPresence.participantA,
+      { domPresent: true, visibleObservedWithinBound: true },
+    );
+    assert.deepEqual(
+      render.targetPresence.totalCornersMarket,
+      { domPresent: true, visibleObservedWithinBound: true },
+    );
+    assert.deepEqual(
+      render.targetPresence.requestedSideAtLine,
+      { domPresent: true, visibleObservedWithinBound: true },
+    );
+  });
+});
+
+test("passive render provenance uses fixed DOM population buckets at architecture thresholds", async () => {
+  const target = BOOK_024_TARGETS.sisal;
+  const cases = [
+    { count: 0, expected: "EMPTY" },
+    { count: 1, expected: "SPARSE" },
+    { count: 31, expected: "SPARSE" },
+    { count: 32, expected: "POPULATED" },
+  ] as const;
+
+  for (const item of cases) {
+    const descendants = Array.from(
+      { length: item.count },
+      (_, index) => "<span data-index=\"" + index + "\"></span>",
+    ).join("");
+    await withFixture(
+      target.url,
+      "<!doctype html><html><body>" + descendants + "</body></html>",
+      async (page) => {
+        const render = await collectPassiveRenderProvenance(
+          page,
+          target,
+          "DOMCONTENTLOADED_CONFIRMED",
+        );
+        assert.equal(render.domPopulation, item.expected);
+      },
+    );
+  }
+});
+
+test("existing readiness observation reports DOMContentLoaded confirmation without an added wait mode", async () => {
+  const target = BOOK_024_TARGETS.bet365;
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({
+    acceptDownloads: false,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  try {
+    await context.route("**/*", async (route) => {
+      if (route.request().isNavigationRequest()) {
+        await route.fulfill({
+          status: 200,
+          contentType: "text/html; charset=utf-8",
+          body: "<!doctype html><html><body><main>ready</main></body></html>",
+        });
+        return;
+      }
+      await route.abort("blockedbyclient");
+    });
+    await page.goto(target.url, { waitUntil: "domcontentloaded", timeout: 2_000 });
+    assert.equal(
+      await waitForPassiveReadiness(page),
+      "DOMCONTENTLOADED_CONFIRMED",
+    );
+  } finally {
+    await context.close();
+    await browser.close();
+  }
 });

@@ -215,6 +215,7 @@ Controls:
 - evidence collection is visible-text only, bounded by fixed candidate/sample/length limits, and redacts UUIDs, email-shaped values, visible URLs, and long opaque tokens;
 - full DOM/page dumps, screenshots, traces, HAR, cookies, storage/session state, form values, authenticated captures, and private/protected API responses are prohibited;
 - summaries hard-code `authorizesProductionMapping: false`; passive evidence cannot authorize adapter selectors, outcome activation, or bookmaker support promotion;
+- retained passive-diagnostic validators must constrain both field names and values: source-locked metadata stays exact, unapproved final routes use fixed placeholders, bounded snippets are rechecked for redaction, and derived matching booleans must agree with their retained evidence;
 - CLI failures use fixed sanitized text and must not echo browser/runtime errors containing direct URLs or BET365 fragment state;
 - no live run is permitted until Security and QA gates explicitly approve the exact diagnostic implementation.
 

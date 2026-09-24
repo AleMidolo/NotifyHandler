@@ -77,9 +77,9 @@ PRODUCT-015 changes the evidence and ingestion strategy because the real surebet
 ### Live-readiness / ingestion track
 BOOK-024/#177, DEVOPS-016/#182, BOOK-025/#183, and ARCH-008/#184 are complete. ADR-0006 / `passive-provenance.v1` defines the only approved diagnostic refinement.
 
-1. **#188 BOOK-026 — immediate P0.** Implement the finite redacted provenance schema inside the source-locked passive diagnostic only.
+1. **#188 BOOK-026 — implementation complete in PR #191.** The source-locked passive diagnostic now emits and validates `passive-provenance.v1` without changing network/timing/action behavior.
 2. Keep network/timing/action behavior unchanged: no timeout/readiness/retry/budget increase, WebSocket allowance, DNS/origin exception, broader click policy, generic discovery, private API, or Betup fallback.
-3. **#186 SEC-008 — after BOOK-026.** Review exact implementation/artifact for destination non-reconstruction, content minimization, allowlist enforcement, and capability invariance.
+3. **#186 SEC-008 — immediate next gate after PR #191 integration.** Review exact implementation/artifact for destination non-reconstruction, content minimization, allowlist enforcement, and capability invariance.
 4. **#189 QA-007 — after SEC-008.** Certify deterministic/browser/privacy/portable regressions and explicitly authorize or block any next live run.
 5. No real bookmaker run is authorized until both #186 and #189 pass.
 6. Diagnostic provenance never becomes matching evidence, production mapping, feasibility/support evidence, or activation authorization.

@@ -20,27 +20,21 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — BOOK-026 / #188: Implement passive-provenance.v1 diagnostics
-Owner: Bookmaker Automation Engineer
+### P0 — SEC-008 / #186: Review redacted passive transport/render-state diagnostics
+Owner: Security & Compliance Engineer
 Milestone: 6 — Evidence-backed live bookmaker readiness
-Depends on: ARCH-008/#184 / PR #187
+Depends on: BOOK-026/#188 implementation in PR #191
 
-Implement ADR-0006 / `specs/passive-diagnostic-provenance-v1.md` in the exact source-locked BOOK-024 diagnostic.
-
-Required invariants:
-- first finite transport trigger only; no blocked destination/network/runtime strings;
+BOOK-026 implements ADR-0006 / `passive-provenance.v1` in the exact source-locked passive probe with:
+- first-trigger-only finite transport provenance;
 - bounded DOM-present / visible-observed target booleans;
 - finite readiness/title-predicate fields;
 - fixed EMPTY/SPARSE/POPULATED DOM bucket;
-- explicit retained-summary allowlist and unknown-field rejection;
-- `authorizesProductionMapping: false`;
-- no network, origin, timeout, readiness, retry, action, interaction, matching, authentication, or transaction capability change;
-- no live bookmaker execution in implementation.
+- explicit retained-summary and nested-field allowlists;
+- mandatory `authorizesProductionMapping: false`;
+- unchanged source targets, network policy, timing, interaction, auth, and transaction boundaries.
 
-### P0 after #188 — SEC-008 / #186
-Owner: Security & Compliance Engineer
-
-Review the exact BOOK-026 implementation for destination non-reconstruction, finite source-controlled categories, raw/hidden-content exclusion, summary allowlists, unchanged fail-closed network policy, and unchanged capability/transaction boundaries.
+SEC-008 must review the exact PR #191 implementation before QA or any new real bookmaker run.
 
 ### P0 after #186 — QA-007 / #189
 Owner: QA / Integration Engineer
