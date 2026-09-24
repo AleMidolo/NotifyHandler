@@ -1,6 +1,6 @@
 # Selection target specification
 
-Status: **Accepted architecture/domain contract for Milestone 1, amended by ARCH-004, ARCH-005, and ARCH-006**
+Status: **Accepted architecture/domain contract for Milestone 1, amended by ARCH-004, ARCH-005, ARCH-006, and ARCH-010**
 
 `SelectionTarget` is the immutable, bookmaker-agnostic instruction for one leg of an accepted surebet execution pair. It describes **what must be selected**, never how a bookmaker DOM is manipulated.
 
@@ -37,7 +37,7 @@ type SelectionTarget = Readonly<{
     side: OutcomeId;
     sourceLabel?: string;
   }>;
-  expectedOdds: DecimalOddsString;
+  expectedOdds?: DecimalOddsString; // informational provenance only
   navigation?: Readonly<
     | { kind: "BOOKMAKER_DIRECT"; url: string }
     | {
@@ -64,7 +64,7 @@ type SelectionTarget = Readonly<{
 }>;
 ```
 
-Decimal line and odds values use canonical decimal-safe strings/arbitrary-precision decimal semantics. Implementations must not rely on binary floating-point equality for identity.
+Decimal line values use canonical decimal-safe strings/arbitrary-precision decimal semantics for identity. Odds use the same decimal-safe representation when present, but are informational metadata and not identity.
 
 ## 2. Invariants
 
@@ -76,7 +76,7 @@ A target is valid for execution only when:
 - `market.period` is explicit and immutable; for the current MVP executable scope it is `full_match`;
 - a line is present for every line-based market;
 - outcome/side is explicit;
-- expected odds are valid positive decimal odds;
+- expected odds, when present, are valid positive decimal odds;
 - provenance resolves either to the legacy primary recommendation/source offer or to one explicit structured-v1 leg;
 - any supplied navigation URL remains untrusted until runtime origin/DNS/redirect validation;
 - structured-v1 provenance requires a `BOOKMAKER_DIRECT` candidate (or the deprecated equivalent direct `deepLink` projection);
@@ -85,7 +85,7 @@ A target is valid for execution only when:
 
 Every accepted execution pair resolves to exactly two valid targets.
 
-Targets are immutable once the execution plan is created. A different event, bookmaker, market family/context, market period, line, side, or expected odds requires rebuilding/reviewing the plan; an adapter may never mutate a target to make a page candidate fit.
+Targets are immutable once the execution plan is created. Event, bookmaker, market family/context, market period, line, and side define selection identity. Expected odds are immutable informational metadata when present but do not participate in identity equivalence or activation. An adapter may never mutate identity fields to make a page candidate fit.
 
 ## 3. Target vs execution state
 
@@ -111,8 +111,9 @@ Given a target, the adapter must independently establish current-epoch evidence 
 3. market family/context and exact period;
 4. exact line when required;
 5. exact outcome/side;
-6. displayed odds;
-7. page state sufficient to activate and verify the exact target selection.
+6. page state sufficient to activate and verify the exact target selection.
+
+The adapter may also observe displayed odds as optional informational metadata, but price readability/equality is not required for activation.
 
 The adapter must not reinterpret a missing target into the nearest available event, market, line, side, or bookmaker.
 
@@ -162,18 +163,18 @@ No nearest-line, neighboring-DOM, section-position, or odds-based substitution i
 
 ## 8. Odds semantics
 
-`expectedOdds` is immutable notification evidence. `observedOdds` is current page evidence and remains distinct.
+`expectedOdds` is optional informational notification provenance.
 
-Shared comparison values are:
+`observedOdds` is optional current page telemetry.
 
-- `EQUAL`;
-- `HIGHER`;
-- `LOWER`;
-- `UNAVAILABLE`.
+When both are present, they may be compared for display, but:
 
-Under the MVP policy, changed odds produce `ODDS_CHANGED` before selection activation and require explicit acknowledgement plus complete revalidation. Unavailable/unreadable odds produce safe failure rather than a click.
+- equality is not required;
+- changed odds do not create `ODDS_CHANGED`;
+- missing/unreadable odds do not fail an otherwise exact target;
+- no odds value can repair or override event/market/period/line/outcome identity.
 
-Odds identity never repairs wrong event/market/line/outcome evidence.
+Structured-v1 compatibility may still require a wire-level expected price. That does not make price part of SelectionTarget identity.
 
 ## 9. Result semantics
 
@@ -181,11 +182,10 @@ The shared automation result can produce:
 
 - `READY_FOR_USER`;
 - `AUTH_REQUIRED`;
-- `ODDS_CHANGED`;
 - `FAILED_SAFE`;
 - `CANCELLED`.
 
-`READY_FOR_USER` requires exact identity evidence, permitted odds state, final selection activation, and post-activation verification for this target.
+`READY_FOR_USER` requires exact identity evidence, final selection activation, and post-activation verification for this target. Optional observed odds may accompany the result.
 
 It never means a stake was entered or a bet was submitted.
 
@@ -202,7 +202,7 @@ No contract consuming `SelectionTarget` may expose capabilities for:
 
 ## 11. Retry/revalidation
 
-Retry, reopen, manual-login resume, changed-odds continuation, redirect, refresh, browser replacement, or meaningful page-state change invalidates stale positive evidence as defined by `specs/execution-contract.md`.
+Retry, reopen, manual-login resume, redirect, refresh, browser replacement, or meaningful page-state change invalidates stale positive evidence as defined by `specs/execution-contract.md`.
 
 A previous target match never authorizes a future click after its evidence epoch has expired.
 
