@@ -67,9 +67,9 @@ export function ordinaryTransportProvenance(
 ): PassiveTransportProvenance {
   const scope = isTopLevel ? "TOP_LEVEL" : "SUBRESOURCE";
   if (protocol === "https:") {
-    return publicHttpsTarget === false
-      ? { state: "BLOCKED", trigger: "PUBLIC_HTTPS_TARGET_REJECTED", scope }
-      : { state: "CLEAR" };
+    return publicHttpsTarget === true
+      ? { state: "CLEAR" }
+      : { state: "BLOCKED", trigger: "PUBLIC_HTTPS_TARGET_REJECTED", scope };
   }
   if (["data:", "blob:", "about:"].includes(protocol)) {
     return { state: "CLEAR" };
@@ -343,7 +343,16 @@ export function validatePassiveDiagnosticSummary(value: unknown): void {
   if (object.authorizesProductionMapping !== false) {
     throw new Error("authorizesProductionMapping must remain false.");
   }
-  assertString(object.note, "note");
+  assertEnum(
+    object.note,
+    [
+      "Passive direct-page diagnostic stopped at the existing browser/network boundary. No target evidence was retained from an unsafe navigation state.",
+      "Passive direct-page diagnostic stopped because the exact source-locked direct route was not preserved.",
+      "Passive direct-page diagnostic observed an auth/access/consent boundary and retained no target evidence.",
+      "Target-aware evidence and passive provenance are bounded, sanitized, diagnostic only, and never authorize production mapping or outcome activation.",
+    ],
+    "note",
+  );
   validateTarget(object.target);
 
   if (object.blockReason !== undefined) {
