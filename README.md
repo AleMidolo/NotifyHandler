@@ -63,16 +63,17 @@ ARCH-005 introduced `notifyhandler.direct-pair.v2` with a typed `betup-relay` na
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. **#167 PRODUCT-026 — sole immediate P0 blocker:** obtain a stable, non-sensitive contract for the real intermediate `bet-up.it` pathname reached after the canonical `/lnk/<uuid>/<bookmaker>` entry, or obtain a supported direct bookmaker-origin integration contract from the upstream source;
-2. **no additional live relay run is authorized merely to discover the raw path**; the two qualified DEVOPS-014 runs already prove the missing transition class as `UNREVIEWED_SAME_ORIGIN_PATH` for both BET365 and SISAL;
-3. if Product obtains a concrete sanitized grammar/direct contract, route to Software Architect for a finite reviewed relay-state-machine decision before any implementation/live rerun;
-4. if no stable upstream contract can be obtained, Product must replan away from the current relay source rather than accept a wildcard same-origin path;
-5. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
-6. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#170 BOOK-023 — immediate P0:** revalidate Portogallo-Galles from the exact direct bookmaker URLs supplied by the upstream owner/user;
+2. BET365 target: `https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/` -> OVER 6.5, expected odds 1.14;
+3. SISAL target: `https://www.sisal.it/scommesse-matchpoint/evento/calcio/nations-league/portogallo-galles` -> UNDER 6.5, expected odds 4.25;
+4. classify feasibility only from bookmaker-page evidence: event -> competition/time -> full-match total corners -> line 6.5 -> side -> displayed odds;
+5. create restricted live-mapping implementation issues only for candidates that become `Feasible for implementation`; otherwise return to Product Coordination without falling back to Betup;
+6. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
+7. **#46 DEVOPS-003** remains blocked until #45 passes.
 
-DEVOPS-014/#161 and QA-005/#163 are complete. The qualified BET365 and SISAL relay-aware runs both stopped before bookmaker arrival with `RELAY_INVALID / UNREVIEWED_SAME_ORIGIN_PATH`, zero actions, and no production-mapping authorization. BOOK-022/#166 therefore keeps bookmaker-specific event/market/line/side/odds feasibility unobserved.
+PRODUCT-026/#167 is complete via the alternative direct integration contract: the upstream Telegram bot is being changed to emit bookmaker-origin URLs instead of `bet-up.it` relays. No new ADR is required for this path: structured v1 already supports direct bookmaker links, v2 supports typed `bookmaker-direct`, and current normalization preserves the BET365 fragment route.
 
-A public-contract check of the Betup website and public web search did not surface a documented `/lnk/` redirect/API/intermediate-path specification suitable for Architecture. Product still requires upstream-owner documentation, a sanitized owner-observed path template, or a supported direct bookmaker-origin alternative.
+The Betup relay stack remains historical/fail-closed and must not be broadened. Direct links remain untrusted navigation input and provide zero positive event/market/line/side/odds evidence by themselves.
 
 Remote Internet exposure of the desktop webhook is not part of this decision. The default integration is local/loopback; a remote surebet service would require a separately designed secure relay/outbound connection rather than opening the desktop listener to the public Internet.
 

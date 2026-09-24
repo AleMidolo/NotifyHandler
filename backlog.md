@@ -20,28 +20,22 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — PRODUCT-026 / #167: Define real bet-up intermediate relay path contract
-Owner: Product Coordinator / upstream integration
+### P0 — BOOK-023 / #170: Revalidate direct BET365/SISAL links
+Owner: Bookmaker Automation Engineer
 Milestone: 6 — Evidence-backed live bookmaker readiness
 
-Qualified DEVOPS-014 evidence is complete for both BET365 and SISAL:
-- `BETUP_RELAY`;
-- `RELAY_INVALID / UNREVIEWED_SAME_ORIGIN_PATH`;
-- zero actions/evidence retained;
-- no bookmaker arrival;
-- no production mapping authorization.
+PRODUCT-026/#167 is complete through the direct-bookmaker alternative. The upstream bot is being changed to emit direct bookmaker-origin links.
 
-The category proves only that the flow stays on HTTPS `www.bet-up.it`, has no userinfo/query/fragment, and moves to a pathname outside the reviewed `/lnk/<uuid>/<bookmaker>` grammar. The actual intermediate template is intentionally not retained.
+Authoritative target:
+- Portogallo - Galles, Nations League, 24/09/2026 20:45;
+- full-match total corners 6.5;
+- BET365 OVER @ 1.14 via `https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/`;
+- SISAL UNDER @ 4.25 via `https://www.sisal.it/scommesse-matchpoint/evento/calcio/nations-league/portogallo-galles`.
 
-Obtain one of:
-1. upstream/owner-confirmed sanitized intermediate path grammar + variable segment semantics/binding; or
-2. a supported direct bookmaker-origin destination contract.
+Use direct-bookmaker navigation only. Do not invoke Betup resolver logic. The URLs are navigation inputs only and all deterministic bookmaker evidence gates remain mandatory.
 
-Do not guess a wildcard path, capture raw live intermediate tokens, or run another live relay solely to recover the pathname.
-
-### After PRODUCT-026
-If a concrete grammar/direct contract exists -> Software Architect defines the finite reviewed state machine and downstream Security/QA gates.
-If no stable contract exists -> Product replans away from the current relay source for Milestone 6.
+### After BOOK-023
+If a bookmaker is `Feasible for implementation`, create a dedicated restricted live-mapping issue. If either remains blocked, return to Product Coordination without generic homepage fallback or Betup fallback.
 
 ## Next in Milestone 6
 
@@ -96,7 +90,8 @@ The unsigned alpha channel and diagnostic validation bundle are not substitutes 
 - #109 / PRODUCT-016 — target-market BET365/SISAL relay evidence handoff: complete; Portogallo - Galles, full-match U/O corners 6.5.
 - #163 / QA-005 — fail-closed relay preflight and one-shot replacement authorization: complete.
 - #161 / DEVOPS-014 — qualified BET365/SISAL relay-invalid category capture: complete; both `UNREVIEWED_SAME_ORIGIN_PATH`.
-- #166 / BOOK-022 — interpretation complete; bookmaker feasibility remains unobserved and PRODUCT-026/#167 owns the upstream path-contract blocker.
+- #166 / BOOK-022 — interpretation complete; bookmaker feasibility remained unobserved under Betup.
+- #167 / PRODUCT-026 — completed via alternative direct bookmaker-origin integration contract; Betup removed from active critical path.
 - #105 / APP-005 — authenticated loopback structured direct-pair ingress: complete via PR #112.
 - #106 / SEC-002 — loopback ingress and direct-link DNS/token hardening: complete via PR #114.
 - #113 / SEC-003 — restart-safe structured-ingress idempotency: complete via PR #115.
