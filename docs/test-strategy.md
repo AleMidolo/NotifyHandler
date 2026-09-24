@@ -1,6 +1,6 @@
 # Test strategy
 
-Status: **Architecture baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, ARCH-006, and ARCH-007**
+Status: **Architecture baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, ARCH-006, ARCH-007, and ARCH-008**
 
 The test strategy prioritizes deterministic wrong-selection prevention, automatic notification-to-browser startup correctness, and transaction-boundary enforcement. Routine automated tests must not require bookmaker credentials, live accounts, or real betting transactions.
 
@@ -275,8 +275,47 @@ Tests should verify:
 - private/internal network navigation is rejected when input-controlled;
 - preflight-invalid primary targets create zero browser navigation attempts;
 - diagnostics redact/omit cookies, tokens, authorization headers, and credential values;
+- passive provenance uses finite source-controlled enums/booleans/buckets and cannot reconstruct blocked destinations or raw page content;
 - ephemeral browser profile directories are isolated and cleaned according to runtime policy;
 - one leg cannot address the other leg's browser/session handles.
+
+### 7.1 ARCH-008 passive diagnostic provenance
+
+The source-locked passive diagnostic must run a dedicated schema/privacy regression matrix before any live reuse.
+
+Transport cases:
+
+- clear transport;
+- WebSocket attempt -> finite socket category, socket remains blocked;
+- top-level/subresource HTTPS public-target validation rejection;
+- top-level/subresource disallowed protocol;
+- multiple blocked requests -> only first trigger retained;
+- output contains no blocked host/IP/port/path/query/fragment/protocol string, DNS answer, request/response data, or dynamic error text.
+
+Render cases, collected only after transport/route/auth-access gates pass:
+
+- target predicate absent from DOM;
+- target predicate present but no visible match within the existing bounded scan;
+- target predicate visibly observed;
+- invalid visible-without-present state rejected;
+- document-title participant-pair and competition booleans with no raw title retention;
+- DOMContentLoaded confirmed/unconfirmed without adding waits;
+- DOM population bucket boundaries: 0, 1..31, 32+;
+- render provenance omitted after transport block, route failure, auth, CAPTCHA/anti-bot, access, or consent state.
+
+Schema/capability cases:
+
+- exact `passive-provenance.v1` version required;
+- unknown top-level/nested field rejected;
+- unknown enum rejected;
+- explicit summary allowlist enforced before retention;
+- `authorizesProductionMapping` remains false;
+- provenance cannot enter matching evidence or activation paths;
+- no timeout/readiness/retry/action-budget change;
+- no click/fill/type/outcome activation or generic evaluation capability added;
+- exact source lock, DNS/private-network, protocol, WebSocket, popup, privacy, and transaction regressions remain green.
+
+Architecture approval alone does not authorize a live run. Security and QA must approve the exact implementation/artifact first.
 
 ## 8. State-machine tests
 
@@ -344,4 +383,6 @@ A change affecting ingestion, primary resolution, matching, adapter behavior, br
 - structured-v1 direct-link failure can silently fall back to generic discovery;
 - v1 semantics are silently widened to relay origins;
 - v2 relay can traverse an unreviewed intermediary/wrong bookmaker, browse an arbitrary same-origin path, exceed the one-revisit budget, or authorize positive identity evidence;
-- sensitive authentication/session data is written to logs/artifacts.
+- sensitive authentication/session data is written to logs/artifacts;
+- passive diagnostics retain blocked destination strings, raw title/hidden/body text, raw element counts, dynamic runtime errors, or unknown/unvalidated fields;
+- passive provenance can alter retry/timing/network policy, production mapping/support maturity, matching evidence, or activation.

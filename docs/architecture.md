@@ -1,10 +1,10 @@
 # NotifyHandler architecture
 
-Status: **Accepted baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, ARCH-006, and ARCH-007**
+Status: **Accepted baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, ARCH-006, ARCH-007, and ARCH-008**
 
 NotifyHandler is a local-first desktop application that receives either a legacy textual surebet notification or a versioned structured direct-pair notification, normalizes it into exactly two bookmaker-agnostic targets, and starts two independently prepared bookmaker legs as soon as deterministic validation and navigation-safety checks pass. Authentication, changed-odds acknowledgement where required, stake entry, review, and final bet submission remain manual boundaries.
 
-The runtime decision is recorded in `docs/adr/0001-local-desktop-playwright-runtime.md`. Automatic-start semantics are recorded in `docs/adr/0002-automatic-primary-option-startup.md`. The loopback structured-ingress/direct-bookmaker-link decision is recorded in `docs/adr/0003-loopback-structured-direct-pair-ingress.md`. Relay-aware typed navigation and restricted `bet-up.it` resolution are recorded in `docs/adr/0004-betup-relay-resolution.md`. Shared execution contracts are defined by ARCH-002 and amended by ARCH-003/ARCH-004/ARCH-005.
+The runtime decision is recorded in `docs/adr/0001-local-desktop-playwright-runtime.md`. Automatic-start semantics are recorded in `docs/adr/0002-automatic-primary-option-startup.md`. The loopback structured-ingress/direct-bookmaker-link decision is recorded in `docs/adr/0003-loopback-structured-direct-pair-ingress.md`. Relay-aware typed navigation and restricted `bet-up.it` resolution are recorded in `docs/adr/0004-betup-relay-resolution.md`; the bounded same-origin relay revisit is recorded in ADR-0005; finite redacted passive-diagnostic provenance is recorded in `docs/adr/0006-redacted-passive-diagnostic-provenance.md`. Shared execution contracts are defined by ARCH-002 and subsequent amendments.
 
 ## 1. Runtime model
 
@@ -74,6 +74,7 @@ Downstream implementation must use these shared contracts:
 - `specs/execution-contract.md` — automatic plan/start trigger, exact two-leg runtime model, states, attempts, evidence epochs, commands, and derived plan status;
 - `specs/bookmaker-adapter-contract.md` — core/worker/adapter interface and restricted browser/selection capability boundary;
 - `specs/matching-policy.md` — deterministic event/market/line/outcome evidence and odds policy;
+- `specs/passive-diagnostic-provenance-v1.md` — live-validation-only finite transport/render provenance and retention rules;
 - `docs/error-model.md` — interruption, safe-failure, cancellation, and recovery taxonomy;
 - `docs/test-strategy.md` — notification-to-auto-start, unit, contract, browser integration, transaction-boundary, and release-gate tests;
 - `docs/safety-boundaries.md` — non-negotiable authentication/access/transaction boundaries.
@@ -393,6 +394,26 @@ Do not persist as application records credentials/MFA values, cookies/raw browse
 
 Diagnostics should prefer canonical ids, primary recommendation id/index, state transitions, error codes, sanitized candidate labels, expected/observed odds, notification-receipt/plan-ready/browser-open timing, and redacted origin/path information.
 
+### 16.1 ARCH-008 passive diagnostic provenance
+
+The source-locked live-validation diagnostic may emit the versioned schema in `specs/passive-diagnostic-provenance-v1.md`.
+
+This schema is **not** a production adapter/core/renderer telemetry contract.
+
+It adds only:
+
+- one first-trigger finite transport provenance category: WebSocket attempt, public-HTTPS target validation rejection, or disallowed protocol, plus finite scope;
+- DOM-present / visible-observed booleans for already reviewed target predicates;
+- a finite DOMContentLoaded observation;
+- participant-pair and competition document-title predicate booleans;
+- a fixed three-value DOM population bucket.
+
+It must not retain blocked destination data, raw title, hidden text, body text, HTML, screenshots, traces, network/error strings, selectors, raw counts, cookies/storage, or session data.
+
+Passive diagnostic provenance remains categorically separate from `MatchingEvidenceSnapshot`, support maturity, production mapping, retry policy, and selection activation. `authorizesProductionMapping` remains `false`.
+
+The current source lock, DNS/origin/protocol/WebSocket policy, navigation/readiness timing, zero-interaction capability, and transaction boundary are unchanged.
+
 ## 17. Testability and latency observability
 
 Routine CI must not require bookmaker credentials, live accounts, or transactions.
@@ -421,23 +442,24 @@ Exact package manager, Electron/Node/Playwright versions, bundler, installer/sig
 
 ## 19. Architecture completion state
 
-ARCH-001 through ARCH-007 now establish the current runtime and shared contracts:
+ARCH-001 through ARCH-008 establish the current shared architecture:
 
 - ARCH-001 — local desktop + headed Playwright runtime;
 - ARCH-002 — execution/adapter/matching/error contracts;
 - ARCH-003 — deterministic automatic startup;
-- ARCH-004 — versioned structured direct-pair ingestion, authenticated loopback HTTP boundary, idempotency/freshness, and direct-bookmaker trust semantics;
-- ARCH-005 — `direct-pair.v2`, typed navigation candidates, and restricted `bet-up.it` relay resolution;
-- ARCH-006 — explicit market-period identity propagated from input through SelectionTarget and required by adapter market matching;
-- ARCH-007 — one evidence-backed canonical same-origin `bet-up.it` revisit before expected-bookmaker arrival, with fixed hop budget and unchanged evidence/transaction boundaries.
+- ARCH-004 — structured direct-pair ingestion and hardened loopback boundary;
+- ARCH-005 — typed direct/relay navigation and restricted `bet-up.it` resolution;
+- ARCH-006 — explicit market-period identity;
+- ARCH-007 — one evidence-backed canonical same-origin relay revisit with fixed hop budget;
+- ARCH-008 — finite, versioned, redacted passive transport/render-state diagnostic provenance.
 
-Downstream responsibilities are now explicit:
+ARCH-008 changes **diagnostic observability only**. It does not alter product matching, selection, authentication, network access, or transaction capabilities.
 
-- **Notification & Domain Engineer:** add canonical `MarketPeriod`, normalize current legacy `U/O CORNER <line>` to `full_match`, and propagate period into SelectionTarget;
-- **Application Engineer:** preserve structured v1/v2 `market.period` in generated SelectionTargets while adding v2 typed navigation;
-- **Bookmaker Automation Engineer:** require deterministic period evidence in SISAL/BET365 market matching and fixtures before `MARKET_MATCHED`;
-- **Bookmaker Automation Engineer / BOOK-016:** after the shared relay resolver and period-matching implementation, collect evidence only after expected-bookmaker arrival and independently re-establish event/market-period/line/side/odds evidence;
-- **Security & Compliance Engineer:** review relay DNS/request interception, direct-transition enforcement, challenge behavior, redirect/final-origin checks, and diagnostics/privacy;
-- **QA / Integration Engineer:** prove legacy and structured inputs converge on the same state/matching/transaction contracts and that rejected ingress produces zero browser navigation.
+Current downstream responsibilities:
+
+- **Bookmaker Automation Engineer:** implement `passive-provenance.v1` only inside the source-locked passive diagnostic and its artifact validator; do not modify production matching/adapter authorization.
+- **Security & Compliance Engineer / SEC-008:** review the exact implementation for destination non-reconstruction, finite enums, hidden/raw-content exclusion, capability invariance, and artifact allowlists.
+- **QA / Integration Engineer:** certify every finite category/presence/readiness/bucket case, schema rejection, existing pinned-browser safety regressions, and non-authorizing semantics.
+- **Release / DevOps Engineer:** do not perform another live bookmaker diagnostic until Security and QA explicitly authorize the exact implementation/artifact.
 
 QA-002 remains blocked until two bookmakers reach narrowly scoped evidence-backed live `Supported` status. Production release remains blocked behind that qualification.

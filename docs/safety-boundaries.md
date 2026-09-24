@@ -133,6 +133,8 @@ Logs should contain only data necessary for diagnosis. Do not log credentials, M
 
 Prefer normalized matching evidence, state transitions, error codes, sanitized URLs/origins, relay navigation kind/hop count, hashed/truncated relay signal identifiers where needed, and redacted diagnostics. Do not log full relay URLs or signal UUIDs by default.
 
+ARCH-008 passive provenance may retain only its finite versioned allowlisted fields. Transport provenance records the first source-controlled trigger category/scope only; render provenance records bounded booleans/enums and a coarse fixed DOM population bucket. It must not retain blocked destination data, dynamic network/runtime messages, raw title, hidden/body text, HTML, screenshots, traces, selectors, raw counts, cookies/storage, or session data.
+
 ## 10. Failure and recovery
 
 Safe failure is a successful product outcome when identity cannot be established.
@@ -155,7 +157,8 @@ A release is blocked if any known path can:
 - expose sensitive authentication/session data in logs or artifacts;
 - let a passive/live diagnostic accept an alternative same-origin URL when its evidence scope is source-locked to an exact direct page;
 - let passive-diagnostic HTTP(S) subresources bypass public-DNS/private-address validation or expose a WebSocket surface;
-- retain passive-diagnostic full page/DOM dumps, screenshots, traces, HAR, cookies/storage/session state, form values, authenticated captures, or raw browser/runtime failure messages;
+- retain passive-diagnostic full page/DOM dumps, screenshots, traces, HAR, cookies/storage/session state, form values, authenticated captures, raw document title, hidden/body text, blocked destination data, raw element counts, or raw browser/runtime failure messages;
+- let passive diagnostic provenance authorize retry/timing changes, WebSockets, DNS/origin/protocol exceptions, production mapping, bookmaker support, matching evidence, or outcome activation;
 - let passive diagnostic evidence authorize production mapping, outcome activation, or transaction behavior;
 - allow relay-page subresources to reach loopback/private/internal network targets;
 - omit relay-resolution security regressions from the pinned-browser CI gate.
