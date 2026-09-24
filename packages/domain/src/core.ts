@@ -533,8 +533,8 @@ function parseOffer(line: string, side: OutcomeSide, ordinal: number): DomainRes
     ]);
   }
 
-  const hasOddsMarker = sourceLabel.includes("@");
-  const oddsMatch = sourceLabel.match(/@\s*(\d+(?:[.,]\d+)?)(?=\s|$)/u);
+  const hasOddsMarker = /(?:^|\s)@/u.test(sourceLabel);
+  const oddsMatch = sourceLabel.match(/(?:^|\s)@\s*(\d+(?:[.,]\d+)?)(?=\s|$)/u);
   if (hasOddsMarker && !oddsMatch?.[1]) {
     return fail([
       error("INVALID_ODDS", "Present expected odds must be a valid positive decimal value.", {
@@ -687,8 +687,8 @@ function parseRecommendationLeg(
   }
 
   const afterOutcome = sourceDisplay.slice(outcomeIndex + outcomeMatches[0][0].length);
-  const hasExplicitOddsMarker = afterOutcome.includes("@");
-  const explicitOddsMatch = afterOutcome.match(/@\s*(\d+(?:[.,]\d+)?)(?=\s|$)/u);
+  const hasExplicitOddsMarker = /(?:^|\s)@/u.test(afterOutcome);
+  const explicitOddsMatch = afterOutcome.match(/(?:^|\s)@\s*(\d+(?:[.,]\d+)?)(?=\s|$)/u);
   const explicitOdds = explicitOddsMatch?.[1] ? canonicalDecimal(explicitOddsMatch[1]) : undefined;
   if (
     hasExplicitOddsMarker
