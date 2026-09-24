@@ -8,7 +8,7 @@ Before starting work, every agent must inspect the current repository state, rel
 
 Agents may make ordinary decisions within their role without requesting user approval. Use branches and pull requests for implementation work once the repository is bootstrapped. Keep changes scoped, testable, and documented.
 
-Correctness and safe failure take priority over automation speed. Bookmaker automation must stop rather than guess whenever event, market, line, outcome, odds, origin, freshness, or live DOM evidence is uncertain.
+Correctness and safe failure take priority over automation speed. Bookmaker automation must stop rather than guess whenever event, market, period, line, outcome, origin, freshness, or live DOM identity evidence is uncertain. A changed, missing, or unreadable price is not by itself an identity failure and must not block an otherwise exact selection.
 
 ## Non-negotiable transaction boundary
 
@@ -39,10 +39,10 @@ Owns bookmaker-specific adapters, live feasibility tooling, and worker-owned liv
 It may build/use non-CI interactive validation tooling for public same-origin navigation and non-transactional UI expansion. Exploratory tooling must default-deny and must not interact with login/auth/CAPTCHA controls, betting outcomes/odds that add a selection, betslip/stake/submit/payment controls, protected/private APIs, or access-control bypass mechanisms. Exploratory evidence must remain sanitized and non-sensitive.
 
 ### Application Engineer
-Owns the end-user application and orchestration from notification receipt through automatic primary-plan creation, automatic two-leg startup, independent status tracking, mismatch/auth/odds handling, safe recovery actions, observability, and manual-user handoff. Parsed previews/target displays are non-blocking and must not introduce a normal pre-execution choice/confirmation/start gate.
+Owns the end-user application and orchestration from notification receipt through automatic primary-plan creation, automatic two-leg startup, independent status tracking, identity-mismatch/auth handling, optional current-odds observability, safe recovery actions, and manual-user handoff. Parsed previews/target displays are non-blocking and must not introduce a normal pre-execution choice/confirmation/start gate.
 
 ### QA / Integration Engineer
-Owns contract, integration, regression, resilience, qualification, and end-to-end tests, especially automatic-start behavior, wrong-market prevention, partial failures, odds mismatch, login pauses, live-support qualification, and manual transaction-boundary protection.
+Owns contract, integration, regression, resilience, qualification, and end-to-end tests, especially automatic-start behavior, wrong-market prevention, partial failures, changed/missing-odds non-blocking behavior, login pauses, live-support qualification, and manual transaction-boundary protection.
 
 ### Security & Compliance Engineer
 Owns credential isolation, browser isolation, untrusted-input hardening, privacy/logging, dependency security, transaction-boundary enforcement, and the threat model.
@@ -75,15 +75,15 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-BOOK-024/#177 through BOOK-027/#193 and PRODUCT-029/#194 are complete. The current plan is intentionally split between one autonomous architecture task and one external evidence task.
+PRODUCT-031/#199 corrects a foundational product assumption: NotifyHandler selects the exact requested bookmaker outcome and stops; it does not judge price acceptability or surebet validity.
 
-1. **#196 ARCH-009 — immediate autonomous P0.** Decide whether BET365 passive render observation may continue after a `WEBSOCKET_ATTEMPT` is denied, while keeping the socket blocked and preserving all network/timing/action/privacy boundaries.
-2. Do not create a Bookmaker implementation, Security review, QA live-run gate, or new BET365 run unless ARCH-009 first approves a finite diagnostic amendment.
-3. **#197 PRODUCT-030 — parallel external evidence.** Obtain a fresh current/future full-match total-corners signal with direct bookmaker-origin URLs and a materially different second bookmaker/target; prefer BET365 + a different second bookmaker when available.
-4. SISAL is not retried unchanged from the exhausted Portogallo-Galles direct path.
-5. Do not allow WebSockets, weaken DNS/origin/protocol policy, increase waits/retries/budget, broaden clicks, resume generic discovery, use Betup fallback, inspect private APIs, or add transaction capability.
-6. Diagnostic provenance/title/path never becomes matching evidence, production mapping, feasibility/support evidence, or activation authorization.
-7. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
+1. **#200 ARCH-010 — immediate P0.** Remove odds equality/readability/acknowledgement from activation and retire blocking `ODDS_CHANGED` semantics. Preserve exact event/market/period/line/side identity and selected-state verification.
+2. Expected/notified and observed odds may be retained/displayed as optional informational metadata only. Missing or changed odds alone must not block selection.
+3. **#196 ARCH-009 — separate BET365 diagnostic architecture task.** It remains valid, but any target-evidence design must follow PRODUCT-031 and must not require an odds match.
+4. **#197 PRODUCT-030 — parallel external evidence.** Fresh direct-link targets may be used when available; a stable expected price is not required.
+5. Do not calculate surebet validity, ROI/profitability, stakes, or price acceptability.
+6. Do not weaken origin/network safety, event/market/period/line/side matching, authentication boundaries, or the manual transaction boundary.
+7. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported under the corrected identity-only selection gate.
 8. **#46 DEVOPS-003** remains blocked until #45 passes.
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 

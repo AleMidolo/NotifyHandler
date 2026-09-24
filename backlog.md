@@ -20,28 +20,31 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — ARCH-009 / #196: Decide BET365 render-only observation after denied WebSocket
+### P0 — ARCH-010 / #200: Remove odds from selection authorization
 Owner: Software Architect
-Milestone: 6 — Evidence-backed live bookmaker readiness
+Depends on: PRODUCT-031/#199
 
-BET365's exact direct SPA route is preserved, but `passive-provenance.v1` stops at the first blocked `WEBSOCKET_ATTEMPT / SOCKET` before retaining render/target evidence.
+PRODUCT-031 corrects the product boundary: NotifyHandler prepares the exact selection but does not decide whether a changed price is acceptable or whether the pair remains a surebet.
 
-Architecture must decide whether the diagnostic may continue only passive DOM/render observation after the socket is denied, with no socket connection, no destination retention, no extra waits/retries/budget, and no network/origin/action-policy weakening.
+Architecture must remove price equality/readability/acknowledgement from the activation predicate and retire blocking `ODDS_CHANGED` behavior while preserving exact event/market/period/line/side matching and selected-state verification.
 
-Do not create implementation/Security/QA live-run issues unless ARCH-009 first approves a finite reviewable diagnostic state machine.
+Expected/notified and displayed odds may remain optional informational metadata. Missing or changed odds alone must not block selection.
+
+### P0 after/parallel — ARCH-009 / #196
+Owner: Software Architect
+
+Continue the separate BET365 diagnostic question: whether passive render observation may continue after a denied WebSocket while the socket remains blocked. ARCH-009 must follow PRODUCT-031 semantics and must not require odds matching as target evidence.
 
 ### P0 external evidence — PRODUCT-030 / #197
 Owner: Product Coordinator / upstream surebet integration
 
-In parallel, obtain a fresh current/future pre-match football full-match total-corners O/U signal with exact direct bookmaker-origin URLs and a materially different second bookmaker/target. Prefer BET365 paired with a different second bookmaker if available.
-
-SISAL must not be retried unchanged merely to repeat the exhausted Portogallo-Galles exact route.
+Source a fresh current/future full-match total-corners direct-link target when available. Stable odds are **not required**; any notified price is informational only. The stable identity inputs are event, market/period, exact line, side, bookmaker and direct URL.
 ## Next in Milestone 6
 
 ### Implementation issues for feasible candidates
 Owner: Bookmaker Automation Engineer
 
-A candidate marked `Feasible for implementation` still requires a separately reviewable restricted adapter/worker live-mapping change with deterministic fixtures, exact event/competition/time/market/line/side/odds gates, origin/redirect/auth/odds/cancellation/freshness protections, and selected-state verification. Feasibility alone never changes status to `Supported`.
+A candidate marked `Feasible for implementation` still requires a separately reviewable restricted adapter/worker live-mapping change with deterministic fixtures, exact event/competition/time/market/line/side gates, origin/redirect/auth/cancellation/freshness protections, optional odds observability, and selected-state verification. Feasibility alone never changes status to `Supported`.
 
 ### P1 — QA-002 / #45: Certify the first evidence-backed live-supported bookmaker pair
 Owner: QA / Integration Engineer

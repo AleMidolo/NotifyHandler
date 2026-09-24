@@ -8,7 +8,7 @@ The normal flow must not ask the user to review parsed content, choose a recomme
 
 ## 2. Users and primary use case
 
-Primary user: a person who already has a surebet signal containing event/market/bookmaker/odds information and wants the repetitive navigation and outcome-selection steps prepared automatically before taking manual control.
+Primary user: a person who already has a surebet signal containing event/market/bookmaker information, optionally including a quoted price for reference, and wants the repetitive navigation and outcome-selection steps prepared automatically before taking manual control.
 
 Primary flow:
 1. receive notification text or structured data;
@@ -16,8 +16,8 @@ Primary flow:
 3. deterministically resolve the primary recommended pair;
 4. build exactly two validated bookmaker targets;
 5. immediately start both legs and open the two bookmaker pages independently;
-6. locate and verify the requested event, market, exact line, outcome, and current odds;
-7. prepare each selection when all required identity checks pass;
+6. locate and verify the requested event, market, exact line, and outcome;
+7. prepare each selection when all required identity checks pass, regardless of whether the current displayed odds equal the notification price;
 8. surface mismatches/login requirements/failures without guessing;
 9. hand control to the user after the selections are prepared.
 
@@ -26,7 +26,7 @@ Primary flow:
 ### PR-01 Input
 The application shall accept a surebet notification through an input transport. Pasted text remains supported, and the core parser/domain path must remain transport-independent.
 
-The production integration shall also support a **versioned structured notification** from an upstream surebet bot. That structured form may provide the authoritative execution pair directly as exactly two bookmaker legs, each containing bookmaker identity, requested side/outcome, expected odds, and a bookmaker deep link intended to open the match page, together with the shared event and market identity.
+The production integration shall also support a **versioned structured notification** from an upstream surebet bot. That structured form may provide the authoritative execution pair directly as exactly two bookmaker legs, each containing bookmaker identity, requested side/outcome, an optional expected/notified price for informational provenance, and a bookmaker deep link intended to open the match page, together with the shared event and market identity.
 
 For the local desktop deployment, the first HTTP/webhook transport shall bind to loopback only by default. Public Internet exposure of the desktop listener is not an MVP requirement; a remote bot requires a separately designed secure relay/outbound connection.
 
@@ -41,7 +41,7 @@ The application shall normalize at least:
 - line/threshold where applicable;
 - side/outcome;
 - bookmaker name;
-- expected odds;
+- expected/notified odds when present, as informational metadata only;
 - bookmaker deep link when supplied;
 - recommended paired options/stakes as informational input.
 
@@ -64,9 +64,9 @@ As soon as PR-03 and PR-04 succeed, the application shall construct the exact tw
 
 The application may display the normalized notification and exact two targets concurrently with execution status, but this information is informational rather than a pre-execution gate.
 
-Each target includes bookmaker, event, competition/date context, market, line, outcome/side, expected odds, and deep link if available.
+Each target includes bookmaker, event, competition/date context, market, line, outcome/side, and deep link if available. Expected/notified odds may be retained separately as informational provenance but are not part of selection identity.
 
-When a deep link is supplied and passes pre-navigation safety validation, it is the preferred initial navigation candidate because the upstream bot is expected to link directly to the match page. The link itself is never sufficient event evidence: after navigation the adapter must still independently verify event identity, competition/time context, market, exact line, requested side, and displayed odds.
+When a deep link is supplied and passes pre-navigation safety validation, it is the preferred initial navigation candidate because the upstream bot is expected to link directly to the match page. The link itself is never sufficient event evidence: after navigation the adapter must still independently verify event identity, competition/time context, market, exact line, and requested side. Displayed odds may be observed for the user but do not authorize or block the selection.
 
 ### PR-06 Independent leg execution
 Each bookmaker leg shall have independent state and error information. One leg failing must not be represented as failure/success of the other.
@@ -82,11 +82,13 @@ The exact market family and line/threshold must be verified before any outcome c
 ### PR-09 Outcome matching
 The requested side/outcome must be verified independently of the market/line. Ambiguity must fail safely.
 
-### PR-10 Odds comparison
-The adapter shall read the currently displayed odds for the target selection when possible and compare them to expected odds. Expected odds and observed odds must remain distinct data. Odds changes shall be surfaced explicitly according to the shared odds policy.
+### PR-10 Odds observability — non-gating
+The adapter may read the currently displayed odds for the target selection when available and expose them to the user as informational state. Expected/notified odds and observed odds must remain distinct metadata when both exist.
+
+A changed, missing, or unreadable price must **not** by itself block selection activation, require acknowledgement, or cause safe failure when the exact bookmaker/event/market/period/line/outcome identity is otherwise deterministically established. NotifyHandler must not calculate surebet validity, ROI, profitability, stake sizing, or whether the current price is acceptable.
 
 ### PR-11 Safe selection
-An outcome may be selected only when event, market, line, and outcome checks all satisfy the matching policy. Otherwise no candidate is clicked.
+An outcome may be selected only when event, market family/context/period, exact line when required, and outcome checks all satisfy the matching policy. Otherwise no candidate is clicked. Odds equality/readability is not part of this authorization predicate.
 
 ### PR-12 Login-required behavior
 If authentication is required, NotifyHandler shall stop/pause the affected leg and report `manual login required`. It shall not capture or enter credentials or automate MFA/CAPTCHA.
@@ -111,7 +113,7 @@ At minimum the application should be able to represent:
 - event found;
 - market found;
 - selection candidate found;
-- odds changed;
+- current odds observed (optional informational data, not an action-required state);
 - selection prepared;
 - ready for user;
 - failed safely;
@@ -148,6 +150,7 @@ Development, tests, browser/runtime setup, and packaging must be reproducible an
 
 NotifyHandler will not:
 - discover surebets itself;
+- calculate/recalculate whether a pair is a surebet, ROI, profitability, or whether a changed price is acceptable;
 - ask the user to choose between recommended pairs during the normal automatic flow;
 - calculate bankroll strategy or choose stakes automatically;
 - enter stakes;
@@ -168,9 +171,9 @@ Given a valid notification whose first recommended option is SISAL OVER 11.5 + B
 - the two bookmaker legs start without a preview acknowledgement, pair-selection prompt, or start button;
 - both bookmaker pages are opened as soon as validation and navigation-safety checks allow;
 - normalized notification/target information may be shown while execution is already in progress;
-- event, market, line, outcome and displayed odds are checked independently;
+- event, market family/context/period, exact line and outcome are checked independently;
 - a leg is selected only after all required identity checks pass;
-- changed odds are reported according to the shared odds policy rather than silently substituted;
+- displayed odds may be shown when available, but a changed/missing/unreadable price does not block selection preparation and requires no acknowledgement;
 - ambiguity causes an explicit safe failure with no uncertain click;
 - any required login step is manual;
 - stake entry and final submission are manual;
@@ -212,12 +215,14 @@ PRODUCT-015 therefore adopts a **direct-match-link-first** strategy before addin
 3. use APP-005/#105 to implement loopback HTTP ingestion after the architecture contract is accepted;
 4. use SEC-002/#106 to harden the ingress and deep-link boundary.
 
-For feasibility, the required evidence remains the deterministic **pre-activation** chain:
-`event → competition/time context → full-match total-corners market → exact line → requested side → displayed odds`.
+For feasibility, the required evidence is the deterministic **selection-identity** chain:
+`event → competition/time context → full-match total-corners market → exact line → requested side`.
+
+Displayed odds are not a feasibility or activation requirement. They may be retained as bounded informational evidence when available.
 
 A direct match link is only a preferred navigation candidate. It must pass HTTPS/origin/redirect safety checks and never substitutes for positive page evidence for the event or any later identity dimension.
 
-A `Feasible for implementation` result is not live support. A feasible candidate must then complete a separate restricted adapter/worker live-mapping task with deterministic fixtures, all shared matching/security/cancellation/auth/odds gates, and selected-state verification through the authorized production outcome-selection capability. Exploratory tooling must not activate betting outcomes merely to discover selected-state behavior.
+A `Feasible for implementation` result is not live support. A feasible candidate must then complete a separate restricted adapter/worker live-mapping task with deterministic fixtures, all shared identity/security/cancellation/auth gates, optional current-odds observability, and selected-state verification through the authorized production outcome-selection capability. Exploratory tooling must not activate betting outcomes merely to discover selected-state behavior.
 
 QA #45 certifies only the first two bookmakers that genuinely become narrowly scoped live `Supported`. Windows x64 preview artifacts remain unsigned and must not be presented as production releases. Production release remains blocked on #45 plus the signing/release gates in `docs/release.md`.
 

@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** BOOK-027 and PRODUCT-029 are complete. ARCH-009/#196 is the immediate autonomous P0 while PRODUCT-030/#197 sources a fresh direct-link second-bookmaker target in parallel.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** PRODUCT-031/#199 corrects the selection boundary: odds are informational/non-gating. ARCH-010/#200 is the immediate P0 contract revision; ARCH-009/#196 remains a separate BET365 render diagnostic task and PRODUCT-030/#197 remains external evidence in parallel.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -284,21 +284,24 @@ Interpretation:
 
 Neither candidate reaches `Feasible for implementation`.
 
-### Current P0 — hybrid BET365 + second-bookmaker path
+### Current P0 — odds boundary correction + live-readiness
 
-**#194 PRODUCT-029 — COMPLETE**
+**#199 PRODUCT-031 — REQUIREMENT ACCEPTED / IMPLEMENTATION OPEN**
 
-Product selected a hybrid plan.
+NotifyHandler's responsibility is selection preparation only. Odds are informational: a changed, missing or unreadable price does not invalidate an otherwise exact event/market/period/line/side selection and does not require acknowledgement. The application does not calculate surebet validity, ROI, profitability, stakes, or price acceptability.
 
-**#196 ARCH-009 — READY NOW**
+**#200 ARCH-010 — READY NOW / IMMEDIATE P0**
 
-Decide whether passive render observation may continue after a denied BET365 WebSocket attempt while the socket remains blocked and no destination/network data is retained. No live run is authorized by architecture alone.
+Remove odds equality/readability/acknowledgement from matching/activation/state-machine contracts and retire blocking `ODDS_CHANGED` semantics while preserving exact identity and selected-state verification.
+
+**#196 ARCH-009 — AFTER OR PARALLEL WITH ARCH-010**
+
+Decide whether passive render observation may continue after a denied BET365 WebSocket attempt while the socket remains blocked and no destination/network data is retained. Any future target-evidence design must treat odds as optional informational output only.
 
 **#197 PRODUCT-030 — PARALLEL EXTERNAL EVIDENCE**
 
-Source a fresh current/future full-match total-corners signal with direct bookmaker-origin URLs and a materially different second bookmaker/target. Prefer BET365 + a different second bookmaker when available; do not retry SISAL unchanged.
+Source a fresh current/future full-match total-corners direct-link target when available. Stable odds are not required; identity + direct URL are the evidence inputs.
 
-No Bookmaker implementation/Security/QA live-run task is justified for BET365 unless ARCH-009 approves a finite diagnostic amendment.
 
 ### Implementation and qualification
 
