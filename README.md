@@ -67,10 +67,12 @@ Current Milestone 6 sequence:
 2. BET365's ambiguous transport-boundary result and SISAL's zero-visible-signal result remain diagnostic evidence only.
 3. **ARCH-008/#184** defines `passive-provenance.v1`: first-trigger finite transport provenance plus bounded render-state booleans/readiness/title predicates and a coarse DOM population bucket.
 4. ARCH-008 changes observability only: no blocked destination/raw title/hidden text/page dump retention, no timeout/retry/action/network-policy change, and `authorizesProductionMapping` remains false.
-5. After Architecture merge, a separate Bookmaker implementation must pass **SEC-008/#186** and dedicated QA certification before another live run.
-6. Do not retry BOOK-024 under the old schema, increase readiness/timeout/budget, allow WebSockets, weaken DNS/origin policy, broaden clicks, use private APIs, resume generic discovery, or fall back to Betup.
-7. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
-8. **#46 DEVOPS-003** remains blocked until #45 passes.
+5. **BOOK-026/#188 — immediate P0:** implement the approved schema in the source-locked passive diagnostic without changing network/timing/action behavior.
+6. **SEC-008/#186** reviews the exact implementation; **QA-007/#189** certifies it after Security.
+7. No new live bookmaker run is authorized until both gates pass.
+8. Do not retry BOOK-024 under the old schema, increase readiness/timeout/budget, allow WebSockets, weaken DNS/origin policy, broaden clicks, use private APIs, resume generic discovery, or fall back to Betup.
+9. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
+10. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 PRODUCT-028/#175 is complete. The product target remains pre-match football full-match total-corners O/U. The replan distinguishes target content that exists on the authoritative page but was not retained by the generic explorer from target content that is genuinely unavailable, without adding outcome activation or broader navigation capability.
 
