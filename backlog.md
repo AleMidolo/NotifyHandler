@@ -24,21 +24,20 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 Owner: Software Architect
 Depends on: PRODUCT-031/#199
 
-PRODUCT-031 corrects the product boundary: NotifyHandler prepares the exact selection but does not decide whether a changed price is acceptable or whether the pair remains a surebet.
+Remove price equality/readability/acknowledgement from activation and retire blocking `ODDS_CHANGED` semantics while preserving exact event/market/period/line/side identity and selected-state verification.
 
-Architecture must remove price equality/readability/acknowledgement from the activation predicate and retire blocking `ODDS_CHANGED` behavior while preserving exact event/market/period/line/side matching and selected-state verification.
-
-Expected/notified and displayed odds may remain optional informational metadata. Missing or changed odds alone must not block selection.
-
-### P0 after/parallel — ARCH-009 / #196
+### P0 — ARCH-011 / #203: Replace blanket WebSocket blocking with bounded bookmaker WSS
 Owner: Software Architect
+Depends on: PRODUCT-032/#202
 
-Continue the separate BET365 diagnostic question: whether passive render observation may continue after a denied WebSocket while the socket remains blocked. ARCH-009 must follow PRODUCT-031 semantics and must not require odds matching as target evidence.
+Handle this in the same architecture pass as ARCH-010 when practical. Normal bookmaker `wss://` page transport may be allowed only through a reviewed source-controlled policy plus public DNS/private-network checks. `ws://`, private/internal/unapproved destinations, payload inspection, private-API reverse engineering, and transaction/auth capability expansion remain prohibited.
+
+ARCH-009/#196 is superseded/closed; do not spend another cycle designing around a socket that is intentionally denied.
 
 ### P0 external evidence — PRODUCT-030 / #197
 Owner: Product Coordinator / upstream surebet integration
 
-Source a fresh current/future full-match total-corners direct-link target when available. Stable odds are **not required**; any notified price is informational only. The stable identity inputs are event, market/period, exact line, side, bookmaker and direct URL.
+Fresh direct-link targets may be supplied when available. Stable odds are not required; identity + direct URL are the relevant inputs.
 ## Next in Milestone 6
 
 ### Implementation issues for feasible candidates
