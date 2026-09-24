@@ -188,7 +188,7 @@ function blockedSummary(transportProvenance: unknown): Record<string, unknown> {
     },
     transportProvenance,
     authorizesProductionMapping: false,
-    note: "fixed diagnostic note",
+    note: "Passive direct-page diagnostic stopped at the existing browser/network boundary. No target evidence was retained from an unsafe navigation state.",
   };
 }
 
@@ -255,7 +255,7 @@ function completeSummary(): Record<string, unknown> {
       requiredChainObserved: false,
     },
     authorizesProductionMapping: false,
-    note: "fixed diagnostic note",
+    note: "Target-aware evidence and passive provenance are bounded, sanitized, diagnostic only, and never authorize production mapping or outcome activation.",
   };
 }
 
@@ -266,6 +266,10 @@ test("passive-provenance.v1 transport categories are finite and redact destinati
   );
   assert.deepEqual(
     ordinaryTransportProvenance("https:", true, false),
+    { state: "BLOCKED", trigger: "PUBLIC_HTTPS_TARGET_REJECTED", scope: "TOP_LEVEL" },
+  );
+  assert.deepEqual(
+    ordinaryTransportProvenance("https:", true, undefined),
     { state: "BLOCKED", trigger: "PUBLIC_HTTPS_TARGET_REJECTED", scope: "TOP_LEVEL" },
   );
   assert.deepEqual(
@@ -332,6 +336,13 @@ test("passive-provenance.v1 validates the explicit retained-summary allowlist", 
     () => validatePassiveDiagnosticSummary({
       ...validBlocked,
       transportProvenance: { state: "BLOCKED", trigger: "OTHER", scope: "SOCKET" },
+    }),
+    /unknown enum value/,
+  );
+  assert.throws(
+    () => validatePassiveDiagnosticSummary({
+      ...validBlocked,
+      note: "browser error: destination example.internal failed",
     }),
     /unknown enum value/,
   );
