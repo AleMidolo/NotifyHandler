@@ -75,13 +75,13 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-PRODUCT-026/#167 is complete via the alternative direct bookmaker-origin integration contract. The upstream Telegram bot is being changed to emit direct bookmaker links, so Betup is no longer on the active critical path.
+BOOK-023/#170 is complete. The exact direct BET365/SISAL Portogallo-Galles URLs were exercised on the qualifying non-CI workstation through the source-locked direct runner.
 
-1. **#170 BOOK-023 — immediate P0.** Revalidate Portogallo-Galles using the exact supplied BET365 and SISAL direct URLs.
-2. Use existing direct-bookmaker contracts only; do not invoke or broaden Betup relay logic.
-3. BET365 fragment routing is valid direct-link input and is preserved by normalization; SISAL uses a normal path URL on the approved origin.
-4. Independently verify expected origin, event, competition/time, full-match total-corners identity, exact line 6.5, side, and displayed odds.
-5. If feasible, create restricted live-mapping implementation issues. If blocked, route to Product Coordination without generic discovery or Betup fallback.
+1. **BET365 remains live Blocked / fixture-backed Testable.** The qualifying direct summary retained only the generic BET365 landing snapshot with no target event/context/market/line/side/odds evidence.
+2. **SISAL remains live Blocked / fixture-backed Testable.** The qualifying direct summary positively bound Portogallo-Galles / Nations League and exposed a broad CORNER category context, but not scheduled time, full-match total-corners identity, exact 6.5 line, UNDER side, or bound displayed odds.
+3. No restricted live-mapping implementation issue is justified for either bookmaker from BOOK-023.
+4. Do not retry BOOK-023 by increasing the interaction budget, weakening the default-deny classifier, falling back to Betup, or resuming generic homepage discovery.
+5. **#175 PRODUCT-028 — immediate P0.** Replan Milestone 6 around a new evidence-backed current/future direct-link target or pair while preserving the target market and deterministic gates unless Product explicitly changes requirements.
 6. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
 7. **#46 DEVOPS-003** remains blocked until #45 passes.
 
