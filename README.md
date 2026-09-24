@@ -63,14 +63,16 @@ ARCH-005 introduced `notifyhandler.direct-pair.v2` with a typed `betup-relay` na
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. **#163 QA-005 — immediate P0 gate:** decide whether one replacement BET365 relay-aware diagnostic run is permitted after the non-qualifying direct-mode operator run, and confirm the still-unused SISAL authorization;
-2. require a deterministic fail-closed relay-mode preflight before any further DEVOPS-014 execution so a missing `NH_LIVE_EXPLORER_RELAY_URL` cannot silently fall back to `BOOKMAKER_DIRECT`;
-3. **#161 DEVOPS-014 — paused on #163:** if QA authorizes, execute only the permitted relay-aware run(s), retain sanitized `ExplorerSummary.json` + SHA-256, and route results to Bookmaker Automation Engineer;
-4. interpret the resulting redacted `relayInvalidCategory` without widening the resolver/state machine from live evidence;
+1. **#167 PRODUCT-026 — sole immediate P0 blocker:** obtain a stable, non-sensitive contract for the real intermediate `bet-up.it` pathname reached after the canonical `/lnk/<uuid>/<bookmaker>` entry, or obtain a supported direct bookmaker-origin integration contract from the upstream source;
+2. **no additional live relay run is authorized merely to discover the raw path**; the two qualified DEVOPS-014 runs already prove the missing transition class as `UNREVIEWED_SAME_ORIGIN_PATH` for both BET365 and SISAL;
+3. if Product obtains a concrete sanitized grammar/direct contract, route to Software Architect for a finite reviewed relay-state-machine decision before any implementation/live rerun;
+4. if no stable upstream contract can be obtained, Product must replan away from the current relay source rather than accept a wildcard same-origin path;
 5. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
 6. **#46 DEVOPS-003** remains blocked until #45 passes.
 
-The first DEVOPS-014 BET365 operator artifact was rejected as non-qualifying because it ran in `BOOKMAKER_DIRECT` mode with no relay origin and no `relayInvalidCategory`. It is not bookmaker feasibility evidence and does not satisfy the relay diagnostic. No replacement BET365 run is permitted until QA-005 records an explicit decision.
+DEVOPS-014/#161 and QA-005/#163 are complete. The qualified BET365 and SISAL relay-aware runs both stopped before bookmaker arrival with `RELAY_INVALID / UNREVIEWED_SAME_ORIGIN_PATH`, zero actions, and no production-mapping authorization. BOOK-022/#166 therefore keeps bookmaker-specific event/market/line/side/odds feasibility unobserved.
+
+A public-contract check of the Betup website and public web search did not surface a documented `/lnk/` redirect/API/intermediate-path specification suitable for Architecture. Product still requires upstream-owner documentation, a sanitized owner-observed path template, or a supported direct bookmaker-origin alternative.
 
 Remote Internet exposure of the desktop webhook is not part of this decision. The default integration is local/loopback; a remote surebet service would require a separately designed secure relay/outbound connection rather than opening the desktop listener to the public Internet.
 
