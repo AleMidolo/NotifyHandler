@@ -675,7 +675,9 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
         ...base,
         transportProvenance,
         status: "BLOCKED",
-        blockReason: "PRIVATE_OR_INTERNAL_DESTINATION",
+        blockReason: transportProvenance.state === "BLOCKED"
+          ? "PRIVATE_OR_INTERNAL_DESTINATION"
+          : routeBlockReason ?? "PRIVATE_OR_INTERNAL_DESTINATION",
         note:
           "Passive direct-page diagnostic stopped at the existing browser/network boundary. No target evidence was retained from an unsafe navigation state.",
       });
