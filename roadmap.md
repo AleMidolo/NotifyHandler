@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** BOOK-023/#170 is complete; qualifying direct-link evidence still leaves BET365 and SISAL live Blocked for the narrow full-match total-corners scope. PRODUCT-028/#175 is the immediate P0 replan.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** PRODUCT-028/#175 is complete. BOOK-024/#177 is the immediate P0 diagnostic implementation, followed by SEC-007/#178 and QA-006/#179 before any new live run.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -213,6 +213,27 @@ Replan Milestone 6 around a new evidence-backed current/future direct-link targe
 
 Do not retry BOOK-023 with a larger budget, weaker matching, Betup fallback, generic homepage discovery, protected/private APIs, or transaction-capable exploration.
 
+### Passive direct-page evidence replan — CURRENT
+
+**#175 PRODUCT-028 — COMPLETE**
+
+BOOK-023 remains valid evidence: BET365 retained only a generic landing snapshot; SISAL reached the exact event/competition page and broad CORNER context but not the complete full-match/line/side/odds chain.
+
+The next path does not broaden BOOK-023. Instead it adds a passive, target-aware diagnostic layer before any exploratory action.
+
+**#177 BOOK-024 — READY NOW**
+
+Implement bounded sanitized passive capture for target-relevant visible evidence on the exact direct bookmaker pages, including BET365 SPA fragment preservation. The probe is diagnostic-only and non-authorizing.
+
+**#178 SEC-007 — AFTER BOOK-024**
+
+Review evidence retention/privacy, direct-fragment/origin handling, and prove the diagnostic cannot authorize activation or expand transaction capability.
+
+**#179 QA-006 — AFTER SEC-007**
+
+Certify wrong/missing event/time/period/line/side/odds safe-failure and, if green, authorize at most one new passive non-CI diagnostic per bookmaker without increasing budget/timeout.
+
+No Betup fallback, generic homepage discovery, private API access, outcome activation, or broader retry is authorized.
 ### Implementation and qualification
 
 For each candidate marked `Feasible for implementation`:

@@ -20,19 +20,24 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — PRODUCT-028 / #175: Replan Milestone 6 after direct BET365/SISAL feasibility remains insufficient
-Owner: Product Coordinator / Technical Project Manager
+### P0 — BOOK-024 / #177: Add target-aware passive direct-page evidence probe
+Owner: Bookmaker Automation Engineer
 Milestone: 6 — Evidence-backed live bookmaker readiness
 
-BOOK-023/#170 is complete. The source-locked direct-link runner was merged through PR #173, and DEVOPS-015/#174 executed both authoritative direct targets on the qualifying non-CI workstation.
+BOOK-023 is complete evidence and must not be retried with a larger interaction budget. Implement a diagnostic-only passive probe that runs on the authoritative direct page before any exploratory action.
 
-Evidence conclusion:
-- BET365 reached the approved origin but retained only a generic landing snapshot; the target event/context/full-match total-corners/line/side/odds chain was not established.
-- SISAL positively established the Portogallo-Galles / Nations League event page and a broad CORNER category context, but did not establish scheduled time, full-match total-corners identity, exact line 6.5, requested UNDER side, or bound displayed odds before the fixed budget ended.
-- both remain live **Blocked** for this narrow scope and fixture-backed **Testable**;
-- no live-mapping implementation issue is created from insufficient evidence.
+Required scope:
+- preserve exact direct URLs and BET365 SPA fragment routing;
+- retain only bounded sanitized target-relevant evidence for participants, competition/time, market/context/period, line, side, and displayed odds;
+- no full HTML, screenshots, traces, HAR, cookies/storage, credentials, or session data;
+- no outcome activation, stake/betslip/payment/wager capability;
+- no budget/delay/timeout/origin-policy widening and no Betup/generic-discovery fallback.
 
-PRODUCT-028 must choose the next evidence-backed current/future direct-link target or pair. Do not retry BOOK-023 with larger budgets, weaker matching, Betup fallback, generic homepage discovery, protected/private APIs, or transaction-capable exploration.
+### P0 after BOOK-024 — SEC-007 / #178
+Security review of diagnostic retention, fragment/origin handling, and non-authorizing behavior.
+
+### P0 after SEC-007 — QA-006 / #179
+Certify deterministic behavior and authorize at most one bounded passive live diagnostic per bookmaker if all gates pass.
 
 ## Next in Milestone 6
 
