@@ -63,14 +63,15 @@ ARCH-005 introduced `notifyhandler.direct-pair.v2` with a typed `betup-relay` na
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. **#177 BOOK-024 — immediate P0:** implement a target-aware passive direct-page evidence probe for the authoritative BET365/SISAL Portogallo-Galles URLs;
-2. the probe runs before any exploratory action and retains only bounded sanitized target-relevant evidence for event/context/time, market/period, line, side, and displayed odds;
-3. preserve BET365 SPA fragment routing and the exact SISAL event path, but treat URLs/fragments as navigation input only;
-4. **#178 SEC-007 — after BOOK-024:** review privacy, fragment/origin handling, non-authorizing diagnostics, and the unchanged transaction boundary;
-5. **#179 QA-006 — after SEC-007:** certify deterministic regressions and, if green, authorize at most one bounded passive live diagnostic per bookmaker;
-6. do not repeat BOOK-023 with larger budgets, broader click policy, Betup fallback, or generic homepage discovery;
-7. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`;
-8. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. BOOK-024/#177, Security/QA certification, and DEVOPS-016/#182 are complete.
+2. BET365 preserved the exact fragment-bearing direct route but the passive probe stopped at an ambiguous fail-closed network category before retaining target evidence. That category is not bookmaker matching/support evidence.
+3. SISAL preserved the exact event route but no target-relevant visible text was observed at the fixed passive measurement point; route preservation itself contributes no target evidence.
+4. BOOK-025/#183 concludes that neither bookmaker is `Feasible for implementation`.
+5. **#184 ARCH-008 — immediate P0:** define a finite redacted diagnostic contract that distinguishes transport-boundary provenance and passive render state without retaining destinations/page content or weakening current controls.
+6. Any diagnostic implementation after Architecture must be a separate Bookmaker issue and pass Security + QA before another live run.
+7. Do not retry BOOK-024 unchanged, increase readiness/timeout/budget, allow WebSockets, weaken DNS/origin policy, broaden clicks, use private APIs, resume generic discovery, or fall back to Betup.
+8. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
+9. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 PRODUCT-028/#175 is complete. The product target remains pre-match football full-match total-corners O/U. The replan distinguishes target content that exists on the authoritative page but was not retained by the generic explorer from target content that is genuinely unavailable, without adding outcome activation or broader navigation capability.
 
