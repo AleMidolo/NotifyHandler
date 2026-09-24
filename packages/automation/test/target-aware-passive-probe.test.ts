@@ -98,7 +98,7 @@ test("BOOK-024 probe source is passive, non-authorizing, bounded, and retains no
   assert.match(source, /const MAX_SIGNAL_MATCHES = 3/);
   assert.match(source, /const MAX_SNIPPET_LENGTH = 220/);
   assert.match(source, /authorizesProductionMapping: false/);
-  assert.match(source, /chromium\.launch\(\{ headless: options\.headless \?\? false \}\)/);
+  assert.match(source, /assertNonCiEnvironment\(\);[\s\S]*chromium\.launch\(\{ headless: false \}\)/);
   assert.match(source, /acceptDownloads: false/);
   assert.match(source, /serviceWorkers: "block"/);
   assert.match(source, /parsed\.href !== lockedUrl/);
@@ -106,5 +106,7 @@ test("BOOK-024 probe source is passive, non-authorizing, bounded, and retains no
   assert.match(source, /context\.routeWebSocket\("\*\*\/\*"/);
   assert.doesNotMatch(source, /error instanceof Error \? error\.message/);
   assert.match(source, /failed safely before a sanitized summary could be produced/);
+  assert.doesNotMatch(source, /url\?: string/);
+  assert.doesNotMatch(source, /headless\?: boolean/);
   assert.match(source, /intentionally disabled in CI/);
 });
