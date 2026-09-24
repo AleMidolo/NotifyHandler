@@ -89,6 +89,9 @@ The unsigned alpha channel and diagnostic validation bundle are not substitutes 
 - #161 / DEVOPS-014 — qualified BET365/SISAL relay-invalid category capture: complete; both `UNREVIEWED_SAME_ORIGIN_PATH`.
 - #166 / BOOK-022 — interpretation complete; bookmaker feasibility remained unobserved under Betup.
 - #167 / PRODUCT-026 — completed via alternative direct bookmaker-origin integration contract; Betup removed from active critical path.
+- #173 / BOOK-023 tooling PR — source-locked fail-closed direct validation runner: merged.
+- #174 / DEVOPS-015 — qualifying non-CI BET365/SISAL direct-link execution and sanitized evidence handoff: complete.
+- #170 / BOOK-023 — direct-link feasibility interpretation: complete; BET365 and SISAL remain live `Blocked` for the narrow full-match total-corners scope and fixture-backed `Testable`.
 - #105 / APP-005 — authenticated loopback structured direct-pair ingress: complete via PR #112.
 - #106 / SEC-002 — loopback ingress and direct-link DNS/token hardening: complete via PR #114.
 - #113 / SEC-003 — restart-safe structured-ingress idempotency: complete via PR #115.
