@@ -426,6 +426,20 @@ test("passive-provenance.v1 rejects contradictory or expanded render provenance"
     /displayedOddsCandidates is invalid/,
   );
 
+  const inconsistentDimensions = structuredClone(valid.evidence as Record<string, unknown>);
+  (inconsistentDimensions.dimensionsObserved as Record<string, unknown>).event = true;
+  assert.throws(
+    () => validatePassiveDiagnosticSummary({ ...valid, evidence: inconsistentDimensions }),
+    /dimensionsObserved is inconsistent/,
+  );
+
+  const inconsistentChain = structuredClone(valid.evidence as Record<string, unknown>);
+  inconsistentChain.requiredChainObserved = true;
+  assert.throws(
+    () => validatePassiveDiagnosticSummary({ ...valid, evidence: inconsistentChain }),
+    /requiredChainObserved is inconsistent/,
+  );
+
   assert.throws(
     () => validatePassiveDiagnosticSummary({
       ...valid,
