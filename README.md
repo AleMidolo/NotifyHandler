@@ -64,7 +64,7 @@ The supplied examples already prove the relay-link shape for BET365 and SISAL, b
 
 Current Milestone 6 sequence:
 1. BOOK-024 through BOOK-027 are complete, including `passive-provenance.v1`, Security/QA certification, DEVOPS-017 execution, and BOOK-027 interpretation.
-2. BET365 preserves the exact fragment-bearing route but the first blocked transport trigger is `WEBSOCKET_ATTEMPT / SOCKET`; no render/target evidence is currently retained.
+2. BET365 preserves the exact fragment-bearing route; prior diagnostics stopped on `WEBSOCKET_ATTEMPT / SOCKET`. PRODUCT-032 now supersedes blanket blocking so a reviewed public bookmaker `wss://` connection may be allowed for normal rendering.
 3. SISAL preserves the exact Portogallo-Galles route with a populated DOM, but the reviewed target participant/time/corners/full-match/line/side/odds predicates are absent. Unrelated competition/date snippets do not count as target evidence.
 4. **#196 ARCH-009 — immediate autonomous P0:** decide whether passive render observation may continue after a WebSocket attempt is denied, while keeping the socket blocked and all timing/network/action/privacy boundaries unchanged.
 5. **#197 PRODUCT-030 — parallel external evidence P0:** source a fresh current/future full-match total-corners signal with direct bookmaker-origin URLs and a materially different second bookmaker/target; prefer BET365 + a different second bookmaker when available.
