@@ -554,11 +554,13 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
   });
   const page = await context.newPage();
   let routeBlockReason: PassiveBlockReason | undefined;
-  let transportProvenance: PassiveTransportProvenance = { state: "CLEAR" };
+  const transportState: { current: PassiveTransportProvenance } = {
+    current: { state: "CLEAR" },
+  };
 
   await context.routeWebSocket("**/*", (socket) => {
-    transportProvenance = retainFirstTransportProvenance(
-      transportProvenance,
+    transportState.current = retainFirstTransportProvenance(
+      transportState.current,
       webSocketTransportProvenance(),
     );
     routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
@@ -587,7 +589,7 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
     );
     if (requestProvenance.state === "BLOCKED") {
       transportProvenance = retainFirstTransportProvenance(
-        transportProvenance,
+        transportProvenance: transportState.current,
         requestProvenance,
       );
       routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
@@ -628,7 +630,7 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
     if (routeBlockReason !== undefined) {
       return validatedSummary({
         ...base,
-        transportProvenance,
+        transportProvenance: transportState.current,
         status: "BLOCKED",
         blockReason: routeBlockReason,
         note:
@@ -643,7 +645,7 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
     ) {
       return validatedSummary({
         ...base,
-        transportProvenance,
+        transportProvenance: transportState.current,
         status: "BLOCKED",
         blockReason: "UNAPPROVED_NAVIGATION",
         note:
@@ -655,7 +657,7 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
     if (pageBlock !== undefined) {
       return validatedSummary({
         ...base,
-        transportProvenance,
+        transportProvenance: transportState.current,
         status: "BLOCKED",
         blockReason: pageBlock,
         note:
@@ -670,12 +672,12 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
       readiness,
     );
 
-    if (routeBlockReason !== undefined || transportProvenance.state === "BLOCKED") {
+    if (routeBlockReason !== undefined || transportState.current.state === "BLOCKED") {
       return validatedSummary({
         ...base,
-        transportProvenance,
+        transportProvenance: transportState.current,
         status: "BLOCKED",
-        blockReason: transportProvenance.state === "BLOCKED"
+        blockReason: transportState.current.state === "BLOCKED"
           ? "PRIVATE_OR_INTERNAL_DESTINATION"
           : routeBlockReason ?? "PRIVATE_OR_INTERNAL_DESTINATION",
         note:
@@ -685,7 +687,7 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
 
     return validatedSummary({
       ...base,
-      transportProvenance,
+      transportProvenance: transportState.current,
       status: "COMPLETE",
       evidence,
       renderProvenance,
