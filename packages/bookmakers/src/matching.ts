@@ -60,7 +60,8 @@ function compareDecimal(left: DecimalString, right: DecimalString): number | und
   return aScaled === bScaled ? 0 : aScaled > bScaled ? 1 : -1;
 }
 
-export function compareOdds(expectedRaw: string, observedRaw: string | null): ObservedOdds | undefined {
+export function compareOdds(expectedRaw: string | undefined, observedRaw: string | null): ObservedOdds | undefined {
+  if (expectedRaw === undefined) return undefined;
   const expected = canonicalDecimal(expectedRaw);
   if (!expected) return undefined;
   if (observedRaw === null) return { expected, comparison: "UNAVAILABLE" };
@@ -75,7 +76,8 @@ export function compareOdds(expectedRaw: string, observedRaw: string | null): Ob
   };
 }
 
-export function sameDecimal(left: string, right: string): boolean {
+export function sameDecimal(left: string | undefined, right: string | undefined): boolean {
+  if (left === undefined || right === undefined) return false;
   const a = canonicalDecimal(left);
   const b = canonicalDecimal(right);
   return a !== undefined && b !== undefined && compareDecimal(a, b) === 0;
