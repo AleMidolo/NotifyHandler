@@ -383,13 +383,13 @@ Requirements:
 
 During `BETUP_RELAY` resolution, WebSockets remain blocked. Bookmaker WSS policy becomes eligible only after expected-bookmaker arrival.
 
-### 15.3 Evidence boundary
+### 15.4 Evidence boundary
 
 Successful relay resolution proves only that navigation reached an approved origin for the expected bookmaker. It proves nothing about event, competition/time, market, line, outcome, or price.
 
 Matching begins in a fresh evidence epoch after bookmaker arrival. Relay URL, UUID, suffix, hop result, and redirect destination cannot be positive `MatchingEvidenceSnapshot` dimensions and cannot authorize `SelectionActivationGate`.
 
-### 15.4 Retry and persistence
+### 15.5 Retry and persistence
 
 Retry/reopen re-resolves the immutable navigation candidate from the beginning. A previously resolved bookmaker URL is not cached as trusted target input.
 
@@ -397,7 +397,7 @@ Diagnostics may record navigation kind, relay origin, bookmaker id/suffix, hop c
 
 The renderer never renders untrusted bookmaker or relay HTML.
 
-### 15.5 ARCH-007 bounded relay revisit
+### 15.6 ARCH-007 bounded relay revisit
 
 Qualifying live evidence showed the real upstream relay performs one additional top-level navigation on `https://www.bet-up.it` before bookmaker arrival.
 
