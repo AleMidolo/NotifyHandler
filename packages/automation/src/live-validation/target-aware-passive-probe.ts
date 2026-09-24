@@ -614,13 +614,18 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
     const readiness = await waitForPassiveReadiness(page);
 
     const finalUrl = new URL(page.url());
+    const exactFinalRoute = isApprovedPassiveFinalRoute(options.bookmaker, finalUrl.href);
     const base = {
       diagnosticSchemaVersion: PASSIVE_DIAGNOSTIC_SCHEMA_VERSION,
       bookmaker: options.bookmaker,
       approvedOrigin,
       navigationKind: "BOOKMAKER_DIRECT" as const,
       requestedPath: target.pathname,
-      finalPath: finalUrl.origin === approvedOrigin ? finalUrl.pathname : "[unapproved-origin]",
+      finalPath: exactFinalRoute
+        ? target.pathname
+        : finalUrl.origin === approvedOrigin
+          ? "[unapproved-route]"
+          : "[unapproved-origin]",
       requestedFragmentPresent: target.hash !== "",
       fragmentPreserved: target.hash === finalUrl.hash,
       target: summaryTarget(targetDefinition),
@@ -641,7 +646,7 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
     if (
       !navigationPolicy.isAllowed(page.url())
       || finalUrl.origin !== approvedOrigin
-      || !isApprovedPassiveFinalRoute(options.bookmaker, finalUrl.href)
+      || !exactFinalRoute
     ) {
       return validatedSummary({
         ...base,
