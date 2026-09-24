@@ -1,6 +1,6 @@
 import { chromium, type Locator, type Page } from "playwright-core";
 
-import { NavigationPolicy, isInternalHostname } from "../navigation-policy.ts";
+import { NavigationPolicy } from "../navigation-policy.ts";
 
 export type TargetAwareBookmaker = "sisal" | "bet365";
 
@@ -187,10 +187,15 @@ export function parseApprovedPassiveTarget(
   }
   const approvedOrigin = approvedOriginFor(bookmaker);
   const policy = new NavigationPolicy([approvedOrigin]);
-  if (!policy.isAllowed(parsed.href) || parsed.origin !== approvedOrigin) {
+  const lockedUrl = BOOK_024_TARGETS[bookmaker].url;
+  if (
+    !policy.isAllowed(parsed.href)
+    || parsed.origin !== approvedOrigin
+    || parsed.href !== lockedUrl
+  ) {
     throw new Error(
       "BOOK-024 " + bookmaker.toUpperCase() +
-        " passive probe only accepts credential-free HTTPS URLs on " + approvedOrigin + ".",
+        " passive probe only accepts its exact source-locked credential-free HTTPS target.",
     );
   }
   return parsed;
@@ -445,13 +450,13 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
       return;
     }
 
-    if (
-      (parsed.protocol === "http:" || parsed.protocol === "https:") &&
-      (parsed.username !== "" || parsed.password !== "" || isInternalHostname(parsed.hostname))
-    ) {
-      routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
-      await route.abort("blockedbyclient");
-      return;
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      const publicHttpsTarget = await navigationPolicy.isResolvedPublicHttpsTarget(parsed.href);
+      if (!publicHttpsTarget) {
+        routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
+        await route.abort("blockedbyclient");
+        return;
+      }
     }
 
     const isTopLevelNavigation =
@@ -559,9 +564,10 @@ async function main(): Promise<void> {
 
 const invokedAsScript = process.argv[1]?.endsWith("target-aware-passive-probe.ts") ?? false;
 if (invokedAsScript) {
-  void main().catch((error: unknown) => {
-    const message = error instanceof Error ? error.message : "Unknown BOOK-024 passive diagnostic failure.";
-    process.stderr.write("BOOK-024 passive diagnostic failed safely: " + message + "\n");
+  void main().catch(() => {
+    process.stderr.write(
+      "BOOK-024 passive diagnostic failed safely before a sanitized summary could be produced.\n",
+    );
     process.exitCode = 1;
   });
 }
