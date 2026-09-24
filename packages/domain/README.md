@@ -10,7 +10,7 @@ The initial implemented market taxonomy is intentionally narrow: football full-m
 
 Supported bookmaker names are explicit aliases for SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRALBET. Unknown names are preserved as unsupported offers but cannot resolve into an executable recommendation.
 
-Recommended pair lines must contain exactly two `+`-separated legs, one `OVER` and one `UNDER`. Optional explicit odds (`@ 2.90`) and line values are validated against the source offer/market. Informational stake amounts are recognized only when labelled `Puntata`, `Stake`, `Importo`, or written with `€`/`EUR`; they remain on the parsed recommendation and are never copied into `ExecutionPlan` or `SelectionTarget`.
+Recommended pair lines must contain exactly two `+`-separated legs, one `OVER` and one `UNDER`. Expected/notified odds are optional informational metadata: legacy offers may omit them, present values are decimal-validated, and differing offer/recommendation prices do not change selection identity. Explicit line values are still validated against the normalized market. Informational stake amounts are recognized only when labelled `Puntata`, `Stake`, `Importo`, or written with `€`/`EUR`; they remain on the parsed recommendation and are never copied into `ExecutionPlan` or `SelectionTarget`.
 
 ## Date/time policy
 

@@ -30,7 +30,6 @@ export type DomainErrorCode =
   | "UNSUPPORTED_BOOKMAKER"
   | "UNKNOWN_RECOMMENDATION_OFFER"
   | "AMBIGUOUS_RECOMMENDATION"
-  | "INCONSISTENT_RECOMMENDATION_ODDS"
   | "INCONSISTENT_RECOMMENDATION_LINE"
   | "RECOMMENDATION_NOT_FOUND"
   | "DUPLICATE_PLAN_LEGS"
@@ -75,8 +74,8 @@ export interface BookmakerOffer {
   readonly side: OutcomeSide;
   readonly bookmaker?: BookmakerId;
   readonly bookmakerLabel: string;
-  readonly expectedOdds: DecimalString;
-  readonly oddsDisplay: string;
+  readonly expectedOdds?: DecimalString;
+  readonly oddsDisplay?: string;
   readonly deepLink?: string;
   readonly sourceLabel: string;
 }
@@ -152,7 +151,7 @@ export interface SelectionTarget {
     side: OutcomeSide;
     sourceLabel?: string;
   }>;
-  readonly expectedOdds: DecimalString;
+  readonly expectedOdds?: DecimalString;
   readonly navigation?: NavigationTarget;
   /** Deprecated v1/legacy compatibility projection. V2 uses navigation. */
   readonly deepLink?: string;
@@ -534,20 +533,22 @@ function parseOffer(line: string, side: OutcomeSide, ordinal: number): DomainRes
     ]);
   }
 
-  const oddsMatch = sourceLabel.match(/@\s*(\d+(?:[.,]\d+)?)/u);
-  if (!oddsMatch?.[1]) {
+  const hasOddsMarker = /(?:^|\s)@/u.test(sourceLabel);
+  const oddsMatch = sourceLabel.match(/(?:^|\s)@\s*(\d+(?:[.,]\d+)?)(?=\s|$)/u);
+  if (hasOddsMarker && !oddsMatch?.[1]) {
     return fail([
-      error("INVALID_ODDS", "Offer must contain decimal odds introduced by @.", {
+      error("INVALID_ODDS", "Present expected odds must be a valid positive decimal value.", {
         field: "expectedOdds",
         section: `outcome.${side}`,
         source: sourceLabel,
       }),
     ]);
   }
-  const expectedOdds = canonicalDecimal(oddsMatch[1]);
-  if (!expectedOdds || !isPositiveDecimal(expectedOdds)) {
+
+  const expectedOdds = oddsMatch?.[1] ? canonicalDecimal(oddsMatch[1]) : undefined;
+  if (oddsMatch?.[1] && (!expectedOdds || !isPositiveDecimal(expectedOdds))) {
     return fail([
-      error("INVALID_ODDS", "Expected odds must be a positive decimal value.", {
+      error("INVALID_ODDS", "Present expected odds must be a positive decimal value.", {
         field: "expectedOdds",
         section: `outcome.${side}`,
         source: sourceLabel,
@@ -566,8 +567,7 @@ function parseOffer(line: string, side: OutcomeSide, ordinal: number): DomainRes
       side,
       ...(bookmakerInfo.bookmaker ? { bookmaker: bookmakerInfo.bookmaker } : {}),
       bookmakerLabel: bookmakerInfo.label,
-      expectedOdds,
-      oddsDisplay: oddsMatch[1],
+      ...(expectedOdds && oddsMatch?.[1] ? { expectedOdds, oddsDisplay: oddsMatch[1] } : {}),
       ...(url.value ? { deepLink: url.value } : {}),
       sourceLabel,
     },
@@ -607,7 +607,12 @@ function collectOffers(lines: readonly string[]): DomainResult<{
       continue;
     }
     if (section === "over" || section === "under") {
-      if (!/@\s*\d/u.test(stripPresentation(trimmed))) continue;
+      const bookmakerInfo = findBookmakerInLine(trimmed);
+      const hasOfferSignal =
+        bookmakerInfo?.bookmaker !== undefined
+        || /https?:\/\//iu.test(trimmed)
+        || /@/u.test(stripPresentation(trimmed));
+      if (!hasOfferSignal) continue;
       const target = section === "over" ? over : under;
       const parsed = parseOffer(trimmed, section, target.length + 1);
       if (parsed.ok) target.push(parsed.value);
@@ -682,11 +687,15 @@ function parseRecommendationLeg(
   }
 
   const afterOutcome = sourceDisplay.slice(outcomeIndex + outcomeMatches[0][0].length);
-  const explicitOddsMatch = afterOutcome.match(/@\s*(\d+(?:[.,]\d+)?)/u);
+  const hasExplicitOddsMarker = /(?:^|\s)@/u.test(afterOutcome);
+  const explicitOddsMatch = afterOutcome.match(/(?:^|\s)@\s*(\d+(?:[.,]\d+)?)(?=\s|$)/u);
   const explicitOdds = explicitOddsMatch?.[1] ? canonicalDecimal(explicitOddsMatch[1]) : undefined;
-  if (explicitOddsMatch?.[1] && (!explicitOdds || !isPositiveDecimal(explicitOdds))) {
+  if (
+    hasExplicitOddsMarker
+    && (!explicitOddsMatch?.[1] || !explicitOdds || !isPositiveDecimal(explicitOdds))
+  ) {
     return fail([
-      error("INVALID_ODDS", "Recommended option contains invalid explicit odds.", {
+      error("INVALID_ODDS", "Present recommendation odds must be a valid positive decimal value.", {
         field: "recommendedOptions.expectedOdds",
         source: sourceDisplay,
       }),
@@ -732,15 +741,6 @@ function parseRecommendationLeg(
   if (!offer) {
     return fail([error("UNKNOWN_RECOMMENDATION_OFFER", "Recommended offer could not be resolved.")]);
   }
-  if (explicitOdds && explicitOdds !== offer.expectedOdds) {
-    return fail([
-      error("INCONSISTENT_RECOMMENDATION_ODDS", "Recommended option odds conflict with the source offer odds.", {
-        field: "recommendedOptions.expectedOdds",
-        source: sourceDisplay,
-      }),
-    ]);
-  }
-
   const stakeInfo = extractStake(sourceDisplay);
   const stake = stakeInfo
     ? { offerId: offer.id, amount: stakeInfo.amount, currency: "EUR" as const, sourceDisplay: stakeInfo.sourceDisplay }
@@ -891,6 +891,7 @@ function toSelectionTarget(
       }),
     ]);
   }
+  const informationalOdds = optionLeg.expectedOdds ?? offer.expectedOdds;
   return {
     ok: true,
     value: {
@@ -911,7 +912,7 @@ function toSelectionTarget(
         sourceLabel: notification.market.sourceLabel,
       },
       outcome: { side: offer.side, sourceLabel: offer.side.toLocaleUpperCase("en-US") },
-      expectedOdds: offer.expectedOdds,
+      ...(informationalOdds ? { expectedOdds: informationalOdds } : {}),
       ...(offer.deepLink ? { deepLink: offer.deepLink } : {}),
       provenance: {
         kind: "legacy-recommendation",
