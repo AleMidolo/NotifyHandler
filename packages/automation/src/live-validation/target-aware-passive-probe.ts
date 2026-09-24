@@ -622,13 +622,13 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
       requestedFragmentPresent: target.hash !== "",
       fragmentPreserved: target.hash === finalUrl.hash,
       target: summaryTarget(targetDefinition),
-      transportProvenance,
       authorizesProductionMapping: false as const,
     };
 
     if (routeBlockReason !== undefined) {
       return validatedSummary({
         ...base,
+        transportProvenance,
         status: "BLOCKED",
         blockReason: routeBlockReason,
         note:
@@ -643,6 +643,7 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
     ) {
       return validatedSummary({
         ...base,
+        transportProvenance,
         status: "BLOCKED",
         blockReason: "UNAPPROVED_NAVIGATION",
         note:
@@ -654,6 +655,7 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
     if (pageBlock !== undefined) {
       return validatedSummary({
         ...base,
+        transportProvenance,
         status: "BLOCKED",
         blockReason: pageBlock,
         note:
@@ -667,8 +669,21 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
       targetDefinition,
       readiness,
     );
+
+    if (routeBlockReason !== undefined || transportProvenance.state === "BLOCKED") {
+      return validatedSummary({
+        ...base,
+        transportProvenance,
+        status: "BLOCKED",
+        blockReason: "PRIVATE_OR_INTERNAL_DESTINATION",
+        note:
+          "Passive direct-page diagnostic stopped at the existing browser/network boundary. No target evidence was retained from an unsafe navigation state.",
+      });
+    }
+
     return validatedSummary({
       ...base,
+      transportProvenance,
       status: "COMPLETE",
       evidence,
       renderProvenance,
