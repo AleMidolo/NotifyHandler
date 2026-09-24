@@ -20,21 +20,34 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — ARCH-008 / #184: Define redacted passive transport/render-state diagnostics
-Owner: Software Architect
+### P0 — BOOK-026 / #188: Implement passive-provenance.v1 diagnostics
+Owner: Bookmaker Automation Engineer
 Milestone: 6 — Evidence-backed live bookmaker readiness
+Depends on: ARCH-008/#184 / PR #187
 
-BOOK-024/#177 and DEVOPS-016/#182 are complete. BOOK-025/#183 interprets the qualified summaries without changing bookmaker support status:
+Implement ADR-0006 / `specs/passive-diagnostic-provenance-v1.md` in the exact source-locked BOOK-024 diagnostic.
 
-- BET365 preserved the exact fragment-bearing direct route but stopped at `PRIVATE_OR_INTERNAL_DESTINATION`. That reason is overloaded by the current diagnostic and may represent any WebSocket attempt, an HTTPS request failing public-DNS validation, or another disallowed protocol. No target matching evidence was retained.
-- SISAL preserved the exact Portogallo-Galles event route and completed, but every target-relevant visible-text signal was false at the fixed passive observation point. The retained summary cannot distinguish absent/unhydrated content from hidden/non-visible content or another render state.
+Required invariants:
+- first finite transport trigger only; no blocked destination/network/runtime strings;
+- bounded DOM-present / visible-observed target booleans;
+- finite readiness/title-predicate fields;
+- fixed EMPTY/SPARSE/POPULATED DOM bucket;
+- explicit retained-summary allowlist and unknown-field rejection;
+- `authorizesProductionMapping: false`;
+- no network, origin, timeout, readiness, retry, action, interaction, matching, authentication, or transaction capability change;
+- no live bookmaker execution in implementation.
 
-ARCH-008 must define the smallest finite redacted provenance schema that distinguishes these states without retaining blocked destinations or page contents and without changing fail-closed network/timing/interaction behavior.
+### P0 after #188 — SEC-008 / #186
+Owner: Security & Compliance Engineer
 
-Do not retry BOOK-024 under the old schema, increase timeout/readiness/budget, broaden interaction, allow WebSockets, weaken DNS/origin rules, use protected/private APIs, resume generic discovery, or fall back to Betup.
+Review the exact BOOK-026 implementation for destination non-reconstruction, finite source-controlled categories, raw/hidden-content exclusion, summary allowlists, unchanged fail-closed network policy, and unchanged capability/transaction boundaries.
 
-### After ARCH-008
-If Architecture approves a diagnostic refinement, create a separate Bookmaker implementation issue. That implementation must pass Security and QA before any new non-CI live run.
+### P0 after #186 — QA-007 / #189
+Owner: QA / Integration Engineer
+
+Certify deterministic + pinned-browser + privacy/artifact + Windows/portable gates. Only QA may explicitly authorize the next separately scoped non-CI diagnostic after Security passes.
+
+No BOOK-024 retry under the old schema and no real bookmaker run before #186 + #189.
 
 ## Next in Milestone 6
 
@@ -98,7 +111,8 @@ The unsigned alpha channel and diagnostic validation bundle are not substitutes 
 - #178 / SEC-007 — BOOK-024 privacy/network/transaction-boundary security review: complete.
 - #179 / QA-006 — BOOK-024 deterministic certification and one-shot live authorization: complete.
 - #182 / DEVOPS-016 — one qualified passive BET365 and SISAL execution: complete.
-- #183 / BOOK-025 — passive diagnostic interpretation: complete; neither bookmaker reaches `Feasible for implementation`; ARCH-008/#184 is next.
+- #183 / BOOK-025 — passive diagnostic interpretation: complete; neither bookmaker reaches `Feasible for implementation`.
+- #184 / ARCH-008 — finite redacted passive transport/render-state diagnostic provenance: complete via PR #187.
 - #105 / APP-005 — authenticated loopback structured direct-pair ingress: complete via PR #112.
 - #106 / SEC-002 — loopback ingress and direct-link DNS/token hardening: complete via PR #114.
 - #113 / SEC-003 — restart-safe structured-ingress idempotency: complete via PR #115.
