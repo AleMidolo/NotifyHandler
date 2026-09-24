@@ -56,7 +56,7 @@ type SelectionTarget = Readonly<{
       }
     | {
         kind: "structured-direct-pair";
-        schemaVersion: "notifyhandler.direct-pair.v1";
+        schemaVersion: "notifyhandler.direct-pair.v1" | "notifyhandler.direct-pair.v2";
         notificationId: string;
         legIndex: 0 | 1;
       }
@@ -77,7 +77,7 @@ A target is valid for execution only when:
 - a line is present for every line-based market;
 - outcome/side is explicit;
 - expected odds, when present, are valid positive decimal odds;
-- provenance resolves either to the legacy primary recommendation/source offer or to one explicit structured-v1 leg;
+- provenance resolves either to the legacy primary recommendation/source offer or to one explicit structured v1/v2 leg;
 - any supplied navigation URL remains untrusted until runtime origin/DNS/redirect validation;
 - structured-v1 provenance requires a `BOOKMAKER_DIRECT` candidate (or the deprecated equivalent direct `deepLink` projection);
 - structured-v2 provenance requires an explicit typed navigation candidate; a relay candidate must carry parsed signal/bookmaker binding;
@@ -226,7 +226,7 @@ Shared tests must prove that:
 
 ## 13. Structured direct-pair provenance
 
-For `notifyhandler.direct-pair.v1`, `provenance.kind` is `structured-direct-pair` and identifies the message plus leg index without inventing a recommendation id.
+For `notifyhandler.direct-pair.v1` or v2, `provenance.kind` is `structured-direct-pair` and identifies the message/schema plus leg index without inventing a recommendation id.
 
 The direct match link is required input for that source, but it remains a navigation candidate only. It must not be converted into event/market/outcome evidence.
 
