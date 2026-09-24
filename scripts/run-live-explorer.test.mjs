@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   assertExactVersion,
   assertNonCiEnvironment,
+  assertDirectDiagnosticRunnerPreflight,
   assertRelayDiagnosticRunnerPreflight,
   originForBookmaker,
   parseRunnerBookmaker,
@@ -66,6 +67,34 @@ test("local relay diagnostic preflight fails closed before network prerequisites
     }),
   );
   assert.doesNotThrow(() => assertRelayDiagnosticRunnerPreflight("bet365", {}));
+});
+
+test("local direct diagnostic preflight requires an explicit approved bookmaker URL", () => {
+  assert.throws(
+    () => assertDirectDiagnosticRunnerPreflight("bet365", { NH_LIVE_EXPLORER_REQUIRE_DIRECT: "1" }),
+    /generic homepage fallback is forbidden/i,
+  );
+  assert.throws(
+    () => assertDirectDiagnosticRunnerPreflight("bet365", {
+      NH_LIVE_EXPLORER_REQUIRE_DIRECT: "1",
+      NH_LIVE_EXPLORER_URL: "https://www.sisal.it/scommesse-matchpoint/evento/calcio/nations-league/portogallo-galles",
+    }),
+    /credential-free HTTPS navigation on https:\/\/www\.bet365\.it/i,
+  );
+  assert.throws(
+    () => assertDirectDiagnosticRunnerPreflight("bet365", {
+      NH_LIVE_EXPLORER_REQUIRE_DIRECT: "1",
+      NH_LIVE_EXPLORER_REQUIRE_RELAY: "1",
+      NH_LIVE_EXPLORER_URL: "https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/",
+    }),
+    /cannot be combined with relay-required mode/i,
+  );
+  assert.doesNotThrow(
+    () => assertDirectDiagnosticRunnerPreflight("bet365", {
+      NH_LIVE_EXPLORER_REQUIRE_DIRECT: "1",
+      NH_LIVE_EXPLORER_URL: "https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/",
+    }),
+  );
 });
 
 test("local live explorer runner keeps bookmaker origins hard-coded", () => {
