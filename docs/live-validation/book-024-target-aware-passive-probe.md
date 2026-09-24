@@ -26,7 +26,7 @@ Authoritative target:
 - BET365: `https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/`
 - SISAL: `https://www.sisal.it/scommesse-matchpoint/evento/calcio/nations-league/portogallo-galles`
 
-The diagnostic CLI accepts only the bookmaker name. It does not accept a runtime live URL override. The programmatic probe boundary also rejects any URL other than the exact source-locked target, even when another URL stays on the same bookmaker origin.
+The diagnostic CLI accepts only the bookmaker name. It does not accept a runtime live URL override. The exported probe function has no URL or headless override either: it always uses the exact source-locked target, enforces the non-CI gate internally, and launches headed Chromium.
 
 BET365 navigation uses the full source-locked URL including its SPA fragment. Retained output does not store the fragment itself; it records only:
 
