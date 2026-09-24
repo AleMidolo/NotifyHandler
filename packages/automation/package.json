@@ -4,15 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --experimental-strip-types --test test/navigation-policy.test.ts test/preflight-security.test.ts test/capability-boundary.test.ts test/live-probe-boundary.test.ts test/live-explorer-boundary.test.ts",
-    "test:browser": "node --experimental-strip-types --test test/browser-integration.test.ts test/attempt-revocation.test.ts test/relay-resolution.test.ts",
+    "test": "node --experimental-strip-types --test test/navigation-policy.test.ts test/preflight-security.test.ts test/capability-boundary.test.ts test/live-probe-boundary.test.ts test/live-explorer-boundary.test.ts test/target-aware-passive-probe.test.ts",
+    "test:browser": "node --experimental-strip-types --test test/browser-integration.test.ts test/attempt-revocation.test.ts test/relay-resolution.test.ts test/target-aware-passive-probe-browser.test.ts",
     "live:probe:sisal": "node --experimental-strip-types src/live-validation/sisal-public-probe.ts",
     "live:probe:bet365": "node --experimental-strip-types src/live-validation/bet365-public-probe.ts",
     "live:probe:lottomatica": "node --experimental-strip-types src/live-validation/lottomatica-public-probe.ts",
     "live:probe:eplay24": "node --experimental-strip-types src/live-validation/eplay24-public-probe.ts",
     "live:probe:admiralbet": "node --experimental-strip-types src/live-validation/admiralbet-public-probe.ts",
     "live:explore": "node --experimental-strip-types src/live-validation/interactive-explorer.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "live:probe:book024": "node --experimental-strip-types src/live-validation/target-aware-passive-probe.ts"
   },
   "dependencies": {
     "playwright-core": "1.63.0"
