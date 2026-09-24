@@ -20,24 +20,21 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — BOOK-024 / #177: Add target-aware passive direct-page evidence probe
-Owner: Bookmaker Automation Engineer
+### P0 — ARCH-008 / #184: Define redacted passive transport/render-state diagnostics
+Owner: Software Architect
 Milestone: 6 — Evidence-backed live bookmaker readiness
 
-BOOK-023 is complete evidence and must not be retried with a larger interaction budget. Implement a diagnostic-only passive probe that runs on the authoritative direct page before any exploratory action.
+BOOK-024/#177 and DEVOPS-016/#182 are complete. BOOK-025/#183 interprets the qualified summaries without changing bookmaker support status:
 
-Required scope:
-- preserve exact direct URLs and BET365 SPA fragment routing;
-- retain only bounded sanitized target-relevant evidence for participants, competition/time, market/context/period, line, side, and displayed odds;
-- no full HTML, screenshots, traces, HAR, cookies/storage, credentials, or session data;
-- no outcome activation, stake/betslip/payment/wager capability;
-- no budget/delay/timeout/origin-policy widening and no Betup/generic-discovery fallback.
+- BET365 preserved the exact fragment-bearing direct route but stopped at `PRIVATE_OR_INTERNAL_DESTINATION`. That reason is overloaded by the current diagnostic and may represent any WebSocket attempt, an HTTPS request failing public-DNS validation, or another disallowed protocol. No target matching evidence was retained.
+- SISAL preserved the exact Portogallo-Galles event route and completed, but every target-relevant visible-text signal was false at the fixed passive observation point. The retained summary cannot distinguish absent/unhydrated content from hidden/non-visible content or another render state.
 
-### P0 after BOOK-024 — SEC-007 / #178
-Security review of diagnostic retention, fragment/origin handling, and non-authorizing behavior.
+ARCH-008 must define the smallest finite redacted provenance schema that distinguishes these states without retaining blocked destinations or page contents and without changing fail-closed network/timing/interaction behavior.
 
-### P0 after SEC-007 — QA-006 / #179
-Certify deterministic behavior and authorize at most one bounded passive live diagnostic per bookmaker if all gates pass.
+Do not retry BOOK-024 under the old schema, increase timeout/readiness/budget, broaden interaction, allow WebSockets, weaken DNS/origin rules, use protected/private APIs, resume generic discovery, or fall back to Betup.
+
+### After ARCH-008
+If Architecture approves a diagnostic refinement, create a separate Bookmaker implementation issue. That implementation must pass Security and QA before any new non-CI live run.
 
 ## Next in Milestone 6
 
