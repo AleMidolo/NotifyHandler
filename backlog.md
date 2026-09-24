@@ -94,6 +94,11 @@ The unsigned alpha channel and diagnostic validation bundle are not substitutes 
 - #173 / BOOK-023 tooling PR — source-locked fail-closed direct validation runner: merged.
 - #174 / DEVOPS-015 — qualifying non-CI BET365/SISAL direct-link execution and sanitized evidence handoff: complete.
 - #170 / BOOK-023 — direct-link feasibility interpretation: complete; BET365 and SISAL remain live `Blocked` for the narrow full-match total-corners scope and fixture-backed `Testable`.
+- #177 / BOOK-024 — target-aware passive direct-page evidence probe: complete via PR #181.
+- #178 / SEC-007 — BOOK-024 privacy/network/transaction-boundary security review: complete.
+- #179 / QA-006 — BOOK-024 deterministic certification and one-shot live authorization: complete.
+- #182 / DEVOPS-016 — one qualified passive BET365 and SISAL execution: complete.
+- #183 / BOOK-025 — passive diagnostic interpretation: complete; neither bookmaker reaches `Feasible for implementation`; ARCH-008/#184 is next.
 - #105 / APP-005 — authenticated loopback structured direct-pair ingress: complete via PR #112.
 - #106 / SEC-002 — loopback ingress and direct-link DNS/token hardening: complete via PR #114.
 - #113 / SEC-003 — restart-safe structured-ingress idempotency: complete via PR #115.
