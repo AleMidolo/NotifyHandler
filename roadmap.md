@@ -258,11 +258,11 @@ Neither candidate reaches `Feasible for implementation`.
 
 ADR-0006 and `passive-provenance.v1` define the finite redacted transport/render-state provenance contract. Architecture changes observability only and authorizes no live run.
 
-**#188 BOOK-026 — READY NOW**
+**#188 BOOK-026 — IMPLEMENTED in PR #191**
 
-Implement the schema in the source-locked passive probe with first-trigger-only transport provenance, bounded render-state booleans/readiness/title predicates, fixed DOM population bucket, and explicit artifact allowlists.
+The source-locked passive probe now implements `passive-provenance.v1` with first-trigger-only transport provenance, bounded render-state booleans/readiness/title predicates, fixed DOM population buckets, and explicit retained-summary validation. No live bookmaker run occurred and no network/timing/action capability was widened.
 
-**#186 SEC-008 — AFTER #188**
+**#186 SEC-008 — NEXT GATE AFTER PR #191 INTEGRATION**
 
 Review privacy/network/capability invariance on the exact implementation.
 
