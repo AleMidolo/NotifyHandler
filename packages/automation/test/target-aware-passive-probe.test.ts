@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   BOOK_024_TARGETS,
+  isApprovedPassiveFinalRoute,
   parseApprovedPassiveTarget,
   parseBook024Bookmaker,
   sanitizePassiveEvidenceText,
@@ -39,6 +40,38 @@ test("BOOK-024 rejects unsafe direct targets before browser launch", () => {
   }
   assert.doesNotThrow(() =>
     parseApprovedPassiveTarget("bet365", BOOK_024_TARGETS.bet365.url),
+  );
+});
+
+test("BOOK-024 final route must remain the exact source-locked direct target", () => {
+  assert.equal(
+    isApprovedPassiveFinalRoute("bet365", BOOK_024_TARGETS.bet365.url),
+    true,
+  );
+  assert.equal(
+    isApprovedPassiveFinalRoute(
+      "bet365",
+      "https://www.bet365.it/",
+    ),
+    false,
+  );
+  assert.equal(
+    isApprovedPassiveFinalRoute(
+      "bet365",
+      "https://www.bet365.it/#/AC/B1/C1/D8/E201149500/F3/I1/",
+    ),
+    false,
+  );
+  assert.equal(
+    isApprovedPassiveFinalRoute("sisal", BOOK_024_TARGETS.sisal.url),
+    true,
+  );
+  assert.equal(
+    isApprovedPassiveFinalRoute(
+      "sisal",
+      "https://www.sisal.it/scommesse-matchpoint/evento/calcio/nations-league/",
+    ),
+    false,
   );
 });
 
