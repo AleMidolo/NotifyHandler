@@ -1,6 +1,6 @@
 # ADR-0002: Automatic primary-recommendation startup
 
-- Status: Accepted
+- Status: Accepted, amended by ADR-0007
 - Date: 2026-09-11
 - Decision owner: Software Architect
 - Related: `ARCH-003`, issue #22, `docs/product-requirements.md`, `specs/notification-format.md`, `specs/execution-contract.md`
@@ -13,7 +13,7 @@ The product requirement changed on 2026-09-11. Notification-to-browser latency i
 
 The notification protocol already carries ordered recommended options. For the initial protocol, source order is semantically meaningful and the first recommendation is the authoritative primary recommendation.
 
-The change must not weaken wrong-selection prevention, navigation safety, authentication boundaries, changed-odds handling, cancellation/freshness protections, or the transaction boundary.
+The change must not weaken wrong-selection prevention, navigation safety, authentication boundaries, cancellation/freshness protections, or the transaction boundary. ADR-0007 later removed price acknowledgement from execution authorization.
 
 ## Decision
 
@@ -67,7 +67,7 @@ Is an unprivileged observability and post-start recovery surface. It may display
 
 ### Worker/adapters
 
-Existing `start` APIs remain worker lifecycle operations. The core invokes them automatically after plan readiness. Matching, origin, odds, freshness, cancellation, and selection-gate rules are unchanged.
+Existing `start` APIs remain worker lifecycle operations. The core invokes them automatically after plan readiness. Matching, origin/network, freshness, cancellation, and selection-gate rules are unchanged. Optional price telemetry is non-gating.
 
 ## Concurrency
 
@@ -84,9 +84,10 @@ Automatic startup removes only routine pre-execution user gates.
 The following execution-time user interactions remain valid:
 
 - `AUTH_REQUIRED`: the affected leg pauses for manual bookmaker authentication;
-- `ODDS_CHANGED`: the affected leg pauses under the accepted exact-observed-odds acknowledgement policy;
 - recovery controls such as retry, reopen, cancel, and restart;
 - manual stake entry, review, and final bet submission after handoff.
+
+Price changes are informational and do not create a user-action state or acknowledgement gate.
 
 These interactions occur after automatic execution has begun and do not restore a generic plan-confirmation step.
 
@@ -99,7 +100,7 @@ Automatic startup does not alter these rules:
 - deep links are untrusted and origins/redirects remain allow-listed;
 - stale evidence cannot authorize a click;
 - cancellation prevents later activation for the cancelled attempt;
-- changed odds remain explicit;
+- expected/observed odds may remain visible as informational metadata but do not authorize or block activation;
 - adapters have no credential/MFA/CAPTCHA, stake-entry, bet-submission, deposit/withdrawal, or bypass capabilities;
 - final selection activation remains behind `SelectionActivationGate`.
 
