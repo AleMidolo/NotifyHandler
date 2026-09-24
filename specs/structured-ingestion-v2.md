@@ -49,7 +49,7 @@ type DirectPairNotificationV2 = Readonly<{
 type DirectPairLegV2 = Readonly<{
   bookmaker: BookmakerId;
   outcome: string;
-  expectedOdds: string;
+  expectedOdds?: string; // optional informational provenance
   navigation:
     | {
         kind: "bookmaker-direct";
@@ -131,7 +131,7 @@ Before execution creation the application validates:
 - supported v2 schema;
 - existing freshness/idempotency/request rules from v1/ARCH-004;
 - exactly two distinct supported bookmaker legs;
-- market/outcome/odds semantics, including required full-match market period;
+- market/outcome semantics, including required full-match market period; optional expected odds are validated only as informational metadata when present;
 - navigation candidate type;
 - direct-bookmaker candidate under the existing v1 URL policy, or relay candidate under the exact grammar above;
 - relay suffix/bookmaker binding;
@@ -234,7 +234,7 @@ Normative failure codes are defined in `docs/error-model.md`, including:
 - relay loop/limit/unresolved timeout, including a second additional relay-origin visit;
 - unsupported relay authentication/challenge state.
 
-A relay that resolves to the correct bookmaker but the wrong/stale event proceeds to ordinary deterministic matching and then fails with the existing event/market/line/outcome/odds taxonomy.
+A relay that resolves to the correct bookmaker but the wrong/stale event proceeds to ordinary deterministic matching and then fails with the existing event/market/line/outcome taxonomy. Price observation is informational.
 
 ## 14. Cancellation and retry
 
@@ -311,3 +311,16 @@ A first-half/other-period page candidate remains a normal deterministic market m
 Two qualifying live evidence runs demonstrated one additional relay-origin top-level navigation before bookmaker arrival. ADR-0005 therefore permits exactly one revisit to the **same canonical relay URL**.
 
 This amendment does not approve a new relay path grammar. If the observed second hop uses a different same-origin path, UUID, suffix, query, or fragment, the resolver must fail safely and record only a sanitized reason category. Another architecture decision is required before broadening the grammar.
+
+
+## 19. ARCH-010 optional price amendment
+
+For v2, `expectedOdds` is optional.
+
+This is backwards compatible: every previously valid v2 payload remains valid unchanged.
+
+When present, `expectedOdds` must be a valid canonical positive decimal and is preserved as informational provenance.
+
+When absent, the payload remains executable when all required event/market/period/line/outcome/navigation fields are valid.
+
+No price field participates in deterministic selection identity or `SelectionActivationGate`.
