@@ -63,15 +63,14 @@ ARCH-005 introduced `notifyhandler.direct-pair.v2` with a typed `betup-relay` na
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. BOOK-024/#177, Security/QA certification, and DEVOPS-016/#182 are complete.
-2. BET365 preserved the exact fragment-bearing direct route but the passive probe stopped at an ambiguous fail-closed network category before retaining target evidence. That category is not bookmaker matching/support evidence.
-3. SISAL preserved the exact event route but no target-relevant visible text was observed at the fixed passive measurement point; route preservation itself contributes no target evidence.
-4. BOOK-025/#183 concludes that neither bookmaker is `Feasible for implementation`.
-5. **#184 ARCH-008 — immediate P0:** define a finite redacted diagnostic contract that distinguishes transport-boundary provenance and passive render state without retaining destinations/page content or weakening current controls.
-6. Any diagnostic implementation after Architecture must be a separate Bookmaker issue and pass Security + QA before another live run.
-7. Do not retry BOOK-024 unchanged, increase readiness/timeout/budget, allow WebSockets, weaken DNS/origin policy, broaden clicks, use private APIs, resume generic discovery, or fall back to Betup.
-8. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
-9. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. BOOK-024/#177, Security/QA certification, DEVOPS-016/#182, and BOOK-025/#183 are complete.
+2. BET365's ambiguous transport-boundary result and SISAL's zero-visible-signal result remain diagnostic evidence only.
+3. **ARCH-008/#184** defines `passive-provenance.v1`: first-trigger finite transport provenance plus bounded render-state booleans/readiness/title predicates and a coarse DOM population bucket.
+4. ARCH-008 changes observability only: no blocked destination/raw title/hidden text/page dump retention, no timeout/retry/action/network-policy change, and `authorizesProductionMapping` remains false.
+5. After Architecture merge, a separate Bookmaker implementation must pass **SEC-008/#186** and dedicated QA certification before another live run.
+6. Do not retry BOOK-024 under the old schema, increase readiness/timeout/budget, allow WebSockets, weaken DNS/origin policy, broaden clicks, use private APIs, resume generic discovery, or fall back to Betup.
+7. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
+8. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 PRODUCT-028/#175 is complete. The product target remains pre-match football full-match total-corners O/U. The replan distinguishes target content that exists on the authoritative page but was not retained by the generic explorer from target content that is genuinely unavailable, without adding outcome activation or broader navigation capability.
 
@@ -89,7 +88,7 @@ Selection authorization is predicate-based, not a fuzzy confidence score. Event,
 
 The architecture has no pre-execution user-review, pair-selection, confirmation, or renderer-driven start gate. Legacy text uses deterministic recommendation index 0; structured v1/v2 carry the authoritative two legs directly. V1 is direct-bookmaker-only; v2 adds typed direct or `bet-up.it` relay navigation. All paths converge on the same execution/matching/activation contracts.
 
-See `docs/architecture.md` and ADR-0001 through ADR-0005 for the accepted runtime, automatic-start, structured-ingress, relay-resolution, and bounded same-origin revisit decisions.
+See `docs/architecture.md` and ADR-0001 through ADR-0006 for the accepted runtime, automatic-start, structured-ingress, relay-resolution, bounded relay revisit, and redacted passive-diagnostic provenance decisions.
 
 ## Development
 
@@ -117,6 +116,7 @@ Repository documentation and specifications are authoritative. Start with:
 - `docs/adr/0003-loopback-structured-direct-pair-ingress.md` — authenticated loopback structured ingress and direct-bookmaker v1 trust decision;
 - `docs/adr/0004-betup-relay-resolution.md` — v2 typed navigation and restricted `bet-up.it` relay-resolution decision;
 - `docs/adr/0005-bounded-betup-same-origin-revisit.md` — evidence-backed one-revisit relay state-machine amendment;
+- `docs/adr/0006-redacted-passive-diagnostic-provenance.md` — finite non-authorizing transport/render diagnostic provenance decision;
 - `docs/development.md` — reproducible local setup, CI, browser runtime, diagnostics, and release baseline;
 - `docs/release.md` — CI preview, unsigned alpha prerelease, production artifact policy, signing gates, checksums/SBOM/provenance, and rollback;
 - `docs/workflow.md` — end-to-end user/application workflow;
@@ -131,7 +131,8 @@ Repository documentation and specifications are authoritative. Start with:
 - `specs/selection-target.md` — immutable target for one bookmaker leg;
 - `specs/execution-contract.md` — automatic start trigger, exact two-leg state machine, attempts, evidence epochs, and commands;
 - `specs/bookmaker-adapter-contract.md` — worker/adapter interface and restricted browser/selection capability boundary;
-- `specs/matching-policy.md` — deterministic matching evidence, exact-line rules, and odds-change policy.
+- `specs/matching-policy.md` — deterministic matching evidence, exact-line rules, and odds-change policy;
+- `specs/passive-diagnostic-provenance-v1.md` — live-validation-only redacted passive diagnostic schema.
 
 ## Development principle
 
