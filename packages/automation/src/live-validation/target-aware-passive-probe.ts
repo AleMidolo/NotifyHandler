@@ -1,20 +1,25 @@
 import { chromium, type Locator, type Page } from "playwright-core";
 
+import { createBookmakerNetworkPolicy } from "../bookmaker-network-policy.ts";
 import { NavigationPolicy } from "../navigation-policy.ts";
 import {
-  PASSIVE_DIAGNOSTIC_SCHEMA_VERSION,
   type PassiveReadinessProvenance,
   type PassiveRenderProvenance,
   type PassiveTargetPresenceKey,
-  type PassiveTransportProvenance,
   type TargetPredicatePresence,
   domPopulationBucket,
-  ordinaryTransportProvenance,
   readinessProvenance,
-  retainFirstTransportProvenance,
-  validatePassiveDiagnosticSummary,
-  webSocketTransportProvenance,
 } from "./passive-diagnostic-provenance.ts";
+import {
+  PASSIVE_DIAGNOSTIC_SCHEMA_VERSION_V2,
+  type PassiveTransportProvenanceV2,
+  allowedReviewedWebSocketObserved,
+  blockedWebSocketTransportProvenanceV2,
+  initialTransportProvenanceV2,
+  ordinaryTransportProvenanceV2,
+  retainTransportProvenanceV2,
+  validatePassiveDiagnosticSummaryV2,
+} from "./passive-diagnostic-provenance-v2.ts";
 
 export type TargetAwareBookmaker = "sisal" | "bet365";
 
@@ -126,7 +131,7 @@ export interface TargetAwareEvidence {
 }
 
 export interface TargetAwarePassiveSummary {
-  readonly diagnosticSchemaVersion: typeof PASSIVE_DIAGNOSTIC_SCHEMA_VERSION;
+  readonly diagnosticSchemaVersion: typeof PASSIVE_DIAGNOSTIC_SCHEMA_VERSION_V2;
   readonly bookmaker: TargetAwareBookmaker;
   readonly approvedOrigin: string;
   readonly navigationKind: "BOOKMAKER_DIRECT";
@@ -137,7 +142,7 @@ export interface TargetAwarePassiveSummary {
   readonly status: "COMPLETE" | "BLOCKED";
   readonly blockReason?: PassiveBlockReason;
   readonly target: Omit<PassiveTargetDefinition, "bookmaker" | "url">;
-  readonly transportProvenance: PassiveTransportProvenance;
+  readonly transportProvenance: PassiveTransportProvenanceV2;
   readonly renderProvenance?: PassiveRenderProvenance;
   readonly evidence?: TargetAwareEvidence;
   readonly authorizesProductionMapping: false;
@@ -519,7 +524,7 @@ export async function waitForPassiveReadiness(
 }
 
 function validatedSummary(summary: TargetAwarePassiveSummary): TargetAwarePassiveSummary {
-  validatePassiveDiagnosticSummary(summary);
+  validatePassiveDiagnosticSummaryV2(summary);
   return summary;
 }
 
@@ -540,7 +545,7 @@ function summaryTarget(target: PassiveTargetDefinition): TargetAwarePassiveSumma
 
 export function summarizePreLoadNavigationBlock(
   bookmaker: TargetAwareBookmaker,
-  transportProvenance: PassiveTransportProvenance,
+  transportProvenance: PassiveTransportProvenanceV2,
   routeBlockReason: PassiveBlockReason | undefined,
 ): TargetAwarePassiveSummary | undefined {
   const targetDefinition = BOOK_024_TARGETS[bookmaker];
@@ -554,7 +559,7 @@ export function summarizePreLoadNavigationBlock(
   if (blockReason === undefined) return undefined;
 
   return validatedSummary({
-    diagnosticSchemaVersion: PASSIVE_DIAGNOSTIC_SCHEMA_VERSION,
+    diagnosticSchemaVersion: PASSIVE_DIAGNOSTIC_SCHEMA_VERSION_V2,
     bookmaker,
     approvedOrigin: approvedOriginFor(bookmaker),
     navigationKind: "BOOKMAKER_DIRECT",
@@ -581,6 +586,10 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
   const target = parseApprovedPassiveTarget(options.bookmaker, targetDefinition.url);
   const approvedOrigin = approvedOriginFor(options.bookmaker);
   const navigationPolicy = new NavigationPolicy([approvedOrigin]);
+  const networkPolicy = createBookmakerNetworkPolicy(
+    options.bookmaker,
+    [approvedOrigin],
+  );
 
   const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext({
@@ -589,17 +598,30 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
   });
   const page = await context.newPage();
   let routeBlockReason: PassiveBlockReason | undefined;
-  const transportState: { current: PassiveTransportProvenance } = {
-    current: { state: "CLEAR" },
+  const transportState: { current: PassiveTransportProvenanceV2 } = {
+    current: initialTransportProvenanceV2(),
   };
 
-  await context.routeWebSocket("**/*", (socket) => {
-    transportState.current = retainFirstTransportProvenance(
+  await context.routeWebSocket("**/*", async (socket) => {
+    const decision = await networkPolicy.evaluateWebSocket(
+      socket.url(),
+      page.url(),
+      false,
+    );
+    if (decision.allowed) {
+      transportState.current = allowedReviewedWebSocketObserved(
+        transportState.current,
+      );
+      socket.connectToServer();
+      return;
+    }
+
+    transportState.current = retainTransportProvenanceV2(
       transportState.current,
-      webSocketTransportProvenance(),
+      blockedWebSocketTransportProvenanceV2(decision.code),
     );
     routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
-    void socket.close({ code: 1008, reason: "BOOK-024 WebSocket blocked" });
+    await socket.close({ code: 1008, reason: "Bookmaker WebSocket blocked" }).catch(() => undefined);
   });
 
   await context.route("**/*", async (route) => {
@@ -617,13 +639,13 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
     const publicHttpsTarget = parsed.protocol === "https:"
       ? await navigationPolicy.isResolvedPublicHttpsTarget(parsed.href)
       : undefined;
-    const requestProvenance = ordinaryTransportProvenance(
+    const requestProvenance = ordinaryTransportProvenanceV2(
       parsed.protocol,
       isTopLevelNavigation,
       publicHttpsTarget,
     );
     if (requestProvenance.state === "BLOCKED") {
-      transportState.current = retainFirstTransportProvenance(
+      transportState.current = retainTransportProvenanceV2(
         transportState.current,
         requestProvenance,
       );
@@ -663,7 +685,7 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
     const finalUrl = new URL(page.url());
     const exactFinalRoute = isApprovedPassiveFinalRoute(options.bookmaker, finalUrl.href);
     const base = {
-      diagnosticSchemaVersion: PASSIVE_DIAGNOSTIC_SCHEMA_VERSION,
+      diagnosticSchemaVersion: PASSIVE_DIAGNOSTIC_SCHEMA_VERSION_V2,
       bookmaker: options.bookmaker,
       approvedOrigin,
       navigationKind: "BOOKMAKER_DIRECT" as const,
