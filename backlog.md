@@ -20,22 +20,19 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — BOOK-023 / #170: Revalidate direct BET365/SISAL links
-Owner: Bookmaker Automation Engineer
+### P0 — PRODUCT-028 / #175: Replan Milestone 6 after direct BET365/SISAL feasibility remains insufficient
+Owner: Product Coordinator / Technical Project Manager
 Milestone: 6 — Evidence-backed live bookmaker readiness
 
-PRODUCT-026/#167 is complete through the direct-bookmaker alternative. The upstream bot is being changed to emit direct bookmaker-origin links.
+BOOK-023/#170 is complete. The source-locked direct-link runner was merged through PR #173, and DEVOPS-015/#174 executed both authoritative direct targets on the qualifying non-CI workstation.
 
-Authoritative target:
-- Portogallo - Galles, Nations League, 24/09/2026 20:45;
-- full-match total corners 6.5;
-- BET365 OVER @ 1.14 via `https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/`;
-- SISAL UNDER @ 4.25 via `https://www.sisal.it/scommesse-matchpoint/evento/calcio/nations-league/portogallo-galles`.
+Evidence conclusion:
+- BET365 reached the approved origin but retained only a generic landing snapshot; the target event/context/full-match total-corners/line/side/odds chain was not established.
+- SISAL positively established the Portogallo-Galles / Nations League event page and a broad CORNER category context, but did not establish scheduled time, full-match total-corners identity, exact line 6.5, requested UNDER side, or bound displayed odds before the fixed budget ended.
+- both remain live **Blocked** for this narrow scope and fixture-backed **Testable**;
+- no live-mapping implementation issue is created from insufficient evidence.
 
-Use direct-bookmaker navigation only. Do not invoke Betup resolver logic. The URLs are navigation inputs only and all deterministic bookmaker evidence gates remain mandatory.
-
-### After BOOK-023
-If a bookmaker is `Feasible for implementation`, create a dedicated restricted live-mapping issue. If either remains blocked, return to Product Coordination without generic homepage fallback or Betup fallback.
+PRODUCT-028 must choose the next evidence-backed current/future direct-link target or pair. Do not retry BOOK-023 with larger budgets, weaker matching, Betup fallback, generic homepage discovery, protected/private APIs, or transaction-capable exploration.
 
 ## Next in Milestone 6
 
