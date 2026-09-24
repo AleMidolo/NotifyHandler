@@ -75,13 +75,13 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-BOOK-023/#170 and PRODUCT-028/#175 are complete. BET365/SISAL remain live Blocked / fixture-backed Testable under the generic direct explorer, but the next diagnostic path is evidence-focused rather than broader.
+BOOK-024/#177, SEC-007/#178, QA-006/#179, and DEVOPS-016/#182 are complete. BOOK-025/#183 has interpreted the qualified passive summaries; neither bookmaker is feasible for implementation.
 
-1. **#177 BOOK-024 — immediate P0.** Add a target-aware passive direct-page evidence probe that runs before exploratory actions and retains only bounded sanitized target-relevant evidence.
-2. Preserve the exact BET365 fragment route and SISAL event path; neither URL nor fragment counts as matching evidence.
-3. Do not increase action budget/delay/timeout, broaden click classification, resume generic discovery, or use Betup fallback.
-4. **#178 SEC-007 — after BOOK-024.** Review privacy, origin/fragment handling, and non-authorizing diagnostic semantics.
-5. **#179 QA-006 — after Security approval.** Certify deterministic regressions and gate at most one new passive live run per bookmaker.
+1. **#184 ARCH-008 — immediate P0.** Define a finite redacted passive transport/render-state diagnostic contract.
+2. BET365 `PRIVATE_OR_INTERNAL_DESTINATION` is diagnostic network-boundary evidence only: the current reason is shared by WebSocket attempts, HTTPS targets failing public-DNS validation, and other disallowed protocols. Do not infer a private/internal bookmaker navigation or support status from it.
+3. SISAL preserved the exact event route but exposed zero target-relevant visible-text signals at the fixed passive observation point. Do not infer why without new evidence and do not use URL/path preservation as target evidence.
+4. Do not retry BOOK-024 unchanged, increase readiness/timeout/budget, broaden clicks, allow WebSockets, weaken DNS/origin policy, resume generic discovery, or use Betup fallback.
+5. Architecture may define only bounded redacted provenance; any implementation requires a separate Bookmaker issue plus Security and QA review before another live run.
 6. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
 7. **#46 DEVOPS-003** remains blocked until #45 passes.
 
