@@ -1,6 +1,6 @@
 # Error and interruption model
 
-Status: **Accepted architecture contract for Milestone 1**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-010 and ARCH-011**
 
 NotifyHandler distinguishes **interruptions requiring user action**, **safe failures**, and **cancellation**. Errors must never be converted into speculative clicks.
 
@@ -10,8 +10,9 @@ NotifyHandler distinguishes **interruptions requiring user action**, **safe fail
 
 An interruption is expected workflow state, not a failure:
 
-- `AUTH_REQUIRED` — user must authenticate manually;
-- `ODDS_CHANGED` — current odds differ from notification odds and require explicit user acknowledgement before revalidation/continuation.
+- `AUTH_REQUIRED` — user must authenticate manually.
+
+Price changes are informational and do not create an interruption.
 
 ### Safe failure
 
@@ -54,7 +55,6 @@ type FailureStage =
   | "MARKET"
   | "LINE"
   | "OUTCOME"
-  | "ODDS"
   | "SELECTION_ACTIVATION"
   | "SELECTION_VERIFICATION"
   | "BROWSER_RUNTIME"
@@ -90,6 +90,9 @@ The initial shared taxonomy is:
 - `UNSUPPORTED_PAGE_STATE`
 - `BROWSER_DISCONNECTED`
 - `BROWSER_LAUNCH_FAILED`
+- `BOOKMAKER_WSS_INSECURE`
+- `BOOKMAKER_WSS_UNAPPROVED`
+- `BOOKMAKER_WSS_NETWORK_TARGET_BLOCKED`
 
 ### Event
 
@@ -119,12 +122,11 @@ The initial shared taxonomy is:
 - `OUTCOME_AMBIGUOUS`
 - `OUTCOME_UNAVAILABLE`
 
-### Odds
+### Odds / price observation
 
-- `ODDS_UNAVAILABLE`
-- `ODDS_INVALID`
+Price observation does not define safe-failure codes in the current selection-preparation contract.
 
-Changed valid odds are not an error; they produce `ODDS_CHANGED`.
+`ODDS_UNAVAILABLE` and `ODDS_INVALID` are retired as terminal failures. Implementations may report optional sanitized price-observation telemetry, but changed/missing/unreadable price alone must not transition a leg to `FAILED_SAFE` or require user acknowledgement.
 
 ### Activation/verification
 
@@ -164,7 +166,6 @@ The following conditions must never be represented as success:
 - wrong, neighboring, ambiguous, or unavailable required line;
 - wrong or ambiguous outcome;
 - unsupported/unsafe current origin;
-- unreadable required odds under the MVP policy;
 - failed selection activation;
 - failed post-selection verification;
 - stale attempt/evidence;
@@ -193,7 +194,7 @@ A `SanitizedDiagnostic` may contain:
 - stage and reason code;
 - activation disposition;
 - normalized candidate labels/ids where non-sensitive;
-- expected and observed odds;
+- expected and observed odds when available as optional informational telemetry;
 - safe origin and redacted path category;
 - elapsed timings;
 - state/attempt/evidence-epoch identifiers.
@@ -215,7 +216,7 @@ At minimum show:
 - which leg failed;
 - which stage failed;
 - whether final selection activation was not attempted or was attempted but could not be verified;
-- expected vs observed odds when relevant;
+- expected vs observed odds when available, as informational state only;
 - allowed recovery actions;
 - an explicit inspection warning after `ATTEMPTED_NOT_VERIFIED` before any retry/reopen.
 
@@ -236,7 +237,7 @@ All relay-specific failures occur before final outcome activation and must use `
 - no expected bookmaker arrival before bounded timeout -> `RELAY_UNRESOLVED`;
 - relay-origin authentication/challenge/consent state requiring unsupported interaction -> `RELAY_CHALLENGE_UNSUPPORTED`.
 
-If relay resolution correctly reaches the expected bookmaker but the page is stale/wrong-event/wrong-market, use the ordinary event/market/line/outcome/odds failure codes. Do not relabel page-identity failure as relay success or vice versa.
+If relay resolution correctly reaches the expected bookmaker but the page is stale/wrong-event/wrong-market, use the ordinary event/market/line/outcome failure codes. Do not relabel page-identity failure as relay success or vice versa.
 
 
 ### ARCH-007 same-origin relay failures
@@ -249,3 +250,19 @@ One extra visit to the original canonical relay href is permitted. Same-origin a
 - second extra visit to the canonical relay -> `RELAY_REDIRECT_LIMIT`.
 
 These failures remain pre-matching and pre-activation.
+
+## 10. Bookmaker WebSocket failure semantics
+
+ARCH-011 permits reviewed public `wss://` only after the browser has reached an approved bookmaker origin.
+
+The following failures occur before selection activation and use `activation: "NOT_ATTEMPTED"`:
+
+- `BOOKMAKER_WSS_INSECURE` — `ws://` or otherwise non-approved socket scheme;
+- `BOOKMAKER_WSS_UNAPPROVED` — socket host/port is not authorized by the selected bookmaker's version-controlled network policy;
+- `BOOKMAKER_WSS_NETWORK_TARGET_BLOCKED` — DNS/public-target validation fails or is uncertain.
+
+These codes do not include the socket host, IP, path, query, payload, or dynamic browser error.
+
+An allowed reviewed WSS connection is not an interruption or success signal. It is browser page transport only and contributes zero matching evidence.
+
+During `BETUP_RELAY` resolution, bookmaker WSS policy is not active; relay-phase socket attempts remain blocked by the relay/network boundary.
