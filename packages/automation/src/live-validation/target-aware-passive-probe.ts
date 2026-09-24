@@ -262,6 +262,20 @@ async function boundedSignalEvidence(page: Page, pattern: RegExp): Promise<Passi
   return { observed: snippets.length > 0, snippets };
 }
 
+function stripTargetLineBeforeOddsScan(value: string, targetLine: string): string {
+  const [whole, fraction] = targetLine.split(".");
+  if (whole === undefined || fraction === undefined) return value;
+
+  const escapedWhole = escapeRegex(whole);
+  const escapedFraction = escapeRegex(fraction);
+  const targetLinePattern = new RegExp(
+    "(^|[^0-9])" + escapedWhole + "[.,]" + escapedFraction +
+      "(?=(?:\\d{1,2}[.,]\\d{2})|[^0-9]|$)",
+    "g",
+  );
+  return value.replace(targetLinePattern, "$1 ");
+}
+
 function displayedOddsFromBoundEvidence(
   evidence: readonly PassiveSignalEvidence[],
   targetLine: string,
@@ -271,7 +285,8 @@ function displayedOddsFromBoundEvidence(
 
   for (const signal of evidence) {
     for (const snippet of signal.snippets) {
-      for (const match of snippet.matchAll(decimal)) {
+      const oddsText = stripTargetLineBeforeOddsScan(snippet, targetLine);
+      for (const match of oddsText.matchAll(decimal)) {
         const whole = match[1];
         const fraction = match[2];
         if (whole === undefined || fraction === undefined) continue;
