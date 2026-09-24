@@ -15,8 +15,8 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 
 | Bookmaker | Priority | Status | Notes |
 | --- | --- | --- | --- |
-| SISAL | 1 | Blocked (direct-link interactive feasibility); Testable (fixtures) | BOOK-023 exercised the exact Portogallo-Galles direct URL. The event page/title positively established Portogallo-Galles / Nations League and retained a broad `CORNER` category context, but the qualifying summary did not establish scheduled time, full-match total-corners identity, exact line 6.5, requested UNDER side, or bound displayed odds before the fixed 10-action budget ended. No live mapping is authorized. See `docs/live-validation/book-023-direct-evidence.md`. |
-| BET365 | 2 | Blocked (direct-link interactive feasibility); Testable (fixtures) | BOOK-023 exercised the exact fragment-bearing Portogallo-Galles direct URL. The qualifying summary reached the approved BET365 origin but retained only a generic landing snapshot with zero allowed controls and no target event/context/full-match total-corners/line 6.5/OVER/displayed-odds evidence. No live mapping is authorized. See `docs/live-validation/book-023-direct-evidence.md`. |
+| SISAL | 1 | Blocked (live target scope); Testable (fixtures) | BOOK-024 preserved the exact Portogallo-Galles event route but observed zero target-relevant visible-text signals at the fixed passive observation point. This does not negate prior BOOK-023 title/event evidence, but it provides no production event/market/line/side/odds chain. See `docs/live-validation/book-025-passive-diagnostic-interpretation.md`. |
+| BET365 | 2 | Blocked (live target scope); Testable (fixtures) | BOOK-024 preserved the exact fragment-bearing direct route but stopped at an ambiguous diagnostic network boundary before retaining target evidence. `PRIVATE_OR_INTERNAL_DESTINATION` currently covers multiple fail-closed trigger classes and is not itself bookmaker matching/support evidence. See `docs/live-validation/book-025-passive-diagnostic-interpretation.md`. |
 | LOTTOMATICA | 3 | Blocked (feasibility) | BOOK-009 confirms the current official `www.lottomatica.it` product exposes active sports/football material, but controlled public validation did not establish the exact event → full-match total-corners → line → side → odds → selected-state selector chain. A direct official-page fetch in the validation environment returned HTTP 403 and was not bypassed. No adapter is created from insufficient evidence. See `docs/live-validation/lottomatica-book-009.md`. |
 | EPLAY24 | 4 | Blocked (feasibility) | BOOK-010 confirms current ADM concession `16004` maps E-play 24 Ita Limited to `www.eplay24.it`, and public EPLAY24 material confirms football/prematch betting. The accessible betting application is JavaScript-only in the crawl surface and the controlled validation did not establish the exact event → total-corners → line → side → odds → selected-state chain. No adapter is created from insufficient evidence. See `docs/live-validation/eplay24-book-010.md`. |
 | ADMIRALBET | 5 | Blocked (interactive feasibility) | BOOK-013 consumed a qualifying non-CI BOOK-012 run on `www.admiralbet.it`. The explorer reached the approved origin and `/scommesse/calcio`, but exhausted its fixed 10-action budget without exposing selector-level event binding, the full-match total-corners market, exact line, requested side, or bound displayed odds. `authorizesProductionMapping` remained false. See `docs/live-validation/admiralbet-book-013.md`. |
@@ -37,6 +37,32 @@ Qualifying execution used merged source `b169832418bb9eaff348365ca1e6c8ef9b1b0d7
 - Neither candidate reaches `Feasible for implementation`; no restricted live-mapping issue is justified.
 
 See `docs/live-validation/book-023-direct-evidence.md`.
+
+## BOOK-024 passive diagnostics and BOOK-025 interpretation
+
+Qualified DEVOPS-016 execution used the merged BOOK-024 source and exactly one non-CI passive run per bookmaker.
+
+BET365:
+- direct route and requested SPA fragment were preserved;
+- summary status `BLOCKED / PRIVATE_OR_INTERNAL_DESTINATION`;
+- no target evidence was retained;
+- summary SHA-256 `90BDFECF70C0044E67DCFED4563A5A198141A15B0F30745DB75B5AAE4417F3F4`.
+
+The current probe uses `PRIVATE_OR_INTERNAL_DESTINATION` for several distinct fail-closed situations: any WebSocket attempt, an HTTPS request failing the public-target DNS check, or another disallowed protocol. Because the retained summary does not record which trigger class fired, this result must not be described as proof that BET365 performed a private/internal navigation or as bookmaker support evidence.
+
+SISAL:
+- exact Portogallo-Galles event route was preserved;
+- summary status `COMPLETE`;
+- every bounded target-relevant visible-text signal was false;
+- `displayedOddsCandidates: []`;
+- `requiredChainObserved: false`;
+- summary SHA-256 `C2B016EAAD34A48B110E0B849A9D1598693B5CFE4B720090FEA1842F7948E494`.
+
+BOOK-024 only records bounded visible text. It does not use the URL/path or raw document title as matching evidence. Therefore zero signals establish only that no target pattern was visible at the fixed passive observation point; they do not establish why. The retained summary cannot distinguish an unhydrated/absent DOM, hidden/non-visible target content, a shell state, changed page structure, or genuine target absence.
+
+Neither bookmaker reaches `Feasible for implementation`. Both remain fixture-backed `Testable` and live `Blocked` for the current narrow scope. ARCH-008/#184 owns the next diagnostic-design decision. No existing network/timing/interaction boundary may be weakened from BOOK-024 evidence.
+
+See `docs/live-validation/book-025-passive-diagnostic-interpretation.md`.
 
 ## Browser worker testable scope
 
