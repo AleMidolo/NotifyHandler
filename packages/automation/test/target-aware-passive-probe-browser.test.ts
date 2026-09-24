@@ -148,6 +148,15 @@ test("changed odds are observed but never become expected-odds evidence", async 
   await withFixture(target.url, completeTargetHtml("UNDER", "4.10"), async (page) => {
     const evidence = await collectTargetAwarePageEvidence(page, target);
     assert.equal(evidence.expectedOdds.observed, false);
-    assert.ok(evidence.displayedOddsCandidates.includes("4.10"));
+    assert.ok(
+      evidence.displayedOddsCandidates.includes("4.10"),
+      JSON.stringify({
+        exactLine: evidence.exactLine,
+        requestedSideAtLine: evidence.requestedSideAtLine,
+        totalCornersMarket: evidence.totalCornersMarket,
+        fullMatchContext: evidence.fullMatchContext,
+        displayedOddsCandidates: evidence.displayedOddsCandidates,
+      }),
+    );
   });
 });
