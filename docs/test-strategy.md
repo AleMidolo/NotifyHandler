@@ -1,6 +1,6 @@
 # Test strategy
 
-Status: **Architecture baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, ARCH-006, ARCH-007, and ARCH-008**
+Status: **Architecture baseline for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, ARCH-006, ARCH-007, ARCH-008, ARCH-010, and ARCH-011**
 
 The test strategy prioritizes deterministic wrong-selection prevention, automatic notification-to-browser startup correctness, and transaction-boundary enforcement. Routine automated tests must not require bookmaker credentials, live accounts, or real betting transactions.
 
@@ -49,7 +49,7 @@ Required structured cases:
 11. blocked/stale/insufficient structured direct link -> no generic-discovery fallback;
 12. delayed/absent renderer observation -> startup still occurs.
 
-Both paths must preserve the same authentication, odds, cancellation, stale-evidence, selection-gate, and transaction-boundary regressions.
+Both paths must preserve the same authentication, cancellation, stale-evidence, selection-gate, optional price-observability, and transaction-boundary regressions.
 
 ### 1.3 Structured direct-pair v2 relay navigation
 
@@ -96,7 +96,7 @@ Run without Electron or a browser for:
 - automatic-start trigger predicates;
 - stale attempt/evidence rejection;
 - decimal line parsing/equality;
-- odds comparison;
+- optional odds observation/comparison with no authorization effect;
 - text normalization and approved alias mappings;
 - matching-policy authorization predicate;
 - URL/origin validation;
@@ -110,28 +110,27 @@ Every bookmaker adapter must run against the same behavioral contract using dete
 
 Required cases:
 
-1. exact event + market + line + outcome + expected odds -> verified preparation;
+1. exact event + market + period + line + outcome -> verified preparation;
 2. similar but wrong event -> no activation;
 3. duplicate event candidates -> ambiguous, no activation;
 4. wrong competition/time context -> no activation;
 5. wrong market family/context -> no activation;
-6. wrong market period (for example first half with otherwise identical total-corners line/side/odds) -> no activation;
+6. wrong market period (for example first half with otherwise identical total-corners line/side/price) -> no activation;
 7. unavailable/ambiguous required period evidence -> no activation;
 8. neighboring line -> no activation;
 9. duplicate exact-line candidates that cannot be distinguished -> no activation;
 10. wrong outcome side -> no activation;
-11. changed higher odds -> `ODDS_CHANGED`, no activation before acknowledgement;
-12. changed lower odds -> `ODDS_CHANGED`, no activation before acknowledgement;
-13. acknowledged odds change followed by another price change -> pause again;
-14. unreadable odds -> `ODDS_UNAVAILABLE`, no activation under MVP policy;
-15. manual login page -> `AUTH_REQUIRED`, no credential automation;
-16. resume after manual login -> complete revalidation before activation;
-17. unsafe deep link -> blocked before navigation;
-18. redirect to unapproved origin -> blocked;
-19. cancellation during wait/matching -> no later activation;
-20. post-click selected-state verification failure -> not `READY_FOR_USER`;
-21. stale event from old attempt/evidence epoch -> ignored;
-22. interface/capability audit -> no credential/stake/submit transaction operations.
+11. changed higher/lower odds with exact identity -> preparation still succeeds; telemetry may show the change;
+12. missing/unreadable/invalid displayed odds with exact identity -> preparation still succeeds;
+13. expected odds absent where the active input schema permits omission -> preparation still succeeds;
+14. manual login page -> `AUTH_REQUIRED`, no credential automation;
+15. resume after manual login -> complete identity revalidation before activation;
+16. unsafe deep link -> blocked before navigation;
+17. redirect to unapproved origin -> blocked;
+18. cancellation during wait/matching -> no later activation;
+19. post-click selected-state verification failure -> not `READY_FOR_USER`;
+20. stale event from old attempt/evidence epoch -> ignored;
+21. interface/capability audit -> no credential/stake/submit transaction operations.
 
 ### Browser integration tests
 
@@ -162,8 +161,8 @@ Use fake adapters/worker test doubles to verify:
 - exactly two independent leg states exist;
 - partial success/failure remains visible;
 - one leg's retry/cancel/login pause does not rewrite the other;
-- `ODDS_CHANGED` displays expected and observed values;
-- only an acknowledgement of the exact observed value can continue;
+- expected/observed odds may be displayed as optional informational state;
+- no price acknowledgement is required before preparation continues;
 - app never reports full pair readiness unless both current legs are `READY_FOR_USER`;
 - renderer/core messages contain no credentials, cookies, stake command, or submit-bet command.
 
@@ -188,7 +187,7 @@ Core assertions:
 - started targets correspond exactly to primary recommendation index 0;
 - no renderer/user event is necessary between notification receipt and the first worker start;
 - a valid later recommendation cannot rescue an invalid primary;
-- source order is not sorted/re-ranked by ROI, bookmaker name, odds, or display order;
+- source order is not sorted/re-ranked by ROI, bookmaker name, price, or display order;
 - after dispatch, each leg's state and failures are independent.
 
 ### 3.1 Structured-ingress harness requirements
@@ -279,43 +278,38 @@ Tests should verify:
 - ephemeral browser profile directories are isolated and cleaned according to runtime policy;
 - one leg cannot address the other leg's browser/session handles.
 
-### 7.1 ARCH-008 passive diagnostic provenance
+### 7.1 Passive diagnostic provenance v2 and bookmaker WSS
 
-The source-locked passive diagnostic must run a dedicated schema/privacy regression matrix before any live reuse.
+New live diagnostics use `passive-provenance.v2`; v1 remains historical evidence.
 
-Transport cases:
+Required transport/network cases:
 
-- clear transport;
-- WebSocket attempt -> finite socket category, socket remains blocked;
-- top-level/subresource HTTPS public-target validation rejection;
-- top-level/subresource disallowed protocol;
-- multiple blocked requests -> only first trigger retained;
-- output contains no blocked host/IP/port/path/query/fragment/protocol string, DNS answer, request/response data, or dynamic error text.
+- no socket -> `CLEAR / NONE_OBSERVED`;
+- reviewed public exact-host WSS -> allowed and render observation may continue;
+- reviewed public suffix-host WSS -> allowed;
+- suffix-confusion host -> blocked;
+- unapproved public WSS -> blocked;
+- private/loopback/link-local/uncertain WSS -> blocked;
+- `ws://` -> blocked;
+- non-443 WSS -> blocked;
+- IP-literal WSS -> blocked;
+- relay-origin WSS remains blocked;
+- cancellation/context close terminates allowed socket transport;
+- allowed WSS contributes zero matching evidence and exposes no socket API;
+- no socket destination, payload, count, header, or dynamic error enters artifacts.
 
-Render cases, collected only after transport/route/auth-access gates pass:
+Render/schema/privacy cases retain the ARCH-008 v1 protections:
 
-- target predicate absent from DOM;
-- target predicate present but no visible match within the existing bounded scan;
-- target predicate visibly observed;
-- invalid visible-without-present state rejected;
-- document-title participant-pair and competition booleans with no raw title retention;
-- DOMContentLoaded confirmed/unconfirmed without adding waits;
-- DOM population bucket boundaries: 0, 1..31, 32+;
-- render provenance omitted after transport block, route failure, auth, CAPTCHA/anti-bot, access, or consent state.
+- target predicate absent / present-nonvisible / visible;
+- title participant-pair/competition booleans only;
+- existing readiness timing only;
+- fixed DOM population bucket;
+- explicit summary allowlist and unknown-field rejection;
+- `authorizesProductionMapping:false`;
+- no timeout/readiness/retry/action-budget increase;
+- no click/fill/type/outcome activation or generic evaluation capability.
 
-Schema/capability cases:
-
-- exact `passive-provenance.v1` version required;
-- unknown top-level/nested field rejected;
-- unknown enum rejected;
-- explicit summary allowlist enforced before retention;
-- `authorizesProductionMapping` remains false;
-- provenance cannot enter matching evidence or activation paths;
-- no timeout/readiness/retry/action-budget change;
-- no click/fill/type/outcome activation or generic evaluation capability added;
-- exact source lock, DNS/private-network, protocol, WebSocket, popup, privacy, and transaction regressions remain green.
-
-Architecture approval alone does not authorize a live run. Security and QA must approve the exact implementation/artifact first.
+Architecture approval alone does not authorize a live run. Bookmaker implementation, Security, and QA must approve the exact WSS policy/artifact first.
 
 ## 8. State-machine tests
 
@@ -326,8 +320,8 @@ Specific regressions:
 - valid plan creation automatically schedules both `PENDING -> OPENING` paths without a user start transition;
 - `PENDING` cannot remain indefinitely waiting for renderer approval in the normal valid path;
 - `AUTH_REQUIRED` cannot jump directly to activation;
-- `ODDS_CHANGED` cannot jump directly to activation;
-- resume/continue creates fresh evidence;
+- there is no `ODDS_CHANGED` state or changed-price continuation command;
+- manual-auth resume creates fresh evidence;
 - `FAILED_SAFE` is never treated as prepared;
 - `SELECTION_PREPARED` requires activation plus verification path;
 - stale async events cannot move a newer attempt backwards/forwards;
@@ -374,7 +368,7 @@ A change affecting ingestion, primary resolution, matching, adapter behavior, br
 - a first-half/other-period market can satisfy a `full_match` target;
 - missing required market-period evidence can be treated as matched;
 - ambiguity can be represented as success;
-- changed odds can be silently ignored;
+- price telemetry can gate or suppress activation when identity is otherwise exact;
 - stale evidence can authorize activation;
 - cancellation can race into a later activation;
 - stake/bet-submit/credential automation becomes reachable;
@@ -384,5 +378,7 @@ A change affecting ingestion, primary resolution, matching, adapter behavior, br
 - v1 semantics are silently widened to relay origins;
 - v2 relay can traverse an unreviewed intermediary/wrong bookmaker, browse an arbitrary same-origin path, exceed the one-revisit budget, or authorize positive identity evidence;
 - sensitive authentication/session data is written to logs/artifacts;
-- passive diagnostics retain blocked destination strings, raw title/hidden/body text, raw element counts, dynamic runtime errors, or unknown/unvalidated fields;
-- passive provenance can alter retry/timing/network policy, production mapping/support maturity, matching evidence, or activation.
+- passive diagnostics retain blocked destination strings, raw title/hidden/body text, raw element counts, socket destinations/payloads, dynamic runtime errors, or unknown/unvalidated fields;
+- passive provenance can alter retry/timing/network policy, production mapping/support maturity, matching evidence, or activation;
+- bookmaker WSS can use `ws://`, non-443/IP-literal/private/unapproved destinations, or a runtime-discovered allow rule;
+- socket payloads/messages become visible to adapters/core/renderer or matching logic.
