@@ -82,12 +82,15 @@ Before a summary is returned to the CLI for retention, BOOK-026 validates:
 - exact schema version;
 - explicit top-level and nested field allowlists;
 - exact enum values;
-- target/evidence field allowlists;
-- bounded visible snippets;
+- source-locked bookmaker/origin/request-path/target metadata;
+- unapproved final navigation reduced to fixed `[unapproved-route]` / `[unapproved-origin]` placeholders rather than retaining a dynamic path;
+- bounded visible snippets revalidated for UUID/email/URL/opaque-token leakage before retention;
+- displayed-odds candidates restricted to the reviewed numeric format;
+- retained matching-dimension booleans and `requiredChainObserved` recomputed from the bounded evidence they summarize;
 - `authorizesProductionMapping: false`;
 - complete summaries require clear transport plus render provenance and bounded evidence;
 - blocked summaries require a block reason and omit render/evidence;
-- blocked transport provenance requires the existing compatibility network block reason;
+- transport provenance and the compatibility network block reason agree in both directions;
 - invalid visible-without-DOM state fails closed.
 
 Dynamic network/browser/runtime messages are not copied into the retained summary.
