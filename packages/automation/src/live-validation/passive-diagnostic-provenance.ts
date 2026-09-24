@@ -136,6 +136,75 @@ function assertEnum(value: unknown, allowed: readonly string[], label: string): 
   }
 }
 
+const RETAINED_UUID =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/iu;
+const RETAINED_EMAIL = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu;
+const RETAINED_URL = /https?:\/\/\S+/iu;
+const RETAINED_LONG_TOKEN = /\b[A-Za-z0-9_-]{24,}\b/u;
+const DISPLAYED_ODDS = /^(?:0|[1-9]\d?)\.\d{2}$/u;
+
+function assertSanitizedSnippet(value: string, label: string): void {
+  if (
+    RETAINED_UUID.test(value)
+    || RETAINED_EMAIL.test(value)
+    || RETAINED_URL.test(value)
+    || RETAINED_LONG_TOKEN.test(value)
+  ) {
+    throw new Error(label + " contains unsanitized sensitive-looking content.");
+  }
+}
+
+const STATIC_SUMMARY_CONTRACT = Object.freeze({
+  bet365: Object.freeze({
+    approvedOrigin: "https://www.bet365.it",
+    requestedPath: "/",
+    requestedFragmentPresent: true,
+    target: Object.freeze({
+      participantA: "Portogallo",
+      participantB: "Galles",
+      competition: "Nations League",
+      scheduledDate: "24/09/2026",
+      scheduledTime: "20:45",
+      marketPeriod: "full_match",
+      marketContext: "total_corners",
+      line: "6.5",
+      side: "OVER",
+      expectedOdds: "1.14",
+    }),
+  }),
+  sisal: Object.freeze({
+    approvedOrigin: "https://www.sisal.it",
+    requestedPath: "/scommesse-matchpoint/evento/calcio/nations-league/portogallo-galles",
+    requestedFragmentPresent: false,
+    target: Object.freeze({
+      participantA: "Portogallo",
+      participantB: "Galles",
+      competition: "Nations League",
+      scheduledDate: "24/09/2026",
+      scheduledTime: "20:45",
+      marketPeriod: "full_match",
+      marketContext: "total_corners",
+      line: "6.5",
+      side: "UNDER",
+      expectedOdds: "4.25",
+    }),
+  }),
+} as const);
+
+function assertStaticTarget(
+  bookmaker: "sisal" | "bet365",
+  value: unknown,
+): void {
+  validateTarget(value);
+  const target = value as JsonObject;
+  const expected = STATIC_SUMMARY_CONTRACT[bookmaker].target;
+  for (const [key, expectedValue] of Object.entries(expected)) {
+    if (target[key] !== expectedValue) {
+      throw new Error("target does not match the source-locked BOOK-024 definition.");
+    }
+  }
+}
+
 function validateTransport(value: unknown): PassiveTransportProvenance {
   const object = asObject(value, "transportProvenance");
   assertEnum(object.state, ["CLEAR", "BLOCKED"], "transportProvenance.state");
@@ -245,6 +314,9 @@ function validateSignalEvidence(value: unknown, label: string): void {
   if (object.snippets.length > 3 || object.snippets.some((item) => item.length > 220)) {
     throw new Error(label + ".snippets exceeds the BOOK-024 retention bound.");
   }
+  for (const [index, item] of object.snippets.entries()) {
+    assertSanitizedSnippet(item, label + ".snippets[" + index + "]");
+  }
   if (object.observed !== (object.snippets.length > 0)) {
     throw new Error(label + ".observed does not match retained snippets.");
   }
@@ -262,7 +334,9 @@ function validateEvidence(value: unknown): void {
 
   if (
     !Array.isArray(object.displayedOddsCandidates)
-    || object.displayedOddsCandidates.some((item) => typeof item !== "string")
+    || object.displayedOddsCandidates.some(
+      (item) => typeof item !== "string" || !DISPLAYED_ODDS.test(item),
+    )
     || object.displayedOddsCandidates.length > 6
   ) {
     throw new Error("evidence.displayedOddsCandidates is invalid.");
@@ -353,7 +427,23 @@ export function validatePassiveDiagnosticSummary(value: unknown): void {
     ],
     "note",
   );
-  validateTarget(object.target);
+  const bookmaker = object.bookmaker as "sisal" | "bet365";
+  const staticContract = STATIC_SUMMARY_CONTRACT[bookmaker];
+  if (
+    object.approvedOrigin !== staticContract.approvedOrigin
+    || object.requestedPath !== staticContract.requestedPath
+    || object.requestedFragmentPresent !== staticContract.requestedFragmentPresent
+  ) {
+    throw new Error("summary does not match the source-locked BOOK-024 navigation contract.");
+  }
+  if (
+    object.finalPath !== staticContract.requestedPath
+    && object.finalPath !== "[unapproved-route]"
+    && object.finalPath !== "[unapproved-origin]"
+  ) {
+    throw new Error("summary.finalPath is outside the redacted route allowlist.");
+  }
+  assertStaticTarget(bookmaker, object.target);
 
   if (object.blockReason !== undefined) {
     assertEnum(
@@ -392,8 +482,31 @@ export function validatePassiveDiagnosticSummary(value: unknown): void {
     }
   }
 
-  if (transport.state === "BLOCKED" && object.blockReason !== "PRIVATE_OR_INTERNAL_DESTINATION") {
-    throw new Error("Blocked transport provenance requires the compatibility network block reason.");
+  if (
+    (transport.state === "BLOCKED")
+    !== (object.blockReason === "PRIVATE_OR_INTERNAL_DESTINATION")
+  ) {
+    throw new Error(
+      "Transport provenance and compatibility network block reason must agree.",
+    );
+  }
+
+  if (object.status === "COMPLETE") {
+    if (
+      object.finalPath !== staticContract.requestedPath
+      || object.fragmentPreserved !== true
+    ) {
+      throw new Error("COMPLETE summary requires the exact source-locked final route.");
+    }
+  }
+
+  if (object.blockReason === "UNAPPROVED_NAVIGATION") {
+    if (
+      object.finalPath !== "[unapproved-route]"
+      && object.finalPath !== "[unapproved-origin]"
+    ) {
+      throw new Error("UNAPPROVED_NAVIGATION must retain only a redacted final-route placeholder.");
+    }
   }
 
   if (object.renderProvenance !== undefined) {
