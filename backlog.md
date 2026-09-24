@@ -20,28 +20,21 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — SEC-008 / #186: Review redacted passive transport/render-state diagnostics
-Owner: Security & Compliance Engineer
+### P0 — PRODUCT-029 / #194: Replan Milestone 6 after passive-provenance.v1 yields no feasible pair
+Owner: Product Coordinator / Technical Project Manager
 Milestone: 6 — Evidence-backed live bookmaker readiness
-Depends on: BOOK-026/#188 implementation in PR #191
+Depends on: BOOK-027/#193
 
-BOOK-026 implements ADR-0006 / `passive-provenance.v1` in the exact source-locked passive probe with:
-- first-trigger-only finite transport provenance;
-- bounded DOM-present / visible-observed target booleans;
-- finite readiness/title-predicate fields;
-- fixed EMPTY/SPARSE/POPULATED DOM bucket;
-- explicit retained-summary and nested-field allowlists;
-- mandatory `authorizesProductionMapping: false`;
-- unchanged source targets, network policy, timing, interaction, auth, and transaction boundaries.
+Qualified DEVOPS-017 evidence has now been interpreted:
 
-SEC-008 must review the exact PR #191 implementation before QA or any new real bookmaker run.
+- BET365: exact fragment route preserved, first transport trigger `WEBSOCKET_ATTEMPT / SOCKET`, no render/target evidence retained, no production mapping.
+- SISAL: exact event route preserved, transport clear, DOMContentLoaded confirmed, populated DOM, title participant-pair/competition predicates true, but participant/time/corners/full-match/line/side/odds predicates absent. Positive competition/date snippets are unrelated content and are not bound target evidence.
 
-### P0 after #186 — QA-007 / #189
-Owner: QA / Integration Engineer
+Neither bookmaker reaches `Feasible for implementation`.
 
-Certify deterministic + pinned-browser + privacy/artifact + Windows/portable gates. Only QA may explicitly authorize the next separately scoped non-CI diagnostic after Security passes.
+Product must choose the next candidate/evidence path. A bounded BET365 architecture question is possible only if Product wants to invest further: keep WebSockets blocked exactly as today and ask whether render-only passive observation after the blocked socket is worth designing. That still would not solve the missing second bookmaker. Product must also source a new current/future second-leg target or choose another pair.
 
-No BOOK-024 retry under the old schema and no real bookmaker run before #186 + #189.
+No Bookmaker implementation issue is ready from the current evidence.
 
 ## Next in Milestone 6
 
