@@ -670,7 +670,7 @@ export function normalizeDirectPairNotificationV2(
     canonicalNavigations.push(navigation);
 
     const expectedOdds = raw.expectedOdds === undefined ? undefined : canonicalDecimal(raw.expectedOdds);
-    if (raw.expectedOdds !== undefined && (expectedOdds === null || !isDecimalOdds(expectedOdds))) {
+    if (raw.expectedOdds !== undefined && (expectedOdds === null || expectedOdds === undefined || !isDecimalOdds(expectedOdds))) {
       errors.push(issue("INVALID_ODDS", "legs[" + index + "].expectedOdds", "When present, expected decimal odds must be greater than 1."));
     }
     const validExpectedOdds = expectedOdds !== null && expectedOdds !== undefined && isDecimalOdds(expectedOdds)
