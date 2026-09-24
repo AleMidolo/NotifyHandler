@@ -440,6 +440,11 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
   const page = await context.newPage();
   let routeBlockReason: PassiveBlockReason | undefined;
 
+  await context.routeWebSocket("**/*", (socket) => {
+    routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
+    void socket.close({ code: 1008, reason: "BOOK-024 WebSocket blocked" });
+  });
+
   await context.route("**/*", async (route) => {
     const request = route.request();
     let parsed: URL;
