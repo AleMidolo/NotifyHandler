@@ -23,7 +23,7 @@ export interface OfferPreview {
   readonly side: OutcomeSide;
   readonly bookmaker: BookmakerId | null;
   readonly bookmakerLabel: string;
-  readonly expectedOdds: string;
+  readonly expectedOdds: string | null;
   readonly deepLink: string | null;
 }
 
@@ -84,7 +84,7 @@ export interface ExecutionLegSummary {
   readonly marketContext: string;
   readonly line: string;
   readonly outcome: OutcomeSide;
-  readonly expectedOdds: string;
+  readonly expectedOdds: string | null;
   readonly deepLink: string | null;
 }
 
@@ -145,7 +145,7 @@ function offerPreview(offer: BookmakerOffer): OfferPreview {
     side: offer.side,
     bookmaker: offer.bookmaker ?? null,
     bookmakerLabel: offer.bookmakerLabel,
-    expectedOdds: offer.expectedOdds,
+    expectedOdds: offer.expectedOdds ?? null,
     deepLink: offer.deepLink ?? null,
   };
 }
@@ -234,7 +234,7 @@ function executionLegSummary(
     marketContext: leg.target.market.context,
     line: leg.target.market.line,
     outcome: leg.target.outcome.side,
-    expectedOdds: leg.target.expectedOdds,
+    expectedOdds: leg.target.expectedOdds ?? null,
     deepLink: leg.target.deepLink ?? null,
   };
 }
