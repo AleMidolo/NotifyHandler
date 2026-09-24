@@ -262,43 +262,24 @@ async function boundedSignalEvidence(page: Page, pattern: RegExp): Promise<Passi
   return { observed: snippets.length > 0, snippets };
 }
 
-function decimalOddsFromText(value: string): string[] {
-  const odds: string[] = [];
-  const decimal = /(?:^|[^0-9])(\d{1,2})[.,](\d{2})(?:[^0-9]|$)/g;
-  for (const match of value.matchAll(decimal)) {
-    const whole = match[1];
-    const fraction = match[2];
-    if (whole === undefined || fraction === undefined) continue;
-    odds.push(String(Number(whole)) + "." + fraction);
-  }
-  return odds;
-}
-
-async function collectDisplayedOddsCandidates(
-  page: Page,
-  target: PassiveTargetDefinition,
-): Promise<string[]> {
-  const locator = page.getByText(/(?:^|[^0-9])\d{1,2}[.,]\d{2}(?:[^0-9]|$)/);
-  const count = await locator.count();
+function displayedOddsFromBoundEvidence(
+  evidence: readonly PassiveSignalEvidence[],
+  targetLine: string,
+): string[] {
   const odds = new Set<string>();
-  const linePattern = decimalPattern(target.line);
-  const sideAtLinePattern = targetSideAtLinePattern(target);
+  const decimal = /(?:^|[^0-9])(\d{1,2})[.,](\d{2})(?:[^0-9]|$)/g;
 
-  for (let index = 0; index < Math.min(count, 30); index += 1) {
-    const item = locator.nth(index);
-    if (!(await item.isVisible().catch(() => false))) continue;
-    const context = await boundedContextText(item);
-    if (
-      !TOTAL_CORNERS_PATTERN.test(context) &&
-      !linePattern.test(context) &&
-      !sideAtLinePattern.test(context)
-    ) {
-      continue;
-    }
-    for (const value of decimalOddsFromText(context)) {
-      if (value === target.line || odds.has(value)) continue;
-      odds.add(value);
-      if (odds.size >= MAX_ODDS_CANDIDATES) return [...odds];
+  for (const signal of evidence) {
+    for (const snippet of signal.snippets) {
+      for (const match of snippet.matchAll(decimal)) {
+        const whole = match[1];
+        const fraction = match[2];
+        if (whole === undefined || fraction === undefined) continue;
+        const value = String(Number(whole)) + "." + fraction;
+        if (value === targetLine || odds.has(value)) continue;
+        odds.add(value);
+        if (odds.size >= MAX_ODDS_CANDIDATES) return [...odds];
+      }
     }
   }
   return [...odds];
@@ -320,7 +301,10 @@ export async function collectTargetAwarePageEvidence(
   const requestedSideAtLine = await boundedSignalEvidence(page, targetSideAtLinePattern(target));
   const expectedOdds = await boundedSignalEvidence(page, decimalPattern(target.expectedOdds));
 
-  const displayedOddsCandidates = await collectDisplayedOddsCandidates(page, target);
+  const displayedOddsCandidates = displayedOddsFromBoundEvidence(
+    [totalCornersMarket, fullMatchContext, exactLine, requestedSideAtLine, expectedOdds],
+    target.line,
+  );
 
   const dimensionsObserved = {
     event: participantA.observed && participantB.observed,
