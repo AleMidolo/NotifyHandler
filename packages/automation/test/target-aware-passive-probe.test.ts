@@ -8,6 +8,7 @@ import {
   parseApprovedPassiveTarget,
   parseBook024Bookmaker,
   sanitizePassiveEvidenceText,
+  summarizePreLoadNavigationBlock,
 } from "../src/live-validation/target-aware-passive-probe.ts";
 import {
   PASSIVE_DIAGNOSTIC_SCHEMA_VERSION,
@@ -297,6 +298,51 @@ test("passive-provenance.v1 transport categories are finite and redact destinati
   for (const forbidden of ["example.internal", "127.0.0.1", "/private/path", "http:", "wss:"]) {
     assert.equal(serialized.includes(forbidden), false);
   }
+});
+
+test("passive-provenance.v1 preserves top-level transport provenance when navigation aborts before load", () => {
+  const publicTargetRejected = summarizePreLoadNavigationBlock(
+    "bet365",
+    ordinaryTransportProvenance("https:", true, false),
+    "PRIVATE_OR_INTERNAL_DESTINATION",
+  );
+  assert.ok(publicTargetRejected);
+  assert.equal(publicTargetRejected.status, "BLOCKED");
+  assert.equal(publicTargetRejected.blockReason, "PRIVATE_OR_INTERNAL_DESTINATION");
+  assert.deepEqual(
+    publicTargetRejected.transportProvenance,
+    { state: "BLOCKED", trigger: "PUBLIC_HTTPS_TARGET_REJECTED", scope: "TOP_LEVEL" },
+  );
+  assert.equal(publicTargetRejected.finalPath, "[unapproved-route]");
+  assert.equal(publicTargetRejected.fragmentPreserved, false);
+  assert.equal(publicTargetRejected.renderProvenance, undefined);
+  assert.equal(publicTargetRejected.evidence, undefined);
+  assert.equal(publicTargetRejected.authorizesProductionMapping, false);
+
+  const disallowedProtocol = summarizePreLoadNavigationBlock(
+    "sisal",
+    ordinaryTransportProvenance("http:", true, undefined),
+    "PRIVATE_OR_INTERNAL_DESTINATION",
+  );
+  assert.ok(disallowedProtocol);
+  assert.deepEqual(
+    disallowedProtocol.transportProvenance,
+    { state: "BLOCKED", trigger: "DISALLOWED_PROTOCOL", scope: "TOP_LEVEL" },
+  );
+
+  const unapprovedRedirect = summarizePreLoadNavigationBlock(
+    "sisal",
+    { state: "CLEAR" },
+    "UNAPPROVED_NAVIGATION",
+  );
+  assert.ok(unapprovedRedirect);
+  assert.equal(unapprovedRedirect.blockReason, "UNAPPROVED_NAVIGATION");
+  assert.deepEqual(unapprovedRedirect.transportProvenance, { state: "CLEAR" });
+
+  assert.equal(
+    summarizePreLoadNavigationBlock("sisal", { state: "CLEAR" }, undefined),
+    undefined,
+  );
 });
 
 test("passive-provenance.v1 retains only the first transport trigger", () => {
