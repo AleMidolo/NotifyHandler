@@ -75,17 +75,15 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-BOOK-023/#170 is complete. The exact direct BET365/SISAL Portogallo-Galles URLs were exercised on the qualifying non-CI workstation through the source-locked direct runner.
+BOOK-023/#170 and PRODUCT-028/#175 are complete. BET365/SISAL remain live Blocked / fixture-backed Testable under the generic direct explorer, but the next diagnostic path is evidence-focused rather than broader.
 
-1. **BET365 remains live Blocked / fixture-backed Testable.** The qualifying direct summary retained only the generic BET365 landing snapshot with no target event/context/market/line/side/odds evidence.
-2. **SISAL remains live Blocked / fixture-backed Testable.** The qualifying direct summary positively bound Portogallo-Galles / Nations League and exposed a broad CORNER category context, but not scheduled time, full-match total-corners identity, exact 6.5 line, UNDER side, or bound displayed odds.
-3. No restricted live-mapping implementation issue is justified for either bookmaker from BOOK-023.
-4. Do not retry BOOK-023 by increasing the interaction budget, weakening the default-deny classifier, falling back to Betup, or resuming generic homepage discovery.
-5. **#175 PRODUCT-028 — immediate P0.** Replan Milestone 6 around a new evidence-backed current/future direct-link target or pair while preserving the target market and deterministic gates unless Product explicitly changes requirements.
+1. **#177 BOOK-024 — immediate P0.** Add a target-aware passive direct-page evidence probe that runs before exploratory actions and retains only bounded sanitized target-relevant evidence.
+2. Preserve the exact BET365 fragment route and SISAL event path; neither URL nor fragment counts as matching evidence.
+3. Do not increase action budget/delay/timeout, broaden click classification, resume generic discovery, or use Betup fallback.
+4. **#178 SEC-007 — after BOOK-024.** Review privacy, origin/fragment handling, and non-authorizing diagnostic semantics.
+5. **#179 QA-006 — after Security approval.** Certify deterministic regressions and gate at most one new passive live run per bookmaker.
 6. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
 7. **#46 DEVOPS-003** remains blocked until #45 passes.
-
-Betup relay code/history remains fail-closed and must not be treated as an active fallback path.
 
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 
