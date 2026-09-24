@@ -58,6 +58,7 @@ test("portable child environment locks bookmaker, browser path, and removes expl
       NH_LIVE_EXPLORER_BOOKMAKER: "sisal",
       NH_LIVE_EXPLORER_URL: "https://example.com",
       NH_LIVE_EXPLORER_RELAY_URL: "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365",
+      NH_LIVE_EXPLORER_REQUIRE_RELAY: "1",
       NH_LIVE_EXPLORER_MAX_ACTIONS: "12",
       NH_LIVE_EXPLORER_DELAY_MS: "750",
       PLAYWRIGHT_BROWSERS_PATH: "C:\\other-browser",
@@ -72,6 +73,7 @@ test("portable child environment locks bookmaker, browser path, and removes expl
   assert.equal(environment.KEEP_ME, "yes");
   assert.equal(environment.NH_LIVE_EXPLORER_URL, undefined);
   assert.equal(environment.NH_LIVE_EXPLORER_RELAY_URL, "https://www.bet-up.it/lnk/11111111-2222-4333-8444-555555555555/bet365");
+  assert.equal(environment.NH_LIVE_EXPLORER_REQUIRE_RELAY, "1");
   assert.equal(environment.NH_LIVE_EXPLORER_MAX_ACTIONS, undefined);
   assert.equal(environment.NH_LIVE_EXPLORER_DELAY_MS, undefined);
   assert.equal(environment.NODE_OPTIONS, undefined);
