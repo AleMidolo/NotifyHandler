@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** PRODUCT-028/#175 is complete. BOOK-024/#177 is the immediate P0 diagnostic implementation, followed by SEC-007/#178 and QA-006/#179 before any new live run.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** BOOK-024/#177, SEC-007/#178, QA-006/#179, DEVOPS-016/#182, and BOOK-025/#183 are complete. ARCH-008/#184 is the immediate P0 diagnostic-design task.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -213,27 +213,53 @@ Replan Milestone 6 around a new evidence-backed current/future direct-link targe
 
 Do not retry BOOK-023 with a larger budget, weaker matching, Betup fallback, generic homepage discovery, protected/private APIs, or transaction-capable exploration.
 
-### Passive direct-page evidence replan — CURRENT
+### Passive direct-page evidence replan — BOOK-024 COMPLETE / BOOK-025 INTERPRETED
 
 **#175 PRODUCT-028 — COMPLETE**
 
-BOOK-023 remains valid evidence: BET365 retained only a generic landing snapshot; SISAL reached the exact event/competition page and broad CORNER context but not the complete full-match/line/side/odds chain.
+BOOK-023 remains valid historical evidence. The replan added a target-aware passive diagnostic without broadening interaction.
 
-The next path does not broaden BOOK-023. Instead it adds a passive, target-aware diagnostic layer before any exploratory action.
+**#177 BOOK-024 — COMPLETE**
 
-**#177 BOOK-024 — READY NOW**
+PR #181 merged the source-locked passive direct-page probe. Security/QA certified the bounded retention, exact-route preservation, non-authorizing semantics, and unchanged transaction boundary.
 
-Implement bounded sanitized passive capture for target-relevant visible evidence on the exact direct bookmaker pages, including BET365 SPA fragment preservation. The probe is diagnostic-only and non-authorizing.
+**#182 DEVOPS-016 — COMPLETE**
 
-**#178 SEC-007 — AFTER BOOK-024**
+Exactly one qualified non-CI passive diagnostic was executed for each bookmaker.
 
-Review evidence retention/privacy, direct-fragment/origin handling, and prove the diagnostic cannot authorize activation or expand transaction capability.
+BET365:
+- exact direct route and SPA fragment preserved;
+- `BLOCKED / PRIVATE_OR_INTERNAL_DESTINATION`;
+- no target evidence retained;
+- SHA-256 `90BDFECF70C0044E67DCFED4563A5A198141A15B0F30745DB75B5AAE4417F3F4`;
+- `authorizesProductionMapping: false`.
 
-**#179 QA-006 — AFTER SEC-007**
+SISAL:
+- exact Portogallo-Galles event route preserved;
+- `COMPLETE`;
+- every passive target evidence signal false;
+- `displayedOddsCandidates: []`;
+- `requiredChainObserved: false`;
+- SHA-256 `C2B016EAAD34A48B110E0B849A9D1598693B5CFE4B720090FEA1842F7948E494`;
+- `authorizesProductionMapping: false`.
 
-Certify wrong/missing event/time/period/line/side/odds safe-failure and, if green, authorize at most one new passive non-CI diagnostic per bookmaker without increasing budget/timeout.
+**#183 BOOK-025 — COMPLETE**
 
-No Betup fallback, generic homepage discovery, private API access, outcome activation, or broader retry is authorized.
+Interpretation:
+
+- BET365's `PRIVATE_OR_INTERNAL_DESTINATION` is an ambiguous **diagnostic network-boundary category**, not bookmaker matching/support evidence. The current probe uses the same reason for any WebSocket attempt, an HTTPS target failing public-DNS validation, or another disallowed protocol. The retained summary does not identify which fired.
+- SISAL route preservation proves navigation only. BOOK-024 samples bounded visible text; zero observed signals mean no target pattern was visible at the fixed measurement point. The summary cannot distinguish absent/unhydrated DOM from hidden/non-visible content or another render state.
+
+Neither candidate reaches `Feasible for implementation`.
+
+### Current P0
+
+**#184 ARCH-008 — READY NOW**
+
+Define the smallest finite redacted transport/render-state diagnostic contract needed to distinguish the BOOK-024 ambiguous states while keeping current fail-closed network, origin, timing, privacy, interaction, and transaction boundaries unchanged.
+
+No BOOK-024 retry under the old schema, timeout/readiness widening, WebSocket allowance, DNS/origin weakening, broader click policy, Betup fallback, generic discovery, private API access, outcome activation, or transaction capability is authorized.
+
 ### Implementation and qualification
 
 For each candidate marked `Feasible for implementation`:
