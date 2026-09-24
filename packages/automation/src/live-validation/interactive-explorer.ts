@@ -1,5 +1,6 @@
 import { chromium, type Locator, type Page } from "playwright-core";
 
+import { createBookmakerNetworkPolicy } from "../bookmaker-network-policy.ts";
 import { domMappingFor, type WorkerBookmaker } from "../dom-mapping.ts";
 import { NavigationPolicy, isInternalHostname } from "../navigation-policy.ts";
 import {
@@ -649,6 +650,10 @@ export async function runInteractiveLiveExplorer(options: ExplorerOptions): Prom
       const runtime = await createWorkerPageRuntime({
         page,
         policy: navigationPolicy,
+        networkPolicy: createBookmakerNetworkPolicy(
+          start.bookmaker,
+          [approvedOrigin],
+        ),
         mapping: domMappingFor(start.bookmaker),
         navigationTimeoutMs: 20_000,
       });
