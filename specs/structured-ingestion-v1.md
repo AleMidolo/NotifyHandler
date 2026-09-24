@@ -52,7 +52,7 @@ type DirectPairNotificationV1 = Readonly<{
 type DirectPairLegV1 = Readonly<{
   bookmaker: BookmakerId;
   outcome: string;
-  expectedOdds: string; // canonical decimal odds
+  expectedOdds: string; // frozen v1 wire field; informational only
   deepLink: string;     // required direct match-page URL
 }>;
 ```
@@ -70,7 +70,7 @@ A v1 payload is executable only when all of the following are true:
 - the market is supported and all market-required fields are present, including `period: "full_match"` for the current protocol;
 - exactly two legs are present;
 - the two legs resolve to distinct supported canonical bookmakers;
-- each leg has an explicit outcome/side, expected decimal odds, and direct match link;
+- each leg has an explicit outcome/side, the frozen v1 expected-odds wire field, and direct match link;
 - each direct link passes pre-navigation validation;
 - no required field has multiple plausible interpretations.
 
@@ -112,13 +112,14 @@ Its presence does not prove:
 
 - event identity;
 - competition or scheduled-time context;
-- market family/context;
+- market family/context/period;
 - exact numeric line;
 - requested side/outcome;
-- displayed odds;
 - authentication state.
 
-All of those dimensions remain subject to the existing deterministic matching policy after navigation.
+Those identity dimensions remain subject to the deterministic matching policy after navigation.
+
+Displayed odds are optional informational page telemetry. The v1 `expectedOdds` field remains required only for wire compatibility and may be displayed/compared when a current price is available; it never gates activation.
 
 ### 5.1 Pre-navigation validation
 
@@ -452,3 +453,20 @@ V1 already requires `market.period: "full_match"`. ARCH-006 makes preservation o
 The v1 normalizer must copy the canonical period into every generated `SelectionTarget.market.period`. Dropping period during plan construction is a contract violation and must fail tests.
 
 Bookmaker matching may not infer `full_match` merely because family/context/line match.
+
+
+## 19. ARCH-010 price compatibility amendment
+
+`notifyhandler.direct-pair.v1` remains wire-frozen: `expectedOdds` is still required and validated as a canonical positive decimal.
+
+That field is now informational provenance only.
+
+The v1 normalizer may populate `SelectionTarget.expectedOdds`, but:
+
+- price is not selection identity;
+- price equality/readability is not part of plan preflight after normalization;
+- changed price does not produce `ODDS_CHANGED`;
+- missing/unreadable displayed price does not fail an exact selection;
+- no changed-price acknowledgement command exists.
+
+Existing v1 producers remain compatible without modification.
