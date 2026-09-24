@@ -75,16 +75,17 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-PRODUCT-031/#199 corrects a foundational product assumption: NotifyHandler selects the exact requested bookmaker outcome and stops; it does not judge price acceptability or surebet validity.
+PRODUCT-031/#199 and PRODUCT-032/#202 simplify two over-conservative gates while preserving exact selection identity and the manual transaction boundary.
 
-1. **#200 ARCH-010 — immediate P0.** Remove odds equality/readability/acknowledgement from activation and retire blocking `ODDS_CHANGED` semantics. Preserve exact event/market/period/line/side identity and selected-state verification.
-2. Expected/notified and observed odds may be retained/displayed as optional informational metadata only. Missing or changed odds alone must not block selection.
-3. **#196 ARCH-009 — separate BET365 diagnostic architecture task.** It remains valid, but any target-evidence design must follow PRODUCT-031 and must not require an odds match.
-4. **#197 PRODUCT-030 — parallel external evidence.** Fresh direct-link targets may be used when available; a stable expected price is not required.
-5. Do not calculate surebet validity, ROI/profitability, stakes, or price acceptability.
-6. Do not weaken origin/network safety, event/market/period/line/side matching, authentication boundaries, or the manual transaction boundary.
-7. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported under the corrected identity-only selection gate.
-8. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#200 ARCH-010 — immediate P0.** Remove odds equality/readability/acknowledgement from activation and retire blocking `ODDS_CHANGED` semantics.
+2. **#203 ARCH-011 — same architecture pass when practical.** Replace blanket WebSocket denial with a narrow source-reviewed public `wss://` bookmaker page-transport policy.
+3. Allowed WSS must pass public DNS/private-network checks and may not expose raw socket payload/API capability to adapters/core/renderer. `ws://`, private/internal/unapproved destinations remain blocked.
+4. ARCH-009/#196 is superseded/closed; do not design around denying all sockets.
+5. **#197 PRODUCT-030 — parallel external evidence.** Fresh direct-link targets may be supplied when available; stable odds are not required.
+6. Do not calculate surebet validity, ROI/profitability, stakes, or price acceptability.
+7. Do not weaken event/market/period/line/side matching, authentication boundaries, anti-bypass rules, or the manual stake/submission boundary.
+8. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported under the corrected gates.
+9. **#46 DEVOPS-003** remains blocked until #45 passes.
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 
 ## Definition of done

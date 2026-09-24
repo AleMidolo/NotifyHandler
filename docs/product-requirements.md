@@ -101,6 +101,15 @@ After preparation, NotifyHandler shall report `ready for user` and leave stake e
 ### PR-14 Recovery actions
 The application shall support clear recovery actions appropriate to state, including retry, reopen, cancel, and restart where technically meaningful. Recovery controls are post-start controls and do not introduce a normal pre-execution confirmation step.
 
+### PR-15 Normal bookmaker WebSocket transport
+A bookmaker page shall not fail merely because it uses WebSockets as part of its ordinary public browser rendering/runtime behavior.
+
+Architecture may allow reviewed `wss://` connections required by the selected bookmaker page when the destination is public/non-private, passes the same fail-closed DNS/IP safety checks as other browser traffic, and is authorized by version-controlled bookmaker/network policy rather than arbitrary notification-controlled input.
+
+Allowed WebSocket traffic is page transport only. NotifyHandler must not inspect or retain socket payloads as selection evidence, reverse-engineer protected/private APIs from socket traffic, or use WebSockets to gain credential, authentication, stake, payment, or wager-submission capability.
+
+`ws://`, private/internal/loopback/link-local destinations, and unapproved socket destinations remain blocked.
+
 ## 4. User-visible states
 
 At minimum the application should be able to represent:
