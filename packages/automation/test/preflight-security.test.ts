@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { ExecutionPlan, SelectionTarget } from "../../domain/src/index.ts";
 import type { Page } from "playwright-core";
+import { createBookmakerNetworkPolicy } from "../src/bookmaker-network-policy.ts";
 import { domMappingFor } from "../src/dom-mapping.ts";
 import { NavigationPolicy } from "../src/navigation-policy.ts";
 import { createWorkerPageRuntime } from "../src/page-runtime.ts";
@@ -119,10 +120,17 @@ test("browser gateway rejects private DNS before Playwright navigation", async (
     url() { return "about:blank"; },
   } as unknown as Page;
 
-  const policy = new NavigationPolicy(["https://www.sisal.it"], async () => ["192.168.1.20"]);
+  const resolver = async () => ["192.168.1.20"] as const;
+  const policy = new NavigationPolicy(["https://www.sisal.it"], resolver);
+  const networkPolicy = createBookmakerNetworkPolicy(
+    "sisal",
+    ["https://www.sisal.it"],
+    resolver,
+  );
   const runtime = await createWorkerPageRuntime({
     page: fakePage,
     policy,
+    networkPolicy,
     mapping: domMappingFor("sisal"),
   });
 
