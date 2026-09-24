@@ -218,8 +218,8 @@ Shared tests must prove that:
 - neighboring line never activates;
 - wrong side never activates;
 - duplicate/ambiguous candidates never activate;
-- changed odds pause before activation and remain visible;
-- stale odds acknowledgement does not authorize a new price;
+- changed higher/lower odds with exact identity remain non-blocking and may be visible as informational telemetry;
+- missing/unreadable odds with exact identity remain non-blocking;
 - manual login invokes no credential automation;
 - cancellation and stale evidence prevent activation;
 - no adapter/core capability can enter stakes or submit a bet.
