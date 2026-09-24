@@ -146,3 +146,61 @@ Therefore:
 
 BOOK-021/#156 has now added the fixed redacted `relayInvalidCategory` diagnostic allowed by ADR-0005, with no change to accepted relay grammar/state. SEC-006/#159 and QA-004/#160 approved that diagnostic boundary. DEVOPS-014/#161 is authorized to execute exactly one new non-CI diagnostic run per target bookmaker using merged commit `d343fc2ff9c519aa216c0d4b339d9ec2074002bc`; no retry, resolver widening, hop/action-budget/delay tuning, credentials, private APIs, or transaction action is authorized.
 
+
+
+## DEVOPS-014 redacted-path revalidation
+
+BOOK-021 added the Security/QA-certified finite `relayInvalidCategory` diagnostic without changing the ADR-0005 relay state machine. DEVOPS-014 then executed the qualifying relay-aware diagnostics using the fail-closed relay-mode preflight merged at `5591ead0a31ee97e894fe129abb6f26cea8c9f62`.
+
+An earlier BET365 `BOOKMAKER_DIRECT` artifact was explicitly rejected as non-qualifying and is not used in this interpretation.
+
+### BET365 DEVOPS-014 result
+
+- navigation kind: `BETUP_RELAY`;
+- status: `BLOCKED`;
+- block reason: `RELAY_INVALID`;
+- invalid category: `UNREVIEWED_SAME_ORIGIN_PATH`;
+- actions: `0/10`;
+- `authorizesProductionMapping: false`;
+- summary SHA-256: `38F2051A2B0A5BD81C5AAFEF5B9A7A3B799698395D789C8DF969726FE3B56B59`.
+
+### SISAL DEVOPS-014 result
+
+- navigation kind: `BETUP_RELAY`;
+- status: `BLOCKED`;
+- block reason: `RELAY_INVALID`;
+- invalid category: `UNREVIEWED_SAME_ORIGIN_PATH`;
+- actions: `0/10`;
+- `authorizesProductionMapping: false`;
+- summary SHA-256: `081FD532778C01A205409A1816829FD29D7D8B843873CFB6BEA239019D13269D`.
+
+### BOOK-022 interpretation
+
+The shared resolver maps `UNREVIEWED_SAME_ORIGIN_PATH` only after all of the following are already true:
+
+- the candidate navigation remains on the relay origin `https://www.bet-up.it`;
+- the URL is HTTPS;
+- URL userinfo/password is absent;
+- query and fragment are absent;
+- the candidate pathname does **not** match the only reviewed same-origin grammar:
+  `/lnk/<uuid>/<bookmaker-suffix>`.
+
+The two independent qualified runs therefore establish a shared upstream transition class:
+
+`canonical relay entry -> same-origin HTTPS path outside the reviewed /lnk/<uuid>/<bookmaker> grammar`
+
+before expected-bookmaker arrival.
+
+What they do **not** establish is the actual intermediate pathname template. The privacy boundary intentionally retains no rejected path, token, UUID, query, body, or resolver message. Therefore the evidence is not sufficient to add a safe new path matcher or wildcard.
+
+Consequences:
+
+- the relay-aware live path remains **Blocked**;
+- SISAL and BET365 remain **Testable** through deterministic fixtures;
+- bookmaker-specific event/market/line/side/odds feasibility remains **unobserved**;
+- no live selector mapping or support promotion is justified;
+- no further resolver grammar expansion is justified from DEVOPS-014 alone;
+- another live run should not be used merely to recover the raw rejected path.
+
+PRODUCT-026/#167 now owns the required product-level evidence: obtain a non-sensitive upstream intermediate path contract/template or a different direct-bookmaker integration contract. Only after that evidence exists can Architecture safely define a finite new relay state machine.
+
