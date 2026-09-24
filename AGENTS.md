@@ -75,17 +75,17 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-QA-005/#163, DEVOPS-014/#161, and BOOK-022/#166 are complete. Both qualified BET365/SISAL relay-aware runs stop before bookmaker arrival at `RELAY_INVALID / UNREVIEWED_SAME_ORIGIN_PATH`.
+PRODUCT-026/#167 is complete via the alternative direct bookmaker-origin integration contract. The upstream Telegram bot is being changed to emit direct bookmaker links, so Betup is no longer on the active critical path.
 
-1. **#167 PRODUCT-026 — sole immediate P0.** Obtain a concrete sanitized/documented intermediate `bet-up.it` path grammar and its identity-binding semantics, or a supported direct bookmaker-origin integration contract.
-2. Do **not** authorize another live relay run merely to expose the raw intermediate path and do not implement wildcard same-origin acceptance.
-3. If Product obtains a stable contract, route to Software Architect for a finite reviewed state-machine/ADR decision, followed by Security + QA gates before implementation/live rerun.
-4. If no stable contract is available, Product replans away from the current relay source rather than weakening navigation safety.
-5. Bookmaker-specific event/market/line/side/odds feasibility for BET365/SISAL remains unobserved because all qualified relay runs stopped pre-bookmaker.
+1. **#170 BOOK-023 — immediate P0.** Revalidate Portogallo-Galles using the exact supplied BET365 and SISAL direct URLs.
+2. Use existing direct-bookmaker contracts only; do not invoke or broaden Betup relay logic.
+3. BET365 fragment routing is valid direct-link input and is preserved by normalization; SISAL uses a normal path URL on the approved origin.
+4. Independently verify expected origin, event, competition/time, full-match total-corners identity, exact line 6.5, side, and displayed odds.
+5. If feasible, create restricted live-mapping implementation issues. If blocked, route to Product Coordination without generic discovery or Betup fallback.
 6. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
 7. **#46 DEVOPS-003** remains blocked until #45 passes.
 
-Public web review has not surfaced a documented Betup relay/API/intermediate-path contract suitable for Architecture; upstream owner/source input is required.
+Betup relay code/history remains fail-closed and must not be treated as an active fallback path.
 
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 
