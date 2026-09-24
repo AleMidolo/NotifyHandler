@@ -117,6 +117,22 @@ Mitigations:
 - retry/reopen re-resolve the immutable relay rather than trusting a previously resolved final URL;
 - re-run origin and target validation after manual login, refresh, retry, reopen, or navigation.
 
+### Diagnostic provenance as a covert data channel
+
+Threat: a live-validation diagnostic that is intended to retain only sanitized provenance accidentally becomes a network/page-content exfiltration channel through destination strings, raw titles, hidden text, counts, error messages, request sequences, or unconstrained metadata.
+
+Mitigations:
+- version the passive provenance schema and reject unknown fields/enums before artifact retention;
+- retain only the first finite transport trigger category and finite scope, never destination/network strings or request sequences;
+- retain target DOM presence/visibility only as booleans against fixed reviewed predicates;
+- reduce document title to participant-pair/competition booleans and never retain raw title;
+- reduce page population to one fixed coarse bucket and discard raw counts;
+- omit render provenance entirely after transport, route, auth, CAPTCHA/anti-bot, access, or consent failure;
+- keep provenance outside production matching/evidence/activation interfaces;
+- copy no browser/runtime/DNS exception text into artifacts;
+- keep source lock, timeouts, waits, zero-interaction capability, WebSocket blocking, DNS/origin policy, and transaction boundary unchanged;
+- require Security and QA approval of the exact implementation before any further live run.
+
 ### Compromised bookmaker content
 
 Threat: hostile page content attempts to cause arbitrary clicks, credential capture, transaction submission, or misleading match evidence.
