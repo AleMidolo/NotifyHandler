@@ -75,17 +75,17 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-DEVOPS-014/#161 is paused after a non-qualifying BET365 operator artifact ran in `BOOKMAKER_DIRECT` mode instead of the authorized relay-aware diagnostic mode.
+QA-005/#163, DEVOPS-014/#161, and BOOK-022/#166 are complete. Both qualified BET365/SISAL relay-aware runs stop before bookmaker arrival at `RELAY_INVALID / UNREVIEWED_SAME_ORIGIN_PATH`.
 
-1. **#163 QA-005 — immediate P0.** Explicitly authorize or deny one replacement BET365 relay-aware diagnostic run and confirm the unused SISAL authorization.
-2. Require a deterministic fail-closed relay-mode preflight before any further live execution. Missing `NH_LIVE_EXPLORER_RELAY_URL` or a would-be `BOOKMAKER_DIRECT` launch must stop before browser/network activity.
-3. **#161 DEVOPS-014 — after #163 only.** Execute only the run(s) QA explicitly permits; retain sanitized summary + SHA-256 and route results to Bookmaker Automation Engineer.
-4. The rejected direct-mode artifact is not relay diagnostic evidence and must not classify BET365 feasibility/support.
-5. No retry/tuning/resolver widening is allowed without a new architecture/security/QA cycle.
+1. **#167 PRODUCT-026 — sole immediate P0.** Obtain a concrete sanitized/documented intermediate `bet-up.it` path grammar and its identity-binding semantics, or a supported direct bookmaker-origin integration contract.
+2. Do **not** authorize another live relay run merely to expose the raw intermediate path and do not implement wildcard same-origin acceptance.
+3. If Product obtains a stable contract, route to Software Architect for a finite reviewed state-machine/ADR decision, followed by Security + QA gates before implementation/live rerun.
+4. If no stable contract is available, Product replans away from the current relay source rather than weakening navigation safety.
+5. Bookmaker-specific event/market/line/side/odds feasibility for BET365/SISAL remains unobserved because all qualified relay runs stopped pre-bookmaker.
 6. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
 7. **#46 DEVOPS-003** remains blocked until #45 passes.
 
-Relay resolution and upstream notification content never satisfy matching predicates by themselves.
+Public web review has not surfaced a documented Betup relay/API/intermediate-path contract suitable for Architecture; upstream owner/source input is required.
 
 The Milestone 6 market target remains pre-match football full-match total-corners over/under. Do not silently downgrade to generic goals, 1X2, live corner statistics, next-corner products, or editorial references.
 

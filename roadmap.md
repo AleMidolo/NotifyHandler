@@ -7,7 +7,7 @@
 - **ADMIRALBET validation track: complete for feasibility.** BOOK-013/#62 consumed the real BOOK-012 result and is `Blocked at interactive feasibility` for the narrow full-match total-corners scope.
 - **SISAL portable live-validation handoff: complete.** DEVOPS-008/#88 published **`book012-sisal-diagnostic-v1`** from exact `main` commit `f77f99013b6fa4d65b6cab944af34b9d446e73c9`.
 - **Production readiness is not complete.** No bookmaker currently has live `Supported` status for the target pre-match football full-match total-corners scope, and Windows production signing is not implemented.
-- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** DEVOPS-014 produced a non-qualifying BET365 direct-mode artifact. QA-005/#163 is now the immediate P0 gate before any replacement relay-aware execution; DEVOPS-014/#161 is paused pending that decision.
+- **Current milestone: Milestone 6 — Evidence-backed live bookmaker readiness.** QA-005 and DEVOPS-014 are complete. Both qualified BET365/SISAL relay runs stop pre-bookmaker at `UNREVIEWED_SAME_ORIGIN_PATH`; PRODUCT-026/#167 is the sole immediate P0 blocker for a stable upstream intermediate-path or direct-destination contract.
 - **Next production milestone: Milestone 7 — Signed Windows production release readiness.** It remains blocked until Milestone 6 yields a genuinely live-supported pair.
 
 ## Milestones 0–5 — COMPLETE FOR UNSIGNED LOCAL PREVIEW/ALPHA
@@ -159,19 +159,32 @@ The corrected recommendation odds are consistent with the authoritative offer od
 
 The controlled BOOK-012 explorer now accepts the reviewed relay-navigation extension, reuses the BOOK-017 resolver, preserves default-deny exploration, redacts relay identifiers, and keeps `authorizesProductionMapping: false`. Post-merge CI on `a9d07e8692a2a00bf4db1c336896bafc654e5e4c` is green.
 
-### Current P0 — QA gate after non-qualifying live attempt
+### Relay diagnostics — COMPLETE
 
-**#163 QA-005 — READY NOW**
+**#163 QA-005 — COMPLETE**
 
-The first DEVOPS-014 BET365 artifact was hash-verified but ran as `BOOKMAKER_DIRECT`, with no relay origin, no `RELAY_INVALID`, and no `relayInvalidCategory`. It is therefore non-qualifying for the relay diagnostic and must not be used for bookmaker classification.
+QA approved one replacement BET365 relay-aware run plus the still-unused SISAL run only behind the merged fail-closed relay preflight. Missing/malformed relay input now stops before browser/network activity.
 
-QA-004 previously authorized at most one new non-CI run per bookmaker. Because the direct-mode run nevertheless performed live navigation, Product Coordination will not silently reinterpret that limit. QA-005 must explicitly authorize or deny one replacement BET365 relay-aware run and confirm SISAL's unused authorization.
+**#161 DEVOPS-014 — COMPLETE**
 
-Before any further run, QA must require a deterministic fail-closed preflight proving relay mode is active before browser/network activity. If a diagnostics-only runner change is needed, it must be tested/reviewed before execution.
+Both qualified runs used relay mode and returned:
+- BET365: `RELAY_INVALID / UNREVIEWED_SAME_ORIGIN_PATH`;
+- SISAL: `RELAY_INVALID / UNREVIEWED_SAME_ORIGIN_PATH`;
+- actions `0/10`; no bookmaker arrival; `authorizesProductionMapping: false`.
 
-**#161 DEVOPS-014 — PAUSED ON #163**
+**#166 BOOK-022 — COMPLETE**
 
-If QA authorizes, execute only the permitted relay-aware run(s), retain sanitized summary + SHA-256, and route them to Bookmaker Automation Engineer. No retry, resolver widening, hop/action-budget/delay/timeout tuning, or transaction-capability change is authorized.
+The category is precise but intentionally redacted: same `https://www.bet-up.it` origin, HTTPS, no userinfo/query/fragment, but pathname outside `/lnk/<uuid>/<bookmaker-suffix>`. The actual path template is unknown, so no evidence-backed resolver expansion exists.
+
+### Current P0 — upstream contract blocker
+
+**#167 PRODUCT-026 — READY NOW / EXTERNAL CONTRACT NEEDED**
+
+Obtain a stable non-sensitive intermediate path contract from the upstream owner, a sanitized owner-observed template with segment semantics/binding, or a supported direct bookmaker-origin destination contract.
+
+Public website/search review did not expose a usable relay/API/path specification. No additional live run or wildcard matcher is authorized simply to recover/guess the path.
+
+If a concrete contract is obtained, route to Software Architect for a new finite ADR/state-machine decision. If not, Product must replan away from this relay source.
 
 ### Implementation and qualification
 

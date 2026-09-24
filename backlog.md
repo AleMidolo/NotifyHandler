@@ -20,20 +20,28 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — QA-005 / #163: Reauthorize replacement BET365 relay diagnostic
-Owner: QA / Integration Engineer
-Milestone: 6 — Relay diagnostic evidence
+### P0 — PRODUCT-026 / #167: Define real bet-up intermediate relay path contract
+Owner: Product Coordinator / upstream integration
+Milestone: 6 — Evidence-backed live bookmaker readiness
 
-DEVOPS-014 received a verified BET365 artifact, but it was `BOOKMAKER_DIRECT` rather than `BETUP_RELAY`. It therefore cannot satisfy the authorized relay-invalid diagnostic and produced no `relayInvalidCategory`.
+Qualified DEVOPS-014 evidence is complete for both BET365 and SISAL:
+- `BETUP_RELAY`;
+- `RELAY_INVALID / UNREVIEWED_SAME_ORIGIN_PATH`;
+- zero actions/evidence retained;
+- no bookmaker arrival;
+- no production mapping authorization.
 
-QA must explicitly authorize or deny **one replacement BET365 relay-aware run**, confirm that the existing SISAL authorization remains unused/valid, and require a fail-closed relay-mode preflight before any further live execution.
+The category proves only that the flow stays on HTTPS `www.bet-up.it`, has no userinfo/query/fragment, and moves to a pathname outside the reviewed `/lnk/<uuid>/<bookmaker>` grammar. The actual intermediate template is intentionally not retained.
 
-### P0 after QA-005 — DEVOPS-014 / #161
-Owner: Release / DevOps Engineer
+Obtain one of:
+1. upstream/owner-confirmed sanitized intermediate path grammar + variable segment semantics/binding; or
+2. a supported direct bookmaker-origin destination contract.
 
-If QA authorizes the replacement, execute only the explicitly permitted relay-aware run(s) from the certified diagnostics source. The launch must fail before browser/network activity when the relay environment is absent or navigation would resolve to `BOOKMAKER_DIRECT`.
+Do not guess a wildcard path, capture raw live intermediate tokens, or run another live relay solely to recover the pathname.
 
-Retain only sanitized `ExplorerSummary.json` + SHA-256. Do not classify bookmaker feasibility and do not tune resolver/hops/action budget/delay/timeout.
+### After PRODUCT-026
+If a concrete grammar/direct contract exists -> Software Architect defines the finite reviewed state machine and downstream Security/QA gates.
+If no stable contract exists -> Product replans away from the current relay source for Milestone 6.
 
 ## Next in Milestone 6
 
@@ -86,6 +94,9 @@ The unsigned alpha channel and diagnostic validation bundle are not substitutes 
 - #124 / BOOK-017 — restricted bet-up relay resolver: complete via PR #134.
 - #125 / SEC-004 — relay network/redirect security review and hardening: complete via PR #137; relay suite 40/40 green.
 - #109 / PRODUCT-016 — target-market BET365/SISAL relay evidence handoff: complete; Portogallo - Galles, full-match U/O corners 6.5.
+- #163 / QA-005 — fail-closed relay preflight and one-shot replacement authorization: complete.
+- #161 / DEVOPS-014 — qualified BET365/SISAL relay-invalid category capture: complete; both `UNREVIEWED_SAME_ORIGIN_PATH`.
+- #166 / BOOK-022 — interpretation complete; bookmaker feasibility remains unobserved and PRODUCT-026/#167 owns the upstream path-contract blocker.
 - #105 / APP-005 — authenticated loopback structured direct-pair ingress: complete via PR #112.
 - #106 / SEC-002 — loopback ingress and direct-link DNS/token hardening: complete via PR #114.
 - #113 / SEC-003 — restart-safe structured-ingress idempotency: complete via PR #115.
