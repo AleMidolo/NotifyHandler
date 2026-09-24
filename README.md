@@ -6,11 +6,11 @@ NotifyHandler receives a surebet notification and automatically prepares the two
 
 Given a structured or textual surebet notification, NotifyHandler should:
 
-1. parse the event, competition, date/time, market, outcomes, bookmaker offers, expected odds, deep links, and recommended paired options;
+1. parse the event, competition, date/time, market, outcomes, bookmaker offers, deep links, recommended paired options, and any notified odds as informational metadata;
 2. deterministically resolve the notification's primary recommended paired option into exactly two bookmaker legs without asking the user to review, confirm, or choose it;
 3. immediately start the two legs and open the two bookmaker pages independently as soon as parsing, validation, adapter availability, and navigation-safety checks permit;
 4. locate and verify the requested event, market, exact line, and outcome for each leg;
-5. compare displayed odds with the expected odds from the notification;
+5. optionally expose the currently displayed odds to the user without using price equality/readability as a selection gate;
 6. activate the requested selection only when every required identity dimension is positively matched under the shared deterministic policy;
 7. stop safely rather than guess when evidence is mismatched, ambiguous, unavailable, or stale;
 8. hand control to the user with the prepared selections.
@@ -21,7 +21,7 @@ NotifyHandler must never enter credentials, automate MFA/CAPTCHA, enter stakes, 
 
 ## MVP scope
 
-The MVP focuses on deterministic notification parsing, automatic primary-option resolution, a transport-independent domain model, immediate execution planning, two-leg state tracking, bookmaker adapters, safe browser selection, odds-change reporting, and manual-user handoff.
+The MVP focuses on deterministic notification parsing, automatic primary-option resolution, a transport-independent domain model, immediate execution planning, two-leg state tracking, bookmaker adapters, safe browser selection, optional current-odds observability, and manual-user handoff.
 
 Initial bookmaker candidates are SISAL, BET365, LOTTOMATICA, EPLAY24, and ADMIRALBET. Support is added incrementally through the shared adapter contract and evidence gates.
 
@@ -86,7 +86,7 @@ Unsigned alpha/preview artifacts and diagnostic bundles must never be represente
 
 The accepted MVP runtime is a local-first desktop application with a TypeScript/Node.js core and a browser-automation worker using Playwright-controlled headed Chromium. Bookmaker sessions are isolated from the application UI and from the user's everyday browser profile; manual login and final transaction actions remain user-controlled.
 
-Selection authorization is predicate-based, not a fuzzy confidence score. Event, market family/context, **market period**, exact numeric line, outcome, current origin, odds state, attempt freshness, and cancellation state are independently gated. The current executable corners-total target is explicitly `full_match`; first-half or unknown-period markets must fail safely.
+Selection authorization is predicate-based, not a fuzzy confidence score. Event, market family/context, **market period**, exact numeric line, outcome, current origin, attempt freshness, and cancellation state are independently gated. Odds are informational and are not an activation predicate. The current executable corners-total target is explicitly `full_match`; first-half or unknown-period markets must fail safely.
 
 The architecture has no pre-execution user-review, pair-selection, confirmation, or renderer-driven start gate. Legacy text uses deterministic recommendation index 0; structured v1/v2 carry the authoritative two legs directly. V1 is direct-bookmaker-only; v2 adds typed direct or `bet-up.it` relay navigation. All paths converge on the same execution/matching/activation contracts.
 
