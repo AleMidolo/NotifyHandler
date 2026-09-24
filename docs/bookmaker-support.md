@@ -15,15 +15,15 @@ Bookmaker support is incremental and must conform to the shared adapter contract
 
 | Bookmaker | Priority | Status | Notes |
 | --- | --- | --- | --- |
-| SISAL | 1 | Blocked (live target scope); Testable (fixtures) | BOOK-024 preserved the exact Portogallo-Galles event route but observed zero target-relevant visible-text signals at the fixed passive observation point. This does not negate prior BOOK-023 title/event evidence, but it provides no production event/market/line/side/odds chain. See `docs/live-validation/book-025-passive-diagnostic-interpretation.md`. |
-| BET365 | 2 | Blocked (live target scope); Testable (fixtures) | BOOK-024 preserved the exact fragment-bearing direct route but stopped at an ambiguous diagnostic network boundary before retaining target evidence. `PRIVATE_OR_INTERNAL_DESTINATION` currently covers multiple fail-closed trigger classes and is not itself bookmaker matching/support evidence. See `docs/live-validation/book-025-passive-diagnostic-interpretation.md`. |
+| SISAL | 1 | Blocked (live target scope); Testable (fixtures) | BOOK-027 v1 provenance preserves the exact Portogallo-Galles route with clear transport, confirmed DOMContentLoaded, true participant-pair/competition title predicates, and a populated DOM. The reviewed DOM still lacks participant/time/corners/full-match/line/UNDER/odds target predicates; positive competition/date snippets are unrelated content and are not bound target evidence. No live mapping is authorized. See `docs/live-validation/book-027-passive-provenance-interpretation.md`. |
+| BET365 | 2 | Blocked (live target scope); Testable (fixtures) | BOOK-027 v1 provenance identifies the first transport trigger as `WEBSOCKET_ATTEMPT / SOCKET` while preserving the exact SPA fragment route. The socket remained blocked and no render/target evidence was retained, so this is not matching, feasibility, support, or destination evidence. No live mapping is authorized. See `docs/live-validation/book-027-passive-provenance-interpretation.md`. |
 | LOTTOMATICA | 3 | Blocked (feasibility) | BOOK-009 confirms the current official `www.lottomatica.it` product exposes active sports/football material, but controlled public validation did not establish the exact event → full-match total-corners → line → side → odds → selected-state selector chain. A direct official-page fetch in the validation environment returned HTTP 403 and was not bypassed. No adapter is created from insufficient evidence. See `docs/live-validation/lottomatica-book-009.md`. |
 | EPLAY24 | 4 | Blocked (feasibility) | BOOK-010 confirms current ADM concession `16004` maps E-play 24 Ita Limited to `www.eplay24.it`, and public EPLAY24 material confirms football/prematch betting. The accessible betting application is JavaScript-only in the crawl surface and the controlled validation did not establish the exact event → total-corners → line → side → odds → selected-state chain. No adapter is created from insufficient evidence. See `docs/live-validation/eplay24-book-010.md`. |
 | ADMIRALBET | 5 | Blocked (interactive feasibility) | BOOK-013 consumed a qualifying non-CI BOOK-012 run on `www.admiralbet.it`. The explorer reached the approved origin and `/scommesse/calcio`, but exhausted its fixed 10-action budget without exposing selector-level event binding, the full-match total-corners market, exact line, requested side, or bound displayed odds. `authorizesProductionMapping` remained false. See `docs/live-validation/admiralbet-book-013.md`. |
 
 The passive PRODUCT-004 queue and PRODUCT-005 generic interactive queue are both exhausted. ADMIRALBET, SISAL, and BET365 remain Blocked for the narrow live scope.
 
-PRODUCT-026/#167 replaced the blocked Betup critical path with direct bookmaker-origin URLs. BOOK-023/#170 then exercised the exact Portogallo-Galles BET365/SISAL direct targets through the source-locked non-CI runner. Direct navigation improved SISAL event/competition evidence but still did not establish the full deterministic selection chain; BET365 retained no target-specific evidence. Both therefore remain live Blocked for the narrow full-match total-corners scope. PRODUCT-028/#175 now owns the Milestone-6 replan. Betup remains fail-closed historical code, not a fallback.
+PRODUCT-026/#167 replaced the blocked Betup critical path with direct bookmaker-origin URLs. BOOK-023 through BOOK-027 then progressively refined the same Portogallo-Galles BET365/SISAL evidence without relaxing matching or safety. The latest v1 result still yields no feasible live mapping: BET365 stops on a blocked WebSocket attempt before render evidence, while SISAL's populated exact-route document lacks the target betting-chain predicates. PRODUCT-029/#194 now owns the Milestone-6 replan. Betup remains fail-closed historical code, not a fallback.
 
 Priorities may change when technical feasibility, permitted access, notification prevalence, or regression complexity provides evidence for a better order.
 
@@ -63,6 +63,36 @@ BOOK-024 only records bounded visible text. It does not use the URL/path or raw 
 Neither bookmaker reaches `Feasible for implementation`. Both remain fixture-backed `Testable` and live `Blocked` for the current narrow scope. ARCH-008/#184 owns the next diagnostic-design decision. No existing network/timing/interaction boundary may be weakened from BOOK-024 evidence.
 
 See `docs/live-validation/book-025-passive-diagnostic-interpretation.md`.
+
+## BOOK-026 v1 diagnostics and BOOK-027 interpretation
+
+Qualified DEVOPS-017 execution used merged source `7f1e24d37eff82e9807b7d58acd3dc3f438ee945`.
+
+BET365:
+- summary SHA-256 `9C1CDEDB8460B642011928B9D70394F1FE2A176D1F50DEEF9C57522D947B89D4`;
+- exact requested SPA fragment preserved;
+- first transport provenance `BLOCKED / WEBSOCKET_ATTEMPT / SOCKET`;
+- status `BLOCKED`;
+- no render or target evidence retained;
+- `authorizesProductionMapping: false`.
+
+The result means only that a WebSocket attempt occurred and was closed by the existing fail-closed policy. The artifact contains no destination information and does not establish whether the socket was required for target rendering. It cannot be used as matching, feasibility, support, selector-mapping, or activation evidence.
+
+SISAL:
+- summary SHA-256 `B6AE576E657BCAC2417F899F8EE6B2576DD7512C3DA4C65C2BC6FA0583E21455`;
+- exact Portogallo-Galles route preserved;
+- transport `CLEAR`;
+- `DOMCONTENTLOADED_CONFIRMED`;
+- title participant-pair and competition predicates true;
+- DOM population `POPULATED`;
+- required target chain false;
+- `authorizesProductionMapping: false`.
+
+The reviewed DOM lacks the participant pair, scheduled time, broad/total-corners context, full-match context, exact 6.5 line, requested UNDER side, and expected/displayed odds. The positive competition/date snippets are unrelated page/editorial content, so they are not event-bound target evidence.
+
+Neither bookmaker reaches `Feasible for implementation`. No restricted live-mapping issue is created. PRODUCT-029/#194 owns the next pair/evidence decision.
+
+See `docs/live-validation/book-027-passive-provenance-interpretation.md`.
 
 ## Browser worker testable scope
 
