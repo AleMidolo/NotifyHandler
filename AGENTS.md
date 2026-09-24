@@ -75,14 +75,15 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-PR #142 is merged and BOOK-016 evidence tooling is relay-aware. The remaining blocker is operational execution on a qualifying non-CI workstation.
+DEVOPS-014/#161 is paused after a non-qualifying BET365 operator artifact ran in `BOOKMAKER_DIRECT` mode instead of the authorized relay-aware diagnostic mode.
 
-1. **#143 DEVOPS-012 — immediate P0.** Execute exactly one BET365 and one SISAL relay-aware validation run from merged commit `a9d07e8692a2a00bf4db1c336896bafc654e5e4c`; retain only sanitized summary + SHA-256 and return them to #104.
-2. **#104 BOOK-016 — after #143.** Interpret actual results only; DevOps must not classify feasibility/support.
-3. Environment/toolchain/DNS failure remains environment evidence and must not classify a bookmaker.
-4. If relay-aware evidence yields a feasible candidate, create a separate restricted live-mapping implementation issue. If the required pair remains Blocked, route to Product Coordination for candidate/scope replan.
-5. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
-6. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. **#163 QA-005 — immediate P0.** Explicitly authorize or deny one replacement BET365 relay-aware diagnostic run and confirm the unused SISAL authorization.
+2. Require a deterministic fail-closed relay-mode preflight before any further live execution. Missing `NH_LIVE_EXPLORER_RELAY_URL` or a would-be `BOOKMAKER_DIRECT` launch must stop before browser/network activity.
+3. **#161 DEVOPS-014 — after #163 only.** Execute only the run(s) QA explicitly permits; retain sanitized summary + SHA-256 and route results to Bookmaker Automation Engineer.
+4. The rejected direct-mode artifact is not relay diagnostic evidence and must not classify BET365 feasibility/support.
+5. No retry/tuning/resolver widening is allowed without a new architecture/security/QA cycle.
+6. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
+7. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 Relay resolution and upstream notification content never satisfy matching predicates by themselves.
 

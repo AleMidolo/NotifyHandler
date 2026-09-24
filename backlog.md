@@ -20,21 +20,20 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — DEVOPS-012 / #143: Execute BOOK-016 relay-aware validation
+### P0 — QA-005 / #163: Reauthorize replacement BET365 relay diagnostic
+Owner: QA / Integration Engineer
+Milestone: 6 — Relay diagnostic evidence
+
+DEVOPS-014 received a verified BET365 artifact, but it was `BOOKMAKER_DIRECT` rather than `BETUP_RELAY`. It therefore cannot satisfy the authorized relay-invalid diagnostic and produced no `relayInvalidCategory`.
+
+QA must explicitly authorize or deny **one replacement BET365 relay-aware run**, confirm that the existing SISAL authorization remains unused/valid, and require a fail-closed relay-mode preflight before any further live execution.
+
+### P0 after QA-005 — DEVOPS-014 / #161
 Owner: Release / DevOps Engineer
-Milestone: 6 — Evidence-backed live bookmaker readiness
 
-PR #142 is merged at exact commit `a9d07e8692a2a00bf4db1c336896bafc654e5e4c`. Execute exactly once per bookmaker on a qualifying non-CI headed workstation:
-- BET365 using the recorded relay for Portogallo - Galles;
-- SISAL using the recorded relay for Portogallo - Galles.
+If QA authorizes the replacement, execute only the explicitly permitted relay-aware run(s) from the certified diagnostics source. The launch must fail before browser/network activity when the relay environment is absent or navigation would resolve to `BOOKMAKER_DIRECT`.
 
-Retain only sanitized `ExplorerSummary.json` + SHA-256 and return both results to #104. Do not classify feasibility in DevOps. Environment/prerequisite failure is not bookmaker evidence.
-
-### P0 after #143 — BOOK-016 / #104
-Owner: Bookmaker Automation Engineer
-
-Interpret the two actual sanitized results against:
-`expected bookmaker -> event -> competition/time -> full-match total-corners -> exact 6.5 line -> requested side -> displayed odds`.
+Retain only sanitized `ExplorerSummary.json` + SHA-256. Do not classify bookmaker feasibility and do not tune resolver/hops/action budget/delay/timeout.
 
 ## Next in Milestone 6
 
