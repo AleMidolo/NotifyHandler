@@ -424,15 +424,14 @@ function summaryTarget(target: PassiveTargetDefinition): TargetAwarePassiveSumma
 
 export async function runTargetAwarePassiveProbe(options: Readonly<{
   bookmaker: TargetAwareBookmaker;
-  url?: string;
-  headless?: boolean;
 }>): Promise<TargetAwarePassiveSummary> {
+  assertNonCiEnvironment();
   const targetDefinition = BOOK_024_TARGETS[options.bookmaker];
-  const target = parseApprovedPassiveTarget(options.bookmaker, options.url ?? targetDefinition.url);
+  const target = parseApprovedPassiveTarget(options.bookmaker, targetDefinition.url);
   const approvedOrigin = approvedOriginFor(options.bookmaker);
   const navigationPolicy = new NavigationPolicy([approvedOrigin]);
 
-  const browser = await chromium.launch({ headless: options.headless ?? false });
+  const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext({
     acceptDownloads: false,
     serviceWorkers: "block",
