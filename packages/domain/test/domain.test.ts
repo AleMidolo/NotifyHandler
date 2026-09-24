@@ -14,6 +14,9 @@ import {
   inconsistentRecommendationLine,
   inconsistentRecommendationOdds,
   invalidDate,
+  legacyMalformedPresentOdds,
+  legacyRecommendationOnlyOdds,
+  legacyWithoutOdds,
   malformedLink,
   minimalValid,
   missingEvent,
@@ -137,6 +140,50 @@ test("accepts executable input when optional competition, date/time and deep lin
   assert.equal(parsed.value.recommendedOptions.length, 1);
 });
 
+test("normalizes a legacy notification with no expected prices when identity fields are complete", () => {
+  const parsed = parseSurebetNotification(legacyWithoutOdds);
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+
+  assert.equal(parsed.value.outcomeGroups[0].offers[0]?.expectedOdds, undefined);
+  assert.equal(parsed.value.outcomeGroups[1].offers[0]?.expectedOdds, undefined);
+
+  const plan = buildExecutionPlan(parsed.value, "option-1", "2026-09-24T15:10:00.000Z");
+  assert.equal(plan.ok, true);
+  if (!plan.ok) return;
+
+  assert.equal(plan.value.legs[0].target.expectedOdds, undefined);
+  assert.equal(plan.value.legs[1].target.expectedOdds, undefined);
+  assert.deepEqual(
+    plan.value.legs.map((leg) => [
+      leg.target.bookmaker,
+      leg.target.outcome.side,
+      leg.target.market.period,
+      leg.target.market.line,
+    ]),
+    [
+      ["sisal", "over", "full_match", "11.5"],
+      ["bet365", "under", "full_match", "11.5"],
+    ],
+  );
+});
+
+test("preserves recommendation-only prices as optional target metadata", () => {
+  const parsed = parseSurebetNotification(legacyRecommendationOnlyOdds);
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+
+  const plan = buildExecutionPlan(parsed.value, "option-1", "2026-09-24T15:10:00.000Z");
+  assert.equal(plan.ok, true);
+  if (!plan.ok) return;
+
+  assert.equal(plan.value.legs[0].target.expectedOdds, "2.8");
+  assert.equal(plan.value.legs[1].target.expectedOdds, "1.61");
+});
+
+test("rejects malformed price metadata when an odds marker is explicitly present", () =>
+  expectError(legacyMalformedPresentOdds, "INVALID_ODDS"));
+
 test("does not guess an event when it is missing", () => expectError(missingEvent, "MISSING_EVENT"));
 test("requires a line for line-based total-corners markets", () => expectError(missingLine, "MISSING_MARKET_LINE"));
 test("rejects unsupported market syntax", () => expectError(unsupportedMarket, "UNSUPPORTED_MARKET"));
@@ -146,7 +193,43 @@ test("rejects invalid calendar dates", () => expectError(invalidDate, "INVALID_D
 test("rejects conflicting duplicate scalar fields", () => expectError(conflictingEvent, "CONFLICTING_FIELD"));
 test("rejects notifications without a recommended pair", () => expectError(missingRecommendation, "MISSING_RECOMMENDATION"));
 test("rejects malformed deep links rather than silently repairing them", () => expectError(malformedLink, "MALFORMED_DEEP_LINK"));
-test("rejects a recommendation whose explicit odds conflict with its source offer", () => expectError(inconsistentRecommendationOdds, "INCONSISTENT_RECOMMENDATION_ODDS"));
+test("treats differing source/recommendation odds as informational metadata rather than identity mismatch", () => {
+  const parsed = parseSurebetNotification(inconsistentRecommendationOdds);
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+
+  const plan = buildExecutionPlan(parsed.value, "option-1", "2026-09-24T15:10:00.000Z");
+  assert.equal(plan.ok, true);
+  if (!plan.ok) return;
+
+  assert.equal(parsed.value.outcomeGroups[0].offers[0]?.expectedOdds, "2.9");
+  assert.equal(parsed.value.recommendedOptions[0]?.legs[0].expectedOdds, "2.8");
+  assert.equal(plan.value.legs[0].target.expectedOdds, "2.8");
+  assert.deepEqual(
+    {
+      bookmaker: plan.value.legs[0].target.bookmaker,
+      event: plan.value.legs[0].target.event,
+      market: plan.value.legs[0].target.market,
+      outcome: plan.value.legs[0].target.outcome,
+    },
+    {
+      bookmaker: "sisal",
+      event: {
+        participantA: "Real Madrid",
+        participantB: "Rayo Vallecano",
+        sourceDisplay: "Real Madrid - Rayo Vallecano",
+      },
+      market: {
+        family: "total",
+        context: "corners",
+        period: "full_match",
+        line: "11.5",
+        sourceLabel: "U/O CORNER 11.5",
+      },
+      outcome: { side: "over", sourceLabel: "OVER" },
+    },
+  );
+});
 test("rejects a recommendation whose line conflicts with the normalized market", () => expectError(inconsistentRecommendationLine, "INCONSISTENT_RECOMMENDATION_LINE"));
 test("rejects a supported bookmaker recommendation when that source offer is absent", () => expectError(unknownRecommendationOffer, "UNKNOWN_RECOMMENDATION_OFFER"));
 test("never fuzzy-maps an unsupported bookmaker referenced by a recommendation", () => expectError(unsupportedRecommendedBookmaker, "UNSUPPORTED_BOOKMAKER"));
