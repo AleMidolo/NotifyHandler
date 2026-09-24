@@ -67,9 +67,17 @@ If evidence is ambiguous or contradictory, return `failed safely` with structure
 
 ## 6. Odds boundary
 
-Expected odds from the source notification are immutable input evidence. Observed odds are live page evidence. Keep both values.
+Expected/notified and observed odds are informational metadata only.
 
-An odds change must never cause the system to select a different event/market/line/outcome. Odds policy may determine whether an otherwise verified target is still prepared, but the change must remain visible to the user.
+Keep them distinct when present, but:
+
+- price equality/readability is not part of selection identity;
+- changed/missing/unreadable price does not by itself block an exact selection;
+- no price acknowledgement is required;
+- no price may repair a wrong event/market/period/line/outcome;
+- NotifyHandler does not calculate surebet validity, ROI, profitability, or stake sizing.
+
+The user decides whether the displayed price is acceptable after handoff.
 
 ## 7. Navigation and URL safety
 
@@ -115,6 +123,23 @@ After expected-bookmaker arrival, normal bookmaker origin/evidence policies resu
 
 A previously resolved final URL is not cached as trusted input for retry/reopen.
 
+### Bookmaker WebSocket safety
+
+After an approved bookmaker origin is reached, the browser gateway may permit normal page `wss://` transport only under `specs/bookmaker-network-policy.md`.
+
+Required controls:
+
+- `wss://` only; `ws://` is prohibited;
+- default TLS port 443 only;
+- no URL credentials or IP-literal destinations;
+- every destination must pass fail-closed public DNS/private-network checks;
+- host authorization comes from version-controlled bookmaker policy, never notification/page/user/runtime discovery;
+- exact hosts are preferred; reviewed suffix rules are explicit and must not be public suffixes;
+- WebSocket objects/messages/payloads are not exposed to adapter/core/renderer/matching/activation APIs;
+- payloads are not retained or used as evidence;
+- relay-origin WebSockets remain blocked;
+- unsafe/unapproved socket attempts fail safely and never expand the allowlist.
+
 ### Structured local-ingress safety
 
 The local machine-to-machine endpoint remains a privileged control surface even though it binds loopback.
@@ -156,11 +181,13 @@ A release is blocked if any known path can:
 - expose the structured ingress on non-loopback interfaces by default or accept it without required local authentication/request bounds;
 - expose sensitive authentication/session data in logs or artifacts;
 - let a passive/live diagnostic accept an alternative same-origin URL when its evidence scope is source-locked to an exact direct page;
-- let passive-diagnostic HTTP(S) subresources bypass public-DNS/private-address validation or expose a WebSocket surface;
+- let passive-diagnostic HTTP(S) subresources bypass public-DNS/private-address validation;
+- allow `ws://`, non-443/IP-literal/private/unapproved bookmaker WSS, runtime-discovered socket allow rules, or socket payload exposure;
 - retain passive-diagnostic full page/DOM dumps, screenshots, traces, HAR, cookies/storage/session state, form values, authenticated captures, raw document title, hidden/body text, blocked destination data, dynamic unapproved final-route strings, raw element counts, or raw browser/runtime failure messages;
 - accept a passive-diagnostic artifact whose source-locked metadata, transport/block reason, bounded snippets, displayed odds, or derived evidence booleans are inconsistent with the reviewed schema;
 - let passive diagnostic provenance authorize retry/timing changes, WebSockets, DNS/origin/protocol exceptions, production mapping, bookmaker support, matching evidence, or outcome activation;
 - let passive diagnostic evidence authorize production mapping, outcome activation, or transaction behavior;
+- let odds equality/readability become a selection-activation requirement or changed-price acknowledgement gate;
 - allow relay-page subresources to reach loopback/private/internal network targets;
 - omit relay-resolution security regressions from the pinned-browser CI gate.
 
