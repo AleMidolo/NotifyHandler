@@ -153,6 +153,10 @@ A release is blocked if any known path can:
 - treat relay path/suffix/redirect success as positive selection identity evidence;
 - expose the structured ingress on non-loopback interfaces by default or accept it without required local authentication/request bounds;
 - expose sensitive authentication/session data in logs or artifacts;
+- let a passive/live diagnostic accept an alternative same-origin URL when its evidence scope is source-locked to an exact direct page;
+- let passive-diagnostic HTTP(S) subresources bypass public-DNS/private-address validation or expose a WebSocket surface;
+- retain passive-diagnostic full page/DOM dumps, screenshots, traces, HAR, cookies/storage/session state, form values, authenticated captures, or raw browser/runtime failure messages;
+- let passive diagnostic evidence authorize production mapping, outcome activation, or transaction behavior;
 - allow relay-page subresources to reach loopback/private/internal network targets;
 - omit relay-resolution security regressions from the pinned-browser CI gate.
 
