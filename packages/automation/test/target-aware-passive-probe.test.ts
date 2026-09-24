@@ -346,6 +346,37 @@ test("passive-provenance.v1 validates the explicit retained-summary allowlist", 
     }),
     /unknown enum value/,
   );
+  assert.throws(
+    () => validatePassiveDiagnosticSummary({
+      ...validBlocked,
+      transportProvenance: { state: "CLEAR" },
+    }),
+    /must agree/,
+  );
+  assert.throws(
+    () => validatePassiveDiagnosticSummary({
+      ...validBlocked,
+      finalPath: "/account/session/opaque-dynamic-path",
+    }),
+    /redacted route allowlist/,
+  );
+  assert.throws(
+    () => validatePassiveDiagnosticSummary({
+      ...validBlocked,
+      approvedOrigin: "https://example.invalid",
+    }),
+    /source-locked BOOK-024 navigation contract/,
+  );
+  assert.throws(
+    () => validatePassiveDiagnosticSummary({
+      ...validBlocked,
+      target: {
+        ...(validBlocked.target as Record<string, unknown>),
+        participantA: "dynamic page content",
+      },
+    }),
+    /source-locked BOOK-024 definition/,
+  );
 });
 
 test("passive-provenance.v1 rejects contradictory or expanded render provenance", () => {
@@ -377,6 +408,31 @@ test("passive-provenance.v1 rejects contradictory or expanded render provenance"
     }),
     /COMPLETE summary requires CLEAR transport provenance/,
   );
+
+  const unsafeSnippet = structuredClone(valid.evidence as Record<string, unknown>);
+  (unsafeSnippet.participantA as Record<string, unknown>).observed = true;
+  (unsafeSnippet.participantA as Record<string, unknown>).snippets = [
+    "https://example.invalid/private/session",
+  ];
+  assert.throws(
+    () => validatePassiveDiagnosticSummary({ ...valid, evidence: unsafeSnippet }),
+    /unsanitized sensitive-looking content/,
+  );
+
+  const unsafeOdds = structuredClone(valid.evidence as Record<string, unknown>);
+  unsafeOdds.displayedOddsCandidates = ["secret-token-value"];
+  assert.throws(
+    () => validatePassiveDiagnosticSummary({ ...valid, evidence: unsafeOdds }),
+    /displayedOddsCandidates is invalid/,
+  );
+
+  assert.throws(
+    () => validatePassiveDiagnosticSummary({
+      ...valid,
+      finalPath: "[unapproved-route]",
+    }),
+    /exact source-locked final route/,
+  );
 });
 
 test("BOOK-026 source keeps timing/action boundaries while adding versioned non-authorizing provenance", async () => {
@@ -395,4 +451,6 @@ test("BOOK-026 source keeps timing/action boundaries while adding versioned non-
   assert.doesNotMatch(source, /\.type\(/);
   assert.doesNotMatch(source, /\.evaluate\(/);
   assert.match(source, /authorizesProductionMapping: false/);
+  assert.match(source, /"\[unapproved-route\]"/);
+  assert.doesNotMatch(source, /finalPath:\s*finalUrl\.pathname/);
 });
