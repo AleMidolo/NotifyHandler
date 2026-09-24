@@ -26,7 +26,7 @@ Authoritative target:
 - BET365: `https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/`
 - SISAL: `https://www.sisal.it/scommesse-matchpoint/evento/calcio/nations-league/portogallo-galles`
 
-The diagnostic CLI accepts only the bookmaker name. It does not accept a runtime live URL override.
+The diagnostic CLI accepts only the bookmaker name. It does not accept a runtime live URL override. The programmatic probe boundary also rejects any URL other than the exact source-locked target, even when another URL stays on the same bookmaker origin.
 
 BET365 navigation uses the full source-locked URL including its SPA fragment. Retained output does not store the fragment itself; it records only:
 
@@ -92,11 +92,11 @@ The probe does not retain:
 - authenticated page captures;
 - private/protected API responses.
 
-The browser context is fresh/ephemeral, blocks service workers, disables downloads, closes popups, and reuses the existing exact-origin/internal-host navigation boundary.
+The browser context is fresh/ephemeral, blocks service workers, disables downloads, closes popups, and reuses the existing exact-origin navigation boundary. Every routed HTTP(S) request is independently required to be public HTTPS with fail-closed DNS/private-address validation before it is allowed to continue. BOOK-024 exposes no WebSocket surface: attempted WebSockets are closed and the diagnostic fails safely.
 
 ## Transaction and access boundary
 
-The BOOK-024 source contains no click/fill/type/check/select/upload capability. It cannot:
+The BOOK-024 source contains no click/fill/type/check/select/upload capability. CLI failures emit only a fixed generic message rather than forwarding Playwright/runtime error text, so the source-locked BET365 fragment or another dynamic target cannot be echoed through failure logs. It cannot:
 
 - activate an outcome;
 - add a selection to a betslip;
