@@ -285,6 +285,48 @@ function displayedOddsFromBoundEvidence(
   return [...odds];
 }
 
+async function collectDisplayedOddsNearTarget(
+  page: Page,
+  target: PassiveTargetDefinition,
+): Promise<string[]> {
+  const odds = new Set<string>();
+  const anchors = [
+    page.getByText(targetSideAtLinePattern(target)),
+    page.getByText(decimalPattern(target.line)),
+    page.getByText(TOTAL_CORNERS_PATTERN),
+  ];
+
+  for (const anchor of anchors) {
+    const count = await anchor.count();
+    for (let index = 0; index < Math.min(count, 8); index += 1) {
+      const item = anchor.nth(index);
+      if (!(await item.isVisible().catch(() => false))) continue;
+      let context: Locator = item;
+
+      for (let depth = 0; depth < 3; depth += 1) {
+        if ((await context.count().catch(() => 0)) === 0) break;
+        const text = sanitizePassiveEvidenceText(await context.innerText().catch(() => ""));
+        const targetRelevant =
+          targetSideAtLinePattern(target).test(text) ||
+          decimalPattern(target.line).test(text) ||
+          TOTAL_CORNERS_PATTERN.test(text);
+        if (targetRelevant) {
+          for (const value of displayedOddsFromBoundEvidence(
+            [{ observed: true, snippets: [text] }],
+            target.line,
+          )) {
+            odds.add(value);
+            if (odds.size >= MAX_ODDS_CANDIDATES) return [...odds];
+          }
+        }
+        context = context.locator("xpath=..");
+      }
+    }
+  }
+
+  return [...odds];
+}
+
 export async function collectTargetAwarePageEvidence(
   page: Page,
   target: PassiveTargetDefinition,
@@ -301,10 +343,15 @@ export async function collectTargetAwarePageEvidence(
   const requestedSideAtLine = await boundedSignalEvidence(page, targetSideAtLinePattern(target));
   const expectedOdds = await boundedSignalEvidence(page, decimalPattern(target.expectedOdds));
 
-  const displayedOddsCandidates = displayedOddsFromBoundEvidence(
-    [totalCornersMarket, fullMatchContext, exactLine, requestedSideAtLine, expectedOdds],
-    target.line,
-  );
+  const displayedOddsCandidates = [
+    ...new Set([
+      ...displayedOddsFromBoundEvidence(
+        [totalCornersMarket, fullMatchContext, exactLine, requestedSideAtLine, expectedOdds],
+        target.line,
+      ),
+      ...(await collectDisplayedOddsNearTarget(page, target)),
+    ]),
+  ].slice(0, MAX_ODDS_CANDIDATES);
 
   const dimensionsObserved = {
     event: participantA.observed && participantB.observed,
