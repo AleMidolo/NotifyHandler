@@ -103,6 +103,7 @@ test("BOOK-024 probe source is passive, non-authorizing, bounded, and retains no
   assert.match(source, /serviceWorkers: "block"/);
   assert.match(source, /parsed\.href !== lockedUrl/);
   assert.match(source, /isResolvedPublicHttpsTarget\(parsed\.href\)/);
+  assert.match(source, /!\["data:", "blob:", "about:"\]\.includes\(parsed\.protocol\)/);
   assert.match(source, /context\.routeWebSocket\("\*\*\/\*"/);
   assert.doesNotMatch(source, /error instanceof Error \? error\.message/);
   assert.match(source, /failed safely before a sanitized summary could be produced/);
