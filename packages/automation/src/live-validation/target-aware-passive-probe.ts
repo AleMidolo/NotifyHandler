@@ -230,14 +230,12 @@ async function detectPassiveBlock(page: Page): Promise<PassiveBlockReason | unde
 
 async function boundedContextText(item: Locator): Promise<string> {
   const directText = sanitizePassiveEvidenceText(await item.innerText().catch(() => ""));
-  const contextText = sanitizePassiveEvidenceText(
-    await item
-      .locator(
-        "xpath=ancestor-or-self::*[self::button or self::a or self::div or self::li or self::section or self::article][1]",
-      )
-      .innerText()
-      .catch(() => ""),
+  const context = item.locator(
+    "xpath=ancestor-or-self::*[self::button or self::a or self::div or self::li or self::section or self::article or self::main or self::nav][1]",
   );
+  if ((await context.count().catch(() => 0)) === 0) return directText;
+
+  const contextText = sanitizePassiveEvidenceText(await context.innerText().catch(() => ""));
   return contextText.length > directText.length ? contextText : directText;
 }
 
