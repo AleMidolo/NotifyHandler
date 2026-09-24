@@ -248,8 +248,7 @@ function validTarget(target: SelectionTarget): boolean {
     && target.market.family.trim().length > 0
     && target.market.context.trim().length > 0
     && target.market.period === "full_match"
-    && target.market.line.trim().length > 0
-    && target.expectedOdds.trim().length > 0;
+    && target.market.line.trim().length > 0;
 }
 
 async function safeDeepLink(
