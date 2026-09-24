@@ -175,6 +175,21 @@ function approvedOriginFor(bookmaker: TargetAwareBookmaker): string {
   return APPROVED_ORIGINS[bookmaker];
 }
 
+export function isApprovedPassiveFinalRoute(
+  bookmaker: TargetAwareBookmaker,
+  rawUrl: string,
+): boolean {
+  try {
+    const parsed = new URL(rawUrl);
+    return (
+      parsed.origin === approvedOriginFor(bookmaker)
+      && parsed.href === BOOK_024_TARGETS[bookmaker].url
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function parseApprovedPassiveTarget(
   bookmaker: TargetAwareBookmaker,
   rawUrl: string,
@@ -508,13 +523,17 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
       };
     }
 
-    if (!navigationPolicy.isAllowed(page.url()) || finalUrl.origin !== approvedOrigin) {
+    if (
+      !navigationPolicy.isAllowed(page.url())
+      || finalUrl.origin !== approvedOrigin
+      || !isApprovedPassiveFinalRoute(options.bookmaker, finalUrl.href)
+    ) {
       return {
         ...base,
         status: "BLOCKED",
         blockReason: "UNAPPROVED_NAVIGATION",
         note:
-          "Passive direct-page diagnostic stopped after exact approved-origin validation failed.",
+          "Passive direct-page diagnostic stopped because the exact source-locked direct route was not preserved.",
       };
     }
 
