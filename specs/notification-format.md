@@ -54,7 +54,7 @@ SurebetNotification
     side: normalized outcome identifier
     offers[]:
       bookmaker: canonical bookmaker id
-      expectedOdds: decimal
+      expectedOdds?: decimal
       deepLink?: URL
       sourceLabel?: string
   recommendedOptions[]:
@@ -75,7 +75,6 @@ A notification is executable only if it can unambiguously yield:
 - market family/source label and canonical market period;
 - outcome sides offered;
 - canonical bookmaker for each selected offer;
-- expected odds for each selected offer;
 - at least one recommended option;
 - a primary recommended option, defined for the initial MVP as the first recommendation in source order, that resolves to exactly two distinct bookmaker legs.
 
@@ -106,7 +105,13 @@ For the initial MVP, football-like event labels commonly use `Participant A - Pa
 The source example uses `DD/MM/YYYY - HH:mm`. Parsing must validate calendar correctness. Timezone handling must be explicit in architecture/domain design; do not assume UTC. Preserve original text and parsed value so ambiguity is diagnosable.
 
 ### 4.5 Odds
-Expected odds are decimal values using a normalized decimal representation. Locale separators may be supported only when explicitly tested. Invalid/non-positive odds cause a parse/validation error for executable offers.
+Expected/notified odds are optional informational metadata.
+
+When present, they use a normalized decimal representation. Locale separators may be supported only when explicitly tested. A present malformed/non-positive price is a parse/validation error for that offer because ambiguous metadata must not be silently normalized.
+
+A missing price does not make an otherwise deterministic offer or primary recommendation non-executable.
+
+Price is never part of event/market/period/line/outcome identity and does not authorize or block bookmaker selection preparation.
 
 ### 4.6 Bookmakers
 Bookmaker names map to canonical IDs. Initial canonical candidates:
@@ -162,7 +167,7 @@ Examples include:
 - malformed date/time when required;
 - unsupported/unknown market syntax;
 - missing line for a line-based market;
-- invalid expected odds;
+- invalid expected odds when an odds value is present;
 - recommendation references unknown offer;
 - primary recommendation resolves to other than two legs;
 - primary recommendation resolves both legs to the same bookmaker;
@@ -173,7 +178,7 @@ Errors should identify the field/section and preserve enough sanitized source co
 
 ## 7. Determinism requirements
 
-Given the same input and parser version/configuration, normalization and primary-recommendation resolution must produce the same output/error. Runtime page state, bookmaker DOM, and live odds must not influence notification parsing.
+Given the same input and parser version/configuration, normalization and primary-recommendation resolution must produce the same output/error. Runtime page state, bookmaker DOM, and live displayed odds must not influence notification parsing.
 
 ## 8. Fixture requirements
 
@@ -189,6 +194,7 @@ The domain implementation should include sanitized fixtures covering:
 - malformed/missing fields;
 - ambiguous recommendations;
 - same-bookmaker primary recommendation;
+- offer without odds;
 - comma/dot odds cases if locale support is implemented;
 - unsupported market and bookmaker cases;
 - first-half/other-period market labels proving they do not normalize to the current `full_match` target.
@@ -215,3 +221,12 @@ Every executable normalization path must preserve market period through to `Sele
 - no application/domain layer may drop period and rely on adapters to infer it later.
 
 A plan missing period is invalid for the current deterministic matching contract.
+
+
+## 11. ARCH-010 informational-price amendment
+
+Legacy text may omit quoted odds entirely.
+
+When a legacy offer includes a price, the parser preserves it as optional informational provenance. Primary recommendation resolution must not depend on price equality or use price as selection identity.
+
+Existing notifications that include odds remain backwards compatible.

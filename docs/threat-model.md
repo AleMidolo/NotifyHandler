@@ -7,7 +7,7 @@ NotifyHandler is intentionally limited to navigation, deterministic target verif
 ## Assets to protect
 
 - Bookmaker credentials, MFA/OTP values, password-manager contents, cookies, session tokens, and authorization headers.
-- The integrity of the requested event, market, line, side/outcome, expected odds, and bookmaker identity.
+- The integrity of the requested event, market, period, line, side/outcome, and bookmaker identity. Price metadata should remain accurate when displayed but is not an activation identity.
 - The user's bookmaker session and browser profile data.
 - The transaction boundary: no automatic stake entry, funding, cash-out, wager confirmation, or wager submission.
 - Local host integrity, including prevention of arbitrary file/internal-network navigation and command execution.
@@ -49,7 +49,7 @@ Controls:
 
 ### Bookmaker page content
 
-Bookmaker DOM, script state, redirects, labels, and displayed odds are untrusted runtime evidence. A compromised page or unexpected page state must not expand application capabilities.
+Bookmaker DOM, script state, redirects, labels, optional displayed odds, and browser network activity are untrusted runtime state. A compromised page or unexpected page state must not expand application capabilities.
 
 Controls:
 - exact deterministic identity checks for event, market, line, and outcome;
@@ -130,8 +130,24 @@ Mitigations:
 - omit render provenance entirely after transport, route, auth, CAPTCHA/anti-bot, access, or consent failure;
 - keep provenance outside production matching/evidence/activation interfaces;
 - copy no browser/runtime/DNS exception text into artifacts;
-- keep source lock, timeouts, waits, zero-interaction capability, WebSocket blocking, DNS/origin policy, and transaction boundary unchanged;
+- keep source lock, timeouts, waits, zero-interaction capability, DNS/origin policy, and transaction boundary unchanged; after ARCH-011, WSS is governed only by the bounded bookmaker network policy;
 - require Security and QA approval of the exact implementation before any further live run.
+
+### Bookmaker WebSocket egress and data-channel abuse
+
+Threat: a bookmaker page or compromised script attempts to use WebSockets to reach private/internal services, arbitrary third-party hosts, or create a new payload-level application API/evidence channel.
+
+Mitigations:
+- WebSocket permission exists only in the worker/browser gateway after approved bookmaker-origin arrival;
+- allow `wss://` port 443 only, with no URL credentials or IP-literal hosts;
+- require version-controlled bookmaker exact-host/reviewed-suffix policy;
+- re-run fail-closed public DNS/private-address validation before connection;
+- no runtime auto-learning from observed socket destinations;
+- relay-origin sockets remain blocked;
+- socket objects/messages are never exposed to adapters/core/renderer/matching/activation code;
+- no payload/message retention or protected/private API reverse engineering;
+- isolated browser context/cancellation cleanup bounds socket lifetime;
+- unapproved/unsafe socket attempts fail the attempt safely rather than broadening policy.
 
 ### Compromised bookmaker content
 
@@ -186,21 +202,21 @@ Mitigations:
 - never log cookies, authorization headers, browser storage, password-manager data, or form values from credential inputs;
 - diagnostic screenshots/traces are off by default for authenticated production sessions unless a dedicated redaction policy is implemented.
 
-## Navigation policy
+## Navigation and browser-network policy
 
 For structured direct-pair links, navigation uses defense in depth: worker preflight resolves the approved hostname and fails closed if any answer is loopback, link-local, private, multicast, documentation-only, or otherwise forbidden; the live browser gateway repeats resolved-target validation immediately before top-level navigation and redirects. Fixture-only routes do not perform external DNS because they never reach the network.
 
 Every bookmaker adapter and the browser runtime must enforce all of the following before opening notification-derived URLs:
 
 1. URL parses successfully.
-2. Scheme is exactly `https:` unless a future ADR explicitly approves another scheme.
+2. Top-level navigation scheme is exactly `https:`. ARCH-011 separately permits reviewed `wss://` page transport; WSS is not navigation.
 3. Username and password components are empty.
 4. Origin exactly matches an adapter-approved origin, including port semantics.
 5. No `javascript:`, `data:`, `file:`, browser-internal, extension, loopback, or private/internal-network target is accepted.
 6. Redirects are revalidated before matching or activation continues.
 7. Navigation to authentication/account pages may result from normal bookmaker flows, but automation must not interact with credential, funding, stake, or transaction controls.
 
-Adapters should prefer a small explicit set of canonical bookmaker origins. Broad suffix rules such as `*.example.com` require separate security review because subdomain ownership and takeover risk differ by bookmaker.
+Adapters should prefer a small explicit set of canonical bookmaker origins. Browser WSS uses the separate version-controlled `specs/bookmaker-network-policy.md`; exact hosts are preferred and reviewed suffix rules require security review because subdomain ownership/takeover risk differs by bookmaker.
 
 ## Passive direct-page diagnostics
 
@@ -210,7 +226,7 @@ Controls:
 - the bookmaker and full direct URL are source-locked; same-origin alternative paths/fragments are not accepted as substitutes;
 - the browser runs in a fresh ephemeral context with downloads disabled and service workers blocked;
 - every routed HTTP(S) request must pass public-HTTPS and fail-closed DNS/private/internal-address validation before the request is allowed to continue;
-- WebSockets are not required by this diagnostic and are blocked rather than inspected or proxied;
+- new passive diagnostics use the same bounded bookmaker WSS policy as the browser gateway; allowed sockets remain opaque browser transport, while unsafe/unapproved sockets fail safely;
 - popups are closed and cannot create a second navigation/evidence surface;
 - evidence collection is visible-text only, bounded by fixed candidate/sample/length limits, and redacts UUIDs, email-shaped values, visible URLs, and long opaque tokens;
 - full DOM/page dumps, screenshots, traces, HAR, cookies, storage/session state, form values, authenticated captures, and private/protected API responses are prohibited;
@@ -228,7 +244,7 @@ Permitted diagnostics include:
 - state transition and failure code;
 - evidence dimension status/reason codes;
 - sanitized origin and non-sensitive path category;
-- expected and observed public odds where needed for troubleshooting;
+- expected and observed public odds when available as informational troubleshooting metadata;
 - attempt/evidence identifiers that are random/internal and contain no personal data.
 
 Prohibited diagnostics include:
@@ -267,6 +283,6 @@ A release is blocked when any known production path can:
 - Redirect origin is checked before matching.
 - Authentication returns a manual-user state without reading credentials.
 - Event/market/line/outcome ambiguity fails safely.
-- Odds changes do not change target identity.
+- Odds changes/missing prices do not change target identity or activation authorization.
 - Adapter has no stake, funding, withdrawal, cash-out, submit, or finalize methods.
 - Tests cover navigation rejection, authentication pause, mismatch/ambiguity, cancellation, and transaction-boundary capability absence.

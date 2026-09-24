@@ -1,10 +1,12 @@
 # Passive direct-page diagnostic provenance v1
 
-Status: **Accepted architecture contract for Milestone 6**
+Status: **Historical accepted schema; superseded for new runs by `passive-provenance.v2` / ARCH-011**
 
-This specification defines the minimum additional provenance that may be retained by the source-locked passive direct-page diagnostic after BOOK-024/BOOK-025.
+This specification defines the historical BOOK-026 provenance retained by the source-locked passive direct-page diagnostic after BOOK-024/BOOK-025.
 
 It does **not** change bookmaker matching, browser network policy, readiness timing, interaction capability, or live-support qualification.
+
+ARCH-011 does not reinterpret v1 artifacts. Under v1, a WebSocket attempt was terminal by definition. New diagnostics use `specs/passive-diagnostic-provenance-v2.md`, where reviewed bookmaker WSS can be allowed under the bounded shared network policy.
 
 ## 1. Purpose
 

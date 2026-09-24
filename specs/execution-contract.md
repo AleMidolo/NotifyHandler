@@ -1,6 +1,6 @@
 # Execution plan and state contract
 
-Status: **Accepted architecture contract for Milestone 1, amended by ARCH-003, ARCH-004, and ARCH-005**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-003, ARCH-004, ARCH-005, and ARCH-010**
 
 This specification defines the bookmaker-agnostic execution model from receipt of a valid notification through automatic two-leg startup, execution-time interruptions, and manual handoff. It is normative for domain, application, automation, QA, and security implementations.
 
@@ -99,7 +99,7 @@ A plan is dispatched automatically when its source-specific normalization has pr
 Common preflight requires:
 
 - two distinct supported bookmaker adapters;
-- required event/market/line/outcome/expected-odds fields;
+- required event/market/period/line/outcome fields; expected odds are optional/non-authorizing outside frozen v1 wire compatibility;
 - navigation candidates satisfying application-level URL policy;
 - no stale/cancelled prior execution being reused;
 - no renderer/user approval dependency.
@@ -129,8 +129,6 @@ type LegState =
   | "MATCHING_MARKET"
   | "MATCHING_LINE"
   | "MATCHING_OUTCOME"
-  | "VERIFYING_ODDS"
-  | "ODDS_CHANGED"
   | "ACTIVATING_SELECTION"
   | "VERIFYING_SELECTION"
   | "SELECTION_PREPARED"
@@ -160,7 +158,6 @@ plan ready
   -> MATCHING_MARKET
   -> MATCHING_LINE?
   -> MATCHING_OUTCOME
-  -> VERIFYING_ODDS
   -> ACTIVATING_SELECTION
   -> VERIFYING_SELECTION
   -> SELECTION_PREPARED
@@ -176,14 +173,7 @@ AUTH_REQUIRED --resume_after_manual_auth--> WAITING_FOR_PAGE
 
 The resume transition intentionally returns to `WAITING_FOR_PAGE`; it never returns directly to the point where matching previously stopped.
 
-Changed-odds interruption:
-
-```text
-VERIFYING_ODDS -> ODDS_CHANGED
-ODDS_CHANGED --continue_with_observed_odds--> WAITING_FOR_PAGE
-```
-
-Continuation after changed odds forces complete page and identity revalidation. The acknowledgement is bound to the observed odds value shown to the user. If a different odds value is observed after revalidation, the leg enters `ODDS_CHANGED` again.
+There is no price/odds acknowledgement interruption. Odds observation is optional telemetry and does not alter the leg state.
 
 Safe failure/cancellation:
 
@@ -197,7 +187,7 @@ Matching evidence belongs to an attempt and an evidence epoch.
 
 A new attempt is required after retry from `FAILED_SAFE`, explicit reopen, browser process/session replacement, or recovery after an unrecoverable page error.
 
-Within an attempt, increment `evidenceEpoch` and invalidate all prior positive evidence after any event that can make page identity stale, including manual login completion, cross-document navigation, redirect, page refresh, material event/market DOM replacement, browser-disconnection recovery, or continuation after `ODDS_CHANGED`.
+Within an attempt, increment `evidenceEpoch` and invalidate all prior positive evidence after any event that can make page identity stale, including manual login completion, cross-document navigation, redirect, page refresh, material event/market DOM replacement, or browser-disconnection recovery.
 
 No positive evidence from an earlier epoch may authorize selection activation.
 
@@ -213,11 +203,6 @@ At the worker lifecycle boundary, the core may conceptually issue:
 type LegCommand =
   | { type: "START"; legId: LegId }
   | { type: "RESUME_AFTER_MANUAL_AUTH"; legId: LegId }
-  | {
-      type: "CONTINUE_WITH_OBSERVED_ODDS";
-      legId: LegId;
-      acknowledgedObservedOdds: string;
-    }
   | { type: "RETRY"; legId: LegId }
   | { type: "REOPEN"; legId: LegId }
   | { type: "CANCEL"; legId: LegId };
@@ -225,9 +210,9 @@ type LegCommand =
 
 `START` is an **internal core-to-worker dispatch generated automatically by plan readiness**. The renderer/user does not issue `START` in the normal valid-notification path.
 
-The renderer may request only post-start/recovery commands exposed by product policy: manual-auth resume, changed-odds continuation, retry, reopen, cancel, and plan restart.
+The renderer may request only post-start/recovery commands exposed by product policy: manual-auth resume, retry, reopen, cancel, and plan restart.
 
-There is intentionally no lifecycle command carrying stake, credential, MFA/CAPTCHA, or transaction-submit data.
+There is intentionally no changed-odds continuation command and no lifecycle command carrying stake, credential, MFA/CAPTCHA, or transaction-submit data.
 
 ## 9. Structured progress events
 
@@ -254,7 +239,7 @@ A UI may derive summary labels such as:
 
 - `STARTING` — plan is valid and one/both automatic start dispatches are pending;
 - `IN_PROGRESS` — at least one leg is actively executing;
-- `ACTION_REQUIRED` — at least one leg is `AUTH_REQUIRED` or `ODDS_CHANGED`;
+- `ACTION_REQUIRED` — at least one leg is `AUTH_REQUIRED`;
 - `PARTIAL` — one leg is `READY_FOR_USER` and the other is failed/cancelled/action-required;
 - `READY_FOR_USER` — both legs are `READY_FOR_USER`;
 - `FAILED_SAFE` — neither leg is in progress/action-required and the plan is not fully ready;
@@ -273,7 +258,7 @@ Required behavior:
 - preflight validates both targets before either is intentionally dispatched, so a known invalid/unsupported second leg cannot trigger navigation of only the first;
 - once dispatch begins, each leg owns its own browser session, attempt id, cancellation signal, state, evidence, and error;
 - runtime launch/failure on one leg does not silently cancel, rewrite, or block the other leg after dispatch;
-- a login pause, odds change, cancellation, or retry on one leg does not rewrite the other;
+- a login pause, cancellation, or retry on one leg does not rewrite the other; optional price telemetry on one leg never rewrites the other;
 - the application must not label the surebet pair fully prepared unless both legs are `READY_FOR_USER` for the current plan.
 
 Sequential execution is allowed only as a documented implementation fallback where concurrency is technically unsafe; it must not be caused by renderer acknowledgement or pair-selection UX.
@@ -282,14 +267,15 @@ Sequential execution is allowed only as a documented implementation fallback whe
 
 Transition to `ACTIVATING_SELECTION` is legal only when the current evidence epoch satisfies all of the following:
 
-- navigation/origin policy is satisfied;
+- navigation/origin/network policy is satisfied;
 - event identity is `MATCHED`;
-- market family/context identity is `MATCHED`;
+- market family/context/period identity is `MATCHED`;
 - required line identity is `MATCHED`;
 - outcome identity is `MATCHED`;
 - no required identity dimension is `AMBIGUOUS`, `MISMATCHED`, `UNAVAILABLE`, or `NOT_CHECKED`;
-- odds policy has either produced `EQUAL`, or the user has explicitly acknowledged the exact current changed odds and a fresh revalidation has confirmed that acknowledgement is still current;
-- the attempt is not cancelled.
+- the attempt is current and not cancelled.
+
+Odds equality, readability, comparison, or acknowledgement are deliberately absent from this predicate.
 
 Transition to `SELECTION_PREPARED` additionally requires post-activation verification that the intended selection is visibly selected in the bookmaker UI.
 
@@ -307,15 +293,24 @@ While in `AUTH_REQUIRED`:
 - the user interacts directly with the headed bookmaker browser;
 - no selection activation is permitted.
 
-Resume starts a new evidence epoch and re-runs page/event/market/line/outcome/odds validation.
+Resume starts a new evidence epoch and re-runs page/event/market/period/line/outcome validation. Price may be observed again as informational telemetry but is not a gate.
 
-## 14. Odds interruption boundary
+## 14. Odds observability boundary
 
-`ODDS_CHANGED` occurs only after automatic execution has started and the current target has been located sufficiently to read its price.
+Expected/notified and displayed odds are optional informational metadata.
 
-The system surfaces expected and observed odds and requires the existing explicit acknowledgement policy before continuing. This does not create a general plan-confirmation step: it is bound to one concrete changed price on one active leg.
+They may be emitted on `LegEvent` / leg runtime state without creating a user-action state.
 
-Continuation starts fresh validation. Another changed value pauses again.
+Rules:
+
+- price observation must not block `ACTIVATING_SELECTION`;
+- changed price requires no acknowledgement;
+- unreadable/missing price is not a safe failure by itself;
+- no retry/reopen is triggered solely to obtain a price;
+- price telemetry does not belong to `MatchingEvidenceSnapshot`;
+- NotifyHandler does not calculate surebet validity, ROI, profitability, or stake sizing.
+
+The user evaluates price after handoff.
 
 ## 15. Transaction boundary
 
@@ -346,10 +341,10 @@ When a plan originates from `notifyhandler.direct-pair.v1`:
 - each leg carries its immutable direct match link as untrusted navigation provenance;
 - the worker/browser gateway revalidates HTTPS, URL userinfo, exact approved origin, private/internal-target policy, and redirects immediately before navigation;
 - successful navigation creates no positive identity evidence by itself;
-- event, competition/time context, market/context, exact line, outcome, and displayed odds must still be matched in the current evidence epoch;
+- event, competition/time context, market/context/period, exact line, and outcome must still be matched in the current evidence epoch; displayed odds may be observed but are not matching evidence;
 - a redirect or material navigation invalidates prior evidence;
 - `AUTH_REQUIRED` resume revalidates current origin and, when needed, may reopen only the same validated immutable direct link before a fresh full match pass;
-- `ODDS_CHANGED`, cancellation, stale-event rejection, and activation-gate behavior are unchanged;
+- cancellation, stale-event rejection, and activation-gate behavior are unchanged; there is no changed-odds interruption;
 - direct-link failure never authorizes generic-discovery fallback for structured v1.
 
 The HTTP transport's duplicate/idempotency handling is outside the leg state machine: an exact duplicate returns the already-created execution reference and does not create a new attempt or plan.

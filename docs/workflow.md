@@ -19,7 +19,7 @@ Two compatible input modes are supported by product policy:
 
 The application never asks the user which pair to choose. Either input mode must resolve deterministically to exactly two distinct valid `SelectionTarget` legs. A malformed, ambiguous, unsupported, or same-bookmaker pair fails safely before bookmaker navigation; no alternate pair is silently substituted.
 
-Each leg contains bookmaker, event identity/context, market, line, outcome, expected odds, and optional deep link.
+Each leg contains bookmaker, event identity/context, market/period, line, outcome, and optional navigation. Expected/notified odds may be retained as informational metadata when present.
 
 ## 3. Automatic pre-execution validation and immediate start
 
@@ -44,13 +44,14 @@ The orchestrator creates two independent leg executions and should start both as
 
 Suggested leg lifecycle:
 
-`pending -> opening -> waiting_for_page -> matching_event -> matching_market -> matching_outcome -> verifying_odds -> selection_prepared -> ready_for_user`
+`pending -> opening -> waiting_for_page -> matching_event -> matching_market -> matching_line? -> matching_outcome -> activating_selection -> verifying_selection -> selection_prepared -> ready_for_user`
 
 Possible interruption/terminal states include:
 - `manual_login_required`;
-- `odds_changed`;
 - `failed_safely`;
 - `cancelled`.
+
+Observed/notified odds may be displayed as informational state but never create an action-required leg state.
 
 Architecture may refine these names while preserving their semantics.
 
@@ -63,27 +64,27 @@ For each leg the adapter should:
 3. detect whether manual authentication is required and pause if so;
 4. locate candidate event(s);
 5. verify event identity using available participants, competition, and date/time context;
-6. locate the requested market family;
-7. verify the exact line/threshold;
-8. locate the requested side/outcome;
-9. read the displayed odds where available;
-10. compare displayed odds with expected odds according to the shared odds policy;
-11. click/select only if all required identity checks pass with sufficient confidence;
+6. locate and verify the requested market family/context and exact period;
+7. verify the exact line/threshold when required;
+8. locate and verify the requested side/outcome;
+9. optionally observe displayed odds when already available without broadening the normal target-selection flow;
+10. submit the candidate through the shared activation gate only when every required identity dimension is matched and the attempt is current/not cancelled;
+11. verify that the exact requested selection is selected;
 12. return structured evidence/result to the orchestrator.
 
-Failure at steps 4-10 must not result in a speculative click.
+Failure of required identity at steps 4-8 must not result in a speculative click. Price observation at step 9 is non-gating.
 
-## 6. Odds changes
+## 6. Odds observability
 
-Expected odds from the notification and observed odds from the bookmaker are distinct values.
+Expected/notified odds and observed bookmaker odds remain distinct informational metadata when available.
 
-When the odds differ:
-- the adapter reports the observed value and comparison result;
-- the application displays an `odds changed` state;
-- product policy must not silently rewrite the expected odds;
-- any continuation rule must be explicit in architecture/product configuration and must not weaken event/market/line/outcome matching.
+- a changed price may be shown to the user;
+- a missing/unreadable price does not block an otherwise exact target;
+- no acknowledgement is required before activation;
+- no retry, extra wait, navigation, or interaction is performed solely to make price readable;
+- price never repairs a wrong event/market/period/line/outcome.
 
-The removal of the initial preview/option-selection steps does not itself change the shared odds-change continuation policy.
+NotifyHandler does not calculate whether the pair remains a surebet, ROI/profitability, stake sizing, or whether the current price is acceptable.
 
 ## 7. Manual login
 
@@ -93,7 +94,7 @@ When a bookmaker requires login:
 - NotifyHandler does not access credentials, automate MFA, or automate CAPTCHA;
 - execution may resume only after the user has completed authentication and the adapter can safely re-validate page context.
 
-After resume, event/market/line/outcome checks must be performed again if navigation/session changes may have invalidated prior evidence.
+After resume, event/market/period/line/outcome checks must be performed again if navigation/session changes may have invalidated prior evidence.
 
 Manual login is an interruption imposed by bookmaker authentication, not a normal pre-execution product confirmation step.
 
@@ -167,6 +168,22 @@ For a `betup-relay` leg:
 5. unexpected intermediary/wrong-bookmaker/private-target/challenge states fail safely;
 6. after expected-bookmaker arrival, matching starts from a fresh evidence epoch;
 7. bookmaker login may then pause at `AUTH_REQUIRED`;
-8. wrong event/market/period/line/outcome/odds fails through the normal deterministic policy.
+8. wrong event/market/period/line/outcome fails through the normal deterministic policy; price remains informational.
 
 A relay never authorizes generic discovery, arbitrary same-origin crawling, selection activation, credentials, stake entry, or wager submission. The one-revisit budget is fixed and non-configurable.
+
+
+## 13. Bookmaker WebSocket page transport
+
+After the browser has reached an approved bookmaker origin, the worker/browser gateway may permit normal page `wss://` traffic only under `specs/bookmaker-network-policy.md`.
+
+This transport:
+
+- is public-DNS/private-network validated;
+- is restricted by version-controlled bookmaker host policy;
+- remains browser-native and opaque to adapter/core/renderer logic;
+- contributes zero selection evidence;
+- exposes no socket payload/message API to NotifyHandler;
+- is terminated with the isolated browser context/cancellation.
+
+During `bet-up.it` relay resolution, WebSockets remain blocked. Unsafe/unapproved bookmaker WSS fails safely rather than widening the allow policy.
