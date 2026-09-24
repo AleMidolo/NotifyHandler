@@ -567,7 +567,7 @@ function parseOffer(line: string, side: OutcomeSide, ordinal: number): DomainRes
       side,
       ...(bookmakerInfo.bookmaker ? { bookmaker: bookmakerInfo.bookmaker } : {}),
       bookmakerLabel: bookmakerInfo.label,
-      ...(expectedOdds ? { expectedOdds, oddsDisplay: oddsMatch?.[1] } : {}),
+      ...(expectedOdds && oddsMatch?.[1] ? { expectedOdds, oddsDisplay: oddsMatch[1] } : {}),
       ...(url.value ? { deepLink: url.value } : {}),
       sourceLabel,
     },
