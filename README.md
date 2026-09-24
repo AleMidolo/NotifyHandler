@@ -63,14 +63,14 @@ ARCH-005 introduced `notifyhandler.direct-pair.v2` with a typed `betup-relay` na
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. BOOK-024/#177, Security/QA certification, DEVOPS-016/#182, and BOOK-025/#183 are complete.
-2. BET365's ambiguous transport-boundary result and SISAL's zero-visible-signal result remain diagnostic evidence only.
-3. **ARCH-008/#184** defines `passive-provenance.v1`: first-trigger finite transport provenance plus bounded render-state booleans/readiness/title predicates and a coarse DOM population bucket.
-4. ARCH-008 changes observability only: no blocked destination/raw title/hidden text/page dump retention, no timeout/retry/action/network-policy change, and `authorizesProductionMapping` remains false.
-5. **BOOK-026/#188 — immediate P0:** implement the approved schema in the source-locked passive diagnostic without changing network/timing/action behavior.
-6. **SEC-008/#186** reviews the exact implementation; **QA-007/#189** certifies it after Security.
-7. No new live bookmaker run is authorized until both gates pass.
-8. Do not retry BOOK-024 under the old schema, increase readiness/timeout/budget, allow WebSockets, weaken DNS/origin policy, broaden clicks, use private APIs, resume generic discovery, or fall back to Betup.
+1. BOOK-024 through BOOK-027 are complete, including `passive-provenance.v1`, Security/QA certification, and qualified DEVOPS-017 execution.
+2. BET365 preserved the exact fragment-bearing route but the first transport trigger was `WEBSOCKET_ATTEMPT / SOCKET`. The socket remained blocked and no render/target evidence was retained.
+3. SISAL preserved the exact event route with transport clear, DOMContentLoaded confirmed, event/competition title predicates true, and a populated DOM, but the participant/time/corners/full-match/line/side/odds predicates are absent from the reviewed DOM.
+4. SISAL's positive competition/date snippets are unrelated page content and are not bound event evidence.
+5. BOOK-027/#193 therefore keeps both bookmakers fixture-backed `Testable` and live `Blocked` for the current target scope; neither is `Feasible for implementation`.
+6. **#194 PRODUCT-029 — immediate P0:** choose the next pair/evidence path. Product may decide whether a BET365-only architecture review for render observation after a still-blocked WebSocket is worth pursuing, but must also identify a viable second bookmaker/current target.
+7. No new Bookmaker implementation issue is ready from the current evidence.
+8. Do not allow WebSockets, increase readiness/timeout/budget, weaken DNS/origin policy, broaden clicks, use private APIs, resume generic discovery, or fall back to Betup.
 9. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
 10. **#46 DEVOPS-003** remains blocked until #45 passes.
 

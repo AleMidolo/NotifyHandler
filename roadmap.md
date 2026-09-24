@@ -258,19 +258,39 @@ Neither candidate reaches `Feasible for implementation`.
 
 ADR-0006 and `passive-provenance.v1` define the finite redacted transport/render-state provenance contract. Architecture changes observability only and authorizes no live run.
 
-**#188 BOOK-026 — IMPLEMENTED in PR #191**
+**#188 BOOK-026 — COMPLETE via PR #191**
 
-The source-locked passive probe now implements `passive-provenance.v1` with first-trigger-only transport provenance, bounded render-state booleans/readiness/title predicates, fixed DOM population buckets, and explicit retained-summary validation. No live bookmaker run occurred and no network/timing/action capability was widened.
+The source-locked passive probe implements `passive-provenance.v1` with first-trigger-only transport provenance, bounded render-state booleans/readiness/title predicates, fixed DOM population buckets, and explicit retained-summary validation.
 
-**#186 SEC-008 — NEXT GATE AFTER PR #191 INTEGRATION**
+**#186 SEC-008 — COMPLETE**
 
-Review privacy/network/capability invariance on the exact implementation.
+Security approved the finite redacted provenance implementation without changing the fail-closed network or transaction boundary.
 
-**#189 QA-007 — AFTER #186**
+**#189 QA-007 — COMPLETE**
 
-Certify deterministic/browser/artifact regressions and explicitly authorize or block the next separately scoped live diagnostic.
+QA certified the deterministic/browser/privacy gates and authorized the separately scoped one-shot DEVOPS-017 execution.
 
-No BOOK-024 retry under the old schema, timeout/readiness widening, WebSocket allowance, DNS/origin weakening, broader click policy, Betup fallback, generic discovery, private API access, outcome activation, or transaction capability is authorized.
+**#192 DEVOPS-017 — COMPLETE**
+
+Qualified retained evidence:
+- BET365: `BLOCKED / WEBSOCKET_ATTEMPT / SOCKET`, exact fragment route preserved, no render/target evidence, SHA-256 `9C1CDEDB8460B642011928B9D70394F1FE2A176D1F50DEEF9C57522D947B89D4`.
+- SISAL: `COMPLETE / CLEAR`, exact event route preserved, DOMContentLoaded confirmed, title participant-pair/competition predicates true, `POPULATED` DOM, required chain false, SHA-256 `B6AE576E657BCAC2417F899F8EE6B2576DD7512C3DA4C65C2BC6FA0583E21455`.
+
+**#193 BOOK-027 — COMPLETE**
+
+Interpretation:
+- BET365 provenance proves only that a WebSocket attempt was blocked under the current policy. It supplies no destination, render, matching, feasibility, or support evidence.
+- SISAL is not an empty shell, but the reviewed DOM lacks participant/time/corners/full-match/line/side/odds target predicates. The positive competition/date snippets are unrelated content and cannot satisfy target matching.
+
+Neither candidate reaches `Feasible for implementation`.
+
+### Current P0
+
+**#194 PRODUCT-029 — READY NOW**
+
+Replan the first live-supported pair. Product must decide whether a BET365-only architecture amendment for render observation after a still-blocked WebSocket is worth pursuing and must identify a new second-bookmaker/current-target strategy.
+
+No Bookmaker implementation issue is justified until that product decision. No unchanged retry, WebSocket allowance, timeout/readiness widening, DNS/origin weakening, broader click policy, Betup fallback, generic discovery, private API access, outcome activation, or transaction capability is authorized.
 
 ### Implementation and qualification
 
