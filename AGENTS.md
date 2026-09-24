@@ -75,14 +75,14 @@ The generic interactive feasibility queue is now exhausted: ADMIRALBET/BOOK-013,
 PRODUCT-015 changes the evidence and ingestion strategy because the real surebet source supplies the exact two bookmaker legs plus direct match-page links. Keep the market target unchanged and do not resume generic homepage exploration.
 
 ### Live-readiness / ingestion track
-BOOK-024/#177, DEVOPS-016/#182, BOOK-025/#183, and ARCH-008/#184 are complete. ADR-0006 / `passive-provenance.v1` defines the only approved diagnostic refinement.
+BOOK-024/#177 through BOOK-027/#193 are complete, including ARCH-008/ADR-0006, BOOK-026, Security/QA certification, and DEVOPS-017 qualified `passive-provenance.v1` execution.
 
-1. **#188 BOOK-026 — implementation complete in PR #191.** The source-locked passive diagnostic now emits and validates `passive-provenance.v1` without changing network/timing/action behavior.
-2. Keep network/timing/action behavior unchanged: no timeout/readiness/retry/budget increase, WebSocket allowance, DNS/origin exception, broader click policy, generic discovery, private API, or Betup fallback.
-3. **#186 SEC-008 — immediate next gate after PR #191 integration.** Review exact implementation/artifact for destination non-reconstruction, content minimization, allowlist enforcement, and capability invariance.
-4. **#189 QA-007 — after SEC-008.** Certify deterministic/browser/privacy/portable regressions and explicitly authorize or block any next live run.
-5. No real bookmaker run is authorized until both #186 and #189 pass.
-6. Diagnostic provenance never becomes matching evidence, production mapping, feasibility/support evidence, or activation authorization.
+1. **#194 PRODUCT-029 — immediate P0.** Replan Milestone 6 because the qualified BET365/SISAL pair still yields no feasible live mapping.
+2. BET365's first transport trigger is specifically `WEBSOCKET_ATTEMPT / SOCKET`. The socket remains blocked; no destination or render/target evidence is retained. Do not infer private/internal navigation or support from this.
+3. SISAL preserves the exact event route and has a populated DOM with event/competition title predicates, but the target participant/time/corners/full-match/line/side/odds predicates are absent from the reviewed DOM. Positive competition/date snippets are unrelated content and are not bound target evidence.
+4. No Bookmaker implementation issue is justified from BOOK-027. Product must decide whether a BET365-only architecture question about render observation after a still-blocked WebSocket is worth pursuing and must identify the second-bookmaker/current-target strategy.
+5. Do not allow WebSockets, widen DNS/origin/protocol policy, increase waits/retries/budget, broaden clicks, resume generic discovery, use Betup fallback, inspect private APIs, or add transaction capability.
+6. Diagnostic provenance/title/path never becomes matching evidence, production mapping, feasibility/support evidence, or activation authorization.
 7. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported.
 8. **#46 DEVOPS-003** remains blocked until #45 passes.
 
