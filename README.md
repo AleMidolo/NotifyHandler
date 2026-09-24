@@ -63,17 +63,17 @@ ARCH-005 introduced `notifyhandler.direct-pair.v2` with a typed `betup-relay` na
 The supplied examples already prove the relay-link shape for BET365 and SISAL, but their market is `DOPPIA CHANCE`, not the current Milestone-6 target full-match total-corners O/U. They are therefore useful for relay resolution and wrong-market safe-failure testing, but target-market feasibility still needs a representative total-corners signal after the relay contract is merged.
 
 Current Milestone 6 sequence:
-1. BOOK-024 through BOOK-027 are complete, including `passive-provenance.v1`, Security/QA certification, and qualified DEVOPS-017 execution.
-2. BET365 preserved the exact fragment-bearing route but the first transport trigger was `WEBSOCKET_ATTEMPT / SOCKET`. The socket remained blocked and no render/target evidence was retained.
-3. SISAL preserved the exact event route with transport clear, DOMContentLoaded confirmed, event/competition title predicates true, and a populated DOM, but the participant/time/corners/full-match/line/side/odds predicates are absent from the reviewed DOM.
-4. SISAL's positive competition/date snippets are unrelated page content and are not bound event evidence.
-5. BOOK-027/#193 therefore keeps both bookmakers fixture-backed `Testable` and live `Blocked` for the current target scope; neither is `Feasible for implementation`.
-6. **#194 PRODUCT-029 — immediate P0:** choose the next pair/evidence path. Product may decide whether a BET365-only architecture review for render observation after a still-blocked WebSocket is worth pursuing, but must also identify a viable second bookmaker/current target.
-7. No new Bookmaker implementation issue is ready from the current evidence.
-8. Do not allow WebSockets, increase readiness/timeout/budget, weaken DNS/origin policy, broaden clicks, use private APIs, resume generic discovery, or fall back to Betup.
-9. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
-10. **#46 DEVOPS-003** remains blocked until #45 passes.
+1. BOOK-024 through BOOK-027 are complete, including `passive-provenance.v1`, Security/QA certification, DEVOPS-017 execution, and BOOK-027 interpretation.
+2. BET365 preserves the exact fragment-bearing route but the first blocked transport trigger is `WEBSOCKET_ATTEMPT / SOCKET`; no render/target evidence is currently retained.
+3. SISAL preserves the exact Portogallo-Galles route with a populated DOM, but the reviewed target participant/time/corners/full-match/line/side/odds predicates are absent. Unrelated competition/date snippets do not count as target evidence.
+4. **#196 ARCH-009 — immediate autonomous P0:** decide whether passive render observation may continue after a WebSocket attempt is denied, while keeping the socket blocked and all timing/network/action/privacy boundaries unchanged.
+5. **#197 PRODUCT-030 — parallel external evidence P0:** source a fresh current/future full-match total-corners signal with direct bookmaker-origin URLs and a materially different second bookmaker/target; prefer BET365 + a different second bookmaker when available.
+6. SISAL is not retried unchanged, and no Bookmaker implementation/Security/QA live-run issue is created for BET365 unless ARCH-009 first approves a finite diagnostic amendment.
+7. Do not allow WebSockets, increase readiness/timeout/budget, weaken DNS/origin policy, broaden clicks, use private APIs, resume generic discovery, or fall back to Betup.
+8. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
+9. **#46 DEVOPS-003** remains blocked until #45 passes.
 
+PRODUCT-029/#194 is complete with this hybrid plan. The full-match total-corners product target remains unchanged.
 PRODUCT-028/#175 is complete. The product target remains pre-match football full-match total-corners O/U. The replan distinguishes target content that exists on the authoritative page but was not retained by the generic explorer from target content that is genuinely unavailable, without adding outcome activation or broader navigation capability.
 
 Remote Internet exposure of the desktop webhook is not part of this decision. The default integration is local/loopback; a remote surebet service would require a separately designed secure relay/outbound connection rather than opening the desktop listener to the public Internet.

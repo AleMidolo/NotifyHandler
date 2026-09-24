@@ -20,22 +20,22 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — PRODUCT-029 / #194: Replan Milestone 6 after passive-provenance.v1 yields no feasible pair
-Owner: Product Coordinator / Technical Project Manager
+### P0 — ARCH-009 / #196: Decide BET365 render-only observation after denied WebSocket
+Owner: Software Architect
 Milestone: 6 — Evidence-backed live bookmaker readiness
-Depends on: BOOK-027/#193
 
-Qualified DEVOPS-017 evidence has now been interpreted:
+BET365's exact direct SPA route is preserved, but `passive-provenance.v1` stops at the first blocked `WEBSOCKET_ATTEMPT / SOCKET` before retaining render/target evidence.
 
-- BET365: exact fragment route preserved, first transport trigger `WEBSOCKET_ATTEMPT / SOCKET`, no render/target evidence retained, no production mapping.
-- SISAL: exact event route preserved, transport clear, DOMContentLoaded confirmed, populated DOM, title participant-pair/competition predicates true, but participant/time/corners/full-match/line/side/odds predicates absent. Positive competition/date snippets are unrelated content and are not bound target evidence.
+Architecture must decide whether the diagnostic may continue only passive DOM/render observation after the socket is denied, with no socket connection, no destination retention, no extra waits/retries/budget, and no network/origin/action-policy weakening.
 
-Neither bookmaker reaches `Feasible for implementation`.
+Do not create implementation/Security/QA live-run issues unless ARCH-009 first approves a finite reviewable diagnostic state machine.
 
-Product must choose the next candidate/evidence path. A bounded BET365 architecture question is possible only if Product wants to invest further: keep WebSockets blocked exactly as today and ask whether render-only passive observation after the blocked socket is worth designing. That still would not solve the missing second bookmaker. Product must also source a new current/future second-leg target or choose another pair.
+### P0 external evidence — PRODUCT-030 / #197
+Owner: Product Coordinator / upstream surebet integration
 
-No Bookmaker implementation issue is ready from the current evidence.
+In parallel, obtain a fresh current/future pre-match football full-match total-corners O/U signal with exact direct bookmaker-origin URLs and a materially different second bookmaker/target. Prefer BET365 paired with a different second bookmaker if available.
 
+SISAL must not be retried unchanged merely to repeat the exhausted Portogallo-Galles exact route.
 ## Next in Milestone 6
 
 ### Implementation issues for feasible candidates
