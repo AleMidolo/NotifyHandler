@@ -538,6 +538,41 @@ function summaryTarget(target: PassiveTargetDefinition): TargetAwarePassiveSumma
   };
 }
 
+export function summarizePreLoadNavigationBlock(
+  bookmaker: TargetAwareBookmaker,
+  transportProvenance: PassiveTransportProvenance,
+  routeBlockReason: PassiveBlockReason | undefined,
+): TargetAwarePassiveSummary | undefined {
+  const targetDefinition = BOOK_024_TARGETS[bookmaker];
+  const target = new URL(targetDefinition.url);
+  const transportBlocked = transportProvenance.state === "BLOCKED";
+  const blockReason = transportBlocked
+    ? "PRIVATE_OR_INTERNAL_DESTINATION" as const
+    : routeBlockReason === "UNAPPROVED_NAVIGATION"
+      ? "UNAPPROVED_NAVIGATION" as const
+      : undefined;
+  if (blockReason === undefined) return undefined;
+
+  return validatedSummary({
+    diagnosticSchemaVersion: PASSIVE_DIAGNOSTIC_SCHEMA_VERSION,
+    bookmaker,
+    approvedOrigin: approvedOriginFor(bookmaker),
+    navigationKind: "BOOKMAKER_DIRECT",
+    requestedPath: target.pathname,
+    finalPath: "[unapproved-route]",
+    requestedFragmentPresent: target.hash !== "",
+    fragmentPreserved: false,
+    status: "BLOCKED",
+    blockReason,
+    target: summaryTarget(targetDefinition),
+    transportProvenance,
+    authorizesProductionMapping: false,
+    note: transportBlocked
+      ? "Passive direct-page diagnostic stopped at the existing browser/network boundary. No target evidence was retained from an unsafe navigation state."
+      : "Passive direct-page diagnostic stopped because the exact source-locked direct route was not preserved.",
+  });
+}
+
 export async function runTargetAwarePassiveProbe(options: Readonly<{
   bookmaker: TargetAwareBookmaker;
 }>): Promise<TargetAwarePassiveSummary> {
@@ -610,7 +645,19 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
   });
 
   try {
-    await page.goto(target.href, { waitUntil: "domcontentloaded", timeout: NAVIGATION_TIMEOUT_MS });
+    try {
+      await page.goto(target.href, { waitUntil: "domcontentloaded", timeout: NAVIGATION_TIMEOUT_MS });
+    } catch {
+      const blockedSummary = summarizePreLoadNavigationBlock(
+        options.bookmaker,
+        transportState.current,
+        routeBlockReason,
+      );
+      if (blockedSummary !== undefined) return blockedSummary;
+      throw new Error(
+        "BOOK-024 navigation failed before a sanitized summary could be produced.",
+      );
+    }
     const readiness = await waitForPassiveReadiness(page);
 
     const finalUrl = new URL(page.url());
