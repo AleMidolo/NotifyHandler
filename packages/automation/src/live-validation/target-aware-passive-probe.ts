@@ -588,8 +588,8 @@ export async function runTargetAwarePassiveProbe(options: Readonly<{
       publicHttpsTarget,
     );
     if (requestProvenance.state === "BLOCKED") {
-      transportProvenance = retainFirstTransportProvenance(
-        transportProvenance: transportState.current,
+      transportState.current = retainFirstTransportProvenance(
+        transportState.current,
         requestProvenance,
       );
       routeBlockReason = "PRIVATE_OR_INTERNAL_DESTINATION";
