@@ -1,6 +1,6 @@
 # Bookmaker adapter contract
 
-Status: **Accepted architecture contract for Milestone 1, amended by ARCH-004, ARCH-005, ARCH-006, and ARCH-007**
+Status: **Accepted architecture contract for Milestone 1, amended by ARCH-004, ARCH-005, ARCH-006, ARCH-007, ARCH-010, and ARCH-011**
 
 This specification defines how bookmaker-specific code participates in execution without leaking DOM details into the core application or gaining transaction-submission capabilities.
 
@@ -25,7 +25,6 @@ Conceptually:
 interface BookmakerAutomationPort {
   start(request: StartLegRequest): AsyncIterable<LegEvent>;
   resumeAfterManualAuth(request: ResumeLegRequest): AsyncIterable<LegEvent>;
-  continueWithObservedOdds(request: ContinueOddsRequest): AsyncIterable<LegEvent>;
   retry(request: RetryLegRequest): AsyncIterable<LegEvent>;
   reopen(request: ReopenLegRequest): AsyncIterable<LegEvent>;
   cancel(request: CancelLegRequest): Promise<void>;
@@ -56,7 +55,6 @@ interface BookmakerAdapter {
 
 - `READY_FOR_USER`;
 - `AUTH_REQUIRED`;
-- `ODDS_CHANGED`;
 - `FAILED_SAFE`;
 - `CANCELLED`.
 
@@ -73,7 +71,6 @@ interface AdapterExecutionContext {
   readonly selectionGate: SelectionActivationGate;
   readonly clock: Clock;
   readonly policy: MatchingPolicy;
-  readonly acknowledgedObservedOdds?: DecimalOddsString;
 }
 ```
 
@@ -116,8 +113,6 @@ interface SelectionActivationGate {
     target: SelectionTarget;
     candidate: ElementRef;
     evidence: MatchingEvidenceSnapshot;
-    odds: ObservedOdds;
-    acknowledgedObservedOdds?: DecimalOddsString;
   }>): Promise<SelectionActivationResult>;
 }
 ```
@@ -179,6 +174,28 @@ This is not a public application API and must not expose arbitrary URL following
 
 The adapter receives the successfully resolved bookmaker page through the same restricted `BookmakerPagePort` abstraction used for direct navigation.
 
+### 7.4 Bookmaker WebSocket page transport
+
+After the worker is on an approved bookmaker origin, normal page runtime may establish reviewed WebSockets under `specs/bookmaker-network-policy.md`.
+
+The browser gateway—not the adapter—owns this permission.
+
+Requirements include:
+
+- `wss://` only;
+- default TLS port 443;
+- no URL credentials or IP-literal destination;
+- fail-closed public DNS/private-target validation;
+- explicit version-controlled bookmaker exact-host or reviewed-suffix policy;
+- no notification/page/user-controlled allowlist mutation;
+- no raw socket/payload capability exposed to adapters/core/renderer;
+- zero matching/activation evidence from socket transport;
+- cancellation/session cleanup terminates the transport.
+
+During `BETUP_RELAY` resolution, WebSockets remain blocked until the expected bookmaker origin has been reached.
+
+Unsafe/unapproved sockets are browser/network safe failures and do not cause automatic allowlist expansion.
+
 ## 8. Required adapter algorithm
 
 For every fresh preparation pass, an adapter must conceptually:
@@ -190,17 +207,17 @@ For every fresh preparation pass, an adapter must conceptually:
 5. evaluate event evidence using the shared policy;
 6. establish exactly one acceptable event;
 7. enumerate/find market candidates;
-8. establish exact market family/context;
+8. establish exact market family/context/period;
 9. establish exact line when required;
 10. establish exact outcome/side;
-11. read observed odds;
-12. compare observed to expected odds;
-13. return `ODDS_CHANGED` before activation when changed;
-14. submit the selected candidate plus evidence to `SelectionActivationGate`;
-15. verify the intended candidate is selected;
-16. return `READY_FOR_USER`.
+11. optionally observe displayed odds if already available without broadening the normal target-selection flow;
+12. submit the selected candidate plus identity evidence to `SelectionActivationGate`;
+13. verify the intended candidate is selected;
+14. return `READY_FOR_USER`, optionally including price telemetry.
 
-Any ambiguous, contradictory, unavailable required identity, unsupported page state, blocked navigation, or verification failure returns a structured safe failure without speculative selection.
+Any ambiguous, contradictory, unavailable required **identity**, unsupported page state, blocked navigation/network policy, or verification failure returns a structured safe failure without speculative selection.
+
+Changed, missing, unreadable, or unparsable odds alone never produce a safe failure or interruption.
 
 ## 9. Terminal result
 
@@ -209,7 +226,7 @@ type AdapterTerminalResult =
   | {
       kind: "READY_FOR_USER";
       evidence: MatchingEvidenceSnapshot;
-      odds: ObservedOdds;
+      odds?: OddsObservation;
       selection: VerifiedPreparedSelection;
     }
   | {
@@ -217,20 +234,17 @@ type AdapterTerminalResult =
       safeLocation: SafeLocation;
     }
   | {
-      kind: "ODDS_CHANGED";
-      evidence: MatchingEvidenceSnapshot;
-      odds: ObservedOdds;
-    }
-  | {
       kind: "FAILED_SAFE";
       failure: SafeFailure;
       evidence?: MatchingEvidenceSnapshot;
-      odds?: ObservedOdds;
+      odds?: OddsObservation;
     }
   | { kind: "CANCELLED" };
 ```
 
 A `READY_FOR_USER` result is invalid unless post-activation verification succeeded for the exact target candidate.
+
+Price telemetry is optional and non-authorizing.
 
 ## 10. Authentication behavior
 
@@ -279,7 +293,7 @@ Adapter diagnostics may include:
 - sanitized origin/path category;
 - normalized candidate labels;
 - evidence status/reason codes;
-- expected and observed odds;
+- expected and observed odds when available as informational telemetry;
 - timings and state transitions.
 
 They must not include:
@@ -303,7 +317,7 @@ Every adapter implementation must pass the same deterministic contract suite aga
 - neighboring numeric line;
 - wrong outcome;
 - duplicate/ambiguous outcome;
-- changed odds interruption;
+- changed/missing/unreadable odds remain non-blocking when identity is exact;
 - manual-login interruption;
 - blocked unsafe origin/redirect;
 - structured-v1 wrong/stale direct link with zero generic-discovery fallback;
@@ -329,7 +343,7 @@ Adapters must not mark market evidence `MATCHED` until they have deterministical
 3. market period;
 4. candidate uniqueness for the requested line combination.
 
-Period evidence must come from reviewed bookmaker metadata/labels/container identity or another explicit tested mapping. DOM proximity, section order, matching line, matching side, or matching odds cannot substitute for period evidence.
+Period evidence must come from reviewed bookmaker metadata/labels/container identity or another explicit tested mapping. DOM proximity, section order, matching line, matching side, or price similarity cannot substitute for period evidence.
 
 Shared fixture contracts should expose a deterministic period attribute/label and include a near-miss first-half market with the same family/context/line/side/odds to prove it cannot activate.
 
