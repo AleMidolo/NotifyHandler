@@ -78,15 +78,16 @@ PRODUCT-015 changes the evidence and ingestion strategy because the real surebet
 ARCH-010/#200 and ARCH-011/#203 are complete via PR #205. The current work is implementation of those accepted contracts plus parallel second-bookmaker evidence.
 
 1. **#206 DOMAIN-003 — COMPLETE via PR #214.** SelectionTarget/input price is optional informational metadata while frozen structured-v1 compatibility is preserved.
-2. **#209 BOOK-029 — implementation rebased in PR #219.** Default-deny bookmaker WSS gateway policy and passive-provenance.v2 are implemented with an empty live BET365/SISAL host registry; no host was guessed or learned at runtime.
+2. **#209 BOOK-029 — COMPLETE via PR #219.** Default-deny bookmaker WSS gateway policy and passive-provenance.v2 are integrated with an empty live BET365/SISAL host registry; no host was guessed or learned at runtime.
 3. **#207 APP-008 — COMPLETE via PR #216.** Changed-price acknowledgement/state/UI commands are removed; price is informational telemetry only.
 4. **#208 BOOK-028 — COMPLETE via PR #218.** Adapter/activation price gating is removed while exact identity and selected-state verification remain mandatory.
-5. **#211 SEC-009 — immediate next gate after PR #219 integration.** Review non-gating odds migration and WSS boundary.
-6. **#212 QA-008 — after SEC-009.** Certify state, adapter, WSS, privacy, browser, and transaction regressions.
-7. **#210 BOOK-030 — only after Security approves the controlled evidence procedure.** Establish the narrowest evidence-backed BET365 WSS host rule; do not guess or auto-learn a host.
-8. **#197 PRODUCT-030 — parallel external evidence.** Fresh direct-link second-bookmaker targets may be supplied when available; stable odds are not required.
-9. No new BET365 live render re-test is authorized until the WSS framework, Security/QA gates, and an evidence-backed rule are approved.
-10. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported; **#46 DEVOPS-003** remains blocked until #45 passes.
+5. **#211 SEC-009 + #212 QA-008 — COMPLETE via PR #220.** Security hardening and QA certification preserve attempt-scoped WSS transport, non-gating odds, privacy and transaction boundaries.
+6. **#221 BOOK-031 — current Bookmaker P0 in PR #225.** Implement the source-locked BET365 first-WSS hostname observer from the approved BOOK-030 procedure; no real bookmaker run occurs in implementation/CI.
+7. **#222 SEC-010 -> #223 QA-009 -> #224 DEVOPS-018.** Security reviews the exact observer head, QA certifies and may authorize at most one non-CI observation, then DevOps executes exactly one qualifying observation.
+8. **#210 BOOK-030 — after a valid #224 artifact.** Interpret only the sanitized canonical hostname and propose the narrowest exact-host rule; do not guess, auto-learn, connect during observation, or widen to a suffix from one sample.
+9. **#197 PRODUCT-030 — parallel external evidence.** Fresh direct-link second-bookmaker targets may be supplied when available; stable odds are not required.
+10. No BET365 live render re-test is authorized until the observer/rule Security and QA gates approve an evidence-backed version-controlled WSS rule.
+11. **#45 QA-002** remains blocked until two bookmakers are genuinely live Supported; **#46 DEVOPS-003** remains blocked until #45 passes.
 
 Do not calculate surebet validity, ROI/profitability, stakes, or price acceptability. Do not weaken event/market/period/line/side matching, authentication/access-control boundaries, private-network protections, or the manual transaction boundary.
 
