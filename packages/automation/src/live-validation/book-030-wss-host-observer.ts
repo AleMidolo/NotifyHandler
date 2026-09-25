@@ -179,6 +179,7 @@ async function artifactFromFirstSocketUrl(
 
 export interface Book030FirstSocketObserver {
   handle(socket: ObservationSocket): Promise<void>;
+  rejectWithoutInspection(socket: ObservationSocket): Promise<void>;
   firstAttemptObserved(): boolean;
   failedClosed(): boolean;
   observation(): Book030WssHostObservationV1 | undefined;
@@ -208,6 +209,14 @@ export function createBook030FirstSocketObserver(
       } finally {
         await socket.close(SOCKET_CLOSE).catch(() => undefined);
       }
+    },
+    async rejectWithoutInspection(socket): Promise<void> {
+      if (!firstSeen) {
+        firstSeen = true;
+        failed = true;
+        retained = undefined;
+      }
+      await socket.close(SOCKET_CLOSE).catch(() => undefined);
     },
     firstAttemptObserved: () => firstSeen,
     failedClosed: () => failed,
@@ -239,6 +248,7 @@ async function installOrdinaryPublicNetworkBoundary(
   context: BrowserContext,
   page: Page,
   navigationPolicy: NavigationPolicy,
+  lockedTopLevelRequestHref: string,
   markUnsafe: () => void,
 ): Promise<void> {
   await context.route("**/*", async (route) => {
@@ -266,7 +276,16 @@ async function installOrdinaryPublicNetworkBoundary(
     }
 
     const publicTarget = await navigationPolicy.isResolvedPublicHttpsTarget(parsed.href);
-    if (!publicTarget || (topLevel && !navigationPolicy.isAllowed(parsed.href))) {
+    if (
+      !publicTarget
+      || (
+        topLevel
+        && (
+          !navigationPolicy.isAllowed(parsed.href)
+          || parsed.href !== lockedTopLevelRequestHref
+        )
+      )
+    ) {
       markUnsafe();
       await route.abort("blockedbyclient");
       return;
@@ -289,6 +308,8 @@ export async function runBook030WssHostObserver(): Promise<Book030WssHostObserva
   );
   const navigationPolicy = new NavigationPolicy([BET365_ORIGIN]);
   const socketObserver = createBook030FirstSocketObserver();
+  const lockedTopLevelRequest = new URL(lockedTarget.href);
+  lockedTopLevelRequest.hash = "";
 
   const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext({
@@ -299,12 +320,17 @@ export async function runBook030WssHostObserver(): Promise<Book030WssHostObserva
   let unsafeOrdinaryNetworkObserved = false;
 
   await page.routeWebSocket("**/*", async (socket) => {
+    if (page.url() !== lockedTarget.href) {
+      await socketObserver.rejectWithoutInspection(socket);
+      return;
+    }
     await socketObserver.handle(socket);
   });
   await installOrdinaryPublicNetworkBoundary(
     context,
     page,
     navigationPolicy,
+    lockedTopLevelRequest.href,
     () => {
       unsafeOrdinaryNetworkObserved = true;
     },
