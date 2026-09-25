@@ -62,6 +62,28 @@ test("no WSS attempt fabricates no hostname", () => {
   assert.equal(observer.observation(), undefined);
 });
 
+test("off-target first WSS fails closed without inspecting its destination", async () => {
+  const observer = createBook030FirstSocketObserver(publicResolver);
+  let urlReads = 0;
+  let closes = 0;
+  await observer.rejectWithoutInspection({
+    url: () => {
+      urlReads += 1;
+      throw new Error("must not inspect off-target socket URL");
+    },
+    close: async () => {
+      closes += 1;
+    },
+  });
+  await observer.handle(socket("wss://later.bet365.test/feed", { count: 0 }));
+
+  assert.equal(urlReads, 0);
+  assert.equal(closes, 1);
+  assert.equal(observer.firstAttemptObserved(), true);
+  assert.equal(observer.failedClosed(), true);
+  assert.equal(observer.observation(), undefined);
+});
+
 test("first WSS only is inspected and later attempts cannot replace retained provenance", async () => {
   let resolutions = 0;
   const resolver: HostResolver = async () => {
@@ -172,6 +194,9 @@ test("BOOK-031 source remains source-locked, bounded, non-interactive, and unabl
   assert.match(source, /serviceWorkers: "block"/);
   assert.match(source, /page\.routeWebSocket\("\*\*\/\*"/);
   assert.doesNotMatch(source, /context\.routeWebSocket\("\*\*\/\*"/);
+  assert.match(source, /page\.url\(\) !== lockedTarget\.href/);
+  assert.match(source, /rejectWithoutInspection\(socket\)/);
+  assert.match(source, /parsed\.href !== lockedTopLevelRequestHref/);
   assert.match(source, /resolveHostAddresses/);
   assert.match(source, /socketConnected: false/);
   assert.match(source, /authorizesPolicy: false/);
