@@ -136,6 +136,8 @@ test("BOOK-030 BET365 exact host still fails closed on DNS/private-network uncer
     ["::1"] as const,
     ["fe80::1"] as const,
     ["93.184.216.34", "192.168.1.5"] as const,
+    ["not-an-ip-address"] as const,
+    ["93.184.216.34", "not-an-ip-address"] as const,
   ]) {
     const live = createBookmakerNetworkPolicy(
       "bet365",
@@ -246,6 +248,8 @@ test("WSS DNS failure, empty answers, private, loopback and link-local answers f
     ["::1"] as const,
     ["fe80::1"] as const,
     ["93.184.216.34", "192.168.1.10"] as const,
+    ["not-an-ip-address"] as const,
+    ["93.184.216.34", "not-an-ip-address"] as const,
   ];
 
   for (const answer of addresses) {
