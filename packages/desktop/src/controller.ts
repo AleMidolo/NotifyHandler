@@ -42,7 +42,6 @@ const RESTARTABLE_PLAN_STATES = new Set<PlanRuntimeStatus>([
 
 const REOPENABLE_LEG_STATES = new Set<LegRuntimeState["state"]>([
   "AUTH_REQUIRED",
-  "ODDS_CHANGED",
   "FAILED_SAFE",
   "CANCELLED",
 ]);
@@ -165,13 +164,6 @@ export class DesktopAppController {
       case "RESUME_AUTH":
         this.requireLegState(leg, "AUTH_REQUIRED", command.type);
         await this.runtime.orchestrator.resumeAfterManualAuth(leg.legId);
-        break;
-      case "ACKNOWLEDGE_ODDS":
-        this.requireLegState(leg, "ODDS_CHANGED", command.type);
-        if (leg.observedOdds?.observed !== command.observedOdds) {
-          throw new DesktopControllerError("STALE_COMMAND", "Acknowledged odds do not equal the current observed odds.");
-        }
-        await this.runtime.orchestrator.continueWithObservedOdds(leg.legId, command.observedOdds);
         break;
       case "RETRY":
         this.requireLegState(leg, "FAILED_SAFE", command.type);

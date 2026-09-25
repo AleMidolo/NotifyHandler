@@ -9,7 +9,6 @@ export const DESKTOP_IPC_CHANNELS = Object.freeze({
 
 export type DesktopRecoveryCommand =
   | { readonly type: "RESUME_AUTH"; readonly legId: string; readonly attemptId: string }
-  | { readonly type: "ACKNOWLEDGE_ODDS"; readonly legId: string; readonly attemptId: string; readonly observedOdds: string }
   | { readonly type: "RETRY"; readonly legId: string; readonly attemptId: string }
   | { readonly type: "REOPEN"; readonly legId: string; readonly attemptId: string }
   | { readonly type: "CANCEL"; readonly legId: string; readonly attemptId: string }
@@ -49,7 +48,6 @@ export interface NotifyHandlerRendererBridge {
   getSnapshot(): Promise<DesktopIpcResult<DesktopSnapshot>>;
   submitNotification(text: string): Promise<DesktopIpcResult<DesktopSnapshot>>;
   resumeAfterManualAuth(legId: string, attemptId: string): Promise<DesktopIpcResult<DesktopSnapshot>>;
-  acknowledgeObservedOdds(legId: string, attemptId: string, observedOdds: string): Promise<DesktopIpcResult<DesktopSnapshot>>;
   retry(legId: string, attemptId: string): Promise<DesktopIpcResult<DesktopSnapshot>>;
   reopen(legId: string, attemptId: string): Promise<DesktopIpcResult<DesktopSnapshot>>;
   cancel(legId: string, attemptId: string): Promise<DesktopIpcResult<DesktopSnapshot>>;
@@ -113,17 +111,6 @@ export function parseDesktopRecoveryCommand(value: unknown): DesktopRecoveryComm
         type: value.type,
         legId: nonEmptyString(value.legId, "legId"),
         attemptId: nonEmptyString(value.attemptId, "attemptId"),
-      };
-    }
-    case "ACKNOWLEDGE_ODDS": {
-      if (!hasOnlyKeys(value, ["type", "legId", "attemptId", "observedOdds"])) {
-        throw new DesktopIpcValidationError("MALFORMED_COMMAND", "Odds acknowledgement contains unsupported fields.");
-      }
-      return {
-        type: "ACKNOWLEDGE_ODDS",
-        legId: nonEmptyString(value.legId, "legId"),
-        attemptId: nonEmptyString(value.attemptId, "attemptId"),
-        observedOdds: nonEmptyString(value.observedOdds, "observedOdds"),
       };
     }
     case "RESTART_PLAN": {

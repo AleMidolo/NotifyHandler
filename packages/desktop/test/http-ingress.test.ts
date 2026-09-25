@@ -9,7 +9,6 @@ import {
   AutomaticExecutionOrchestrator,
   type BookmakerAutomationPort,
   type CancelLegRequest,
-  type ContinueOddsRequest,
   type LegExecutionRequest,
   type WorkerLegEvent,
 } from "../../application/src/index.ts";
@@ -79,7 +78,6 @@ class FakeAutomation implements BookmakerAutomationPort {
     return this.ready(request);
   }
   resumeAfterManualAuth(request: LegExecutionRequest): AsyncIterable<WorkerLegEvent> { return this.ready(request); }
-  continueWithObservedOdds(request: ContinueOddsRequest): AsyncIterable<WorkerLegEvent> { return this.ready(request); }
   retry(request: LegExecutionRequest): AsyncIterable<WorkerLegEvent> { return this.ready(request); }
   reopen(request: LegExecutionRequest): AsyncIterable<WorkerLegEvent> { return this.ready(request); }
   async cancel(request: CancelLegRequest): Promise<void> { this.cancellations.push(request); }
@@ -92,7 +90,6 @@ class FakeAutomation implements BookmakerAutomationPort {
       "MATCHING_MARKET",
       "MATCHING_LINE",
       "MATCHING_OUTCOME",
-      "VERIFYING_ODDS",
       "ACTIVATING_SELECTION",
       "VERIFYING_SELECTION",
       "SELECTION_PREPARED",

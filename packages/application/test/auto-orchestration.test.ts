@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ApplicationCommandError, AutomaticExecutionOrchestrator } from "../src/orchestrator.ts";
+import { AutomaticExecutionOrchestrator } from "../src/orchestrator.ts";
 import type {
-  BookmakerAutomationPort, CancelLegRequest, ContinueOddsRequest, ExecutionPreflightPort,
+  BookmakerAutomationPort, CancelLegRequest, ExecutionPreflightPort,
   LegExecutionRequest, RuntimeFailure, WorkerLegEvent,
 } from "../src/orchestrator.ts";
 
@@ -21,8 +21,8 @@ const canonical = `📊 **SEGNALE SUREBET (ROI: 3.53%)**
 • SISAL OVER 11.5 (Puntata: €100,00) + BET365 UNDER 11.5 (Puntata: €180,12)
 • LOTTOMATICA OVER @ 2.88 + EPLAY24 UNDER @ 1.60`;
 
-type Command = "start" | "resume" | "continue" | "retry" | "reopen";
-type Request = LegExecutionRequest | ContinueOddsRequest;
+type Command = "start" | "resume" | "retry" | "reopen";
+type Request = LegExecutionRequest;
 
 function failure(request: LegExecutionRequest, recoverability: RuntimeFailure["recoverability"] = "RETRY"): RuntimeFailure {
   return { code: "PAGE_LOAD_TIMEOUT", stage: "PAGE_READY", message: "fixture timeout", recoverability, activation: "NOT_ATTEMPTED", evidenceEpoch: request.evidenceEpoch };
@@ -34,22 +34,20 @@ function ready(request: LegExecutionRequest): readonly WorkerLegEvent[] {
   return [
     event(request, "OPENING"), event(request, "WAITING_FOR_PAGE"), event(request, "MATCHING_EVENT"),
     event(request, "MATCHING_MARKET"), event(request, "MATCHING_LINE"), event(request, "MATCHING_OUTCOME"),
-    event(request, "VERIFYING_ODDS", { odds: { expected: request.target.expectedOdds, observed: request.target.expectedOdds, comparison: "EQUAL" } }),
-    event(request, "ACTIVATING_SELECTION"), event(request, "VERIFYING_SELECTION"), event(request, "SELECTION_PREPARED"), event(request, "READY_FOR_USER"),
+    event(request, "ACTIVATING_SELECTION", { odds: { ...(request.target.expectedOdds === undefined ? {} : { expected: request.target.expectedOdds }), ...(request.target.expectedOdds === undefined ? {} : { observed: request.target.expectedOdds }), comparison: request.target.expectedOdds === undefined ? "UNAVAILABLE" : "EQUAL" } }),
+    event(request, "VERIFYING_SELECTION"), event(request, "SELECTION_PREPARED"), event(request, "READY_FOR_USER"),
   ];
 }
 
 class FakeAutomation implements BookmakerAutomationPort {
   readonly starts: LegExecutionRequest[] = [];
   readonly resumes: LegExecutionRequest[] = [];
-  readonly continuations: ContinueOddsRequest[] = [];
   readonly retries: LegExecutionRequest[] = [];
   readonly reopens: LegExecutionRequest[] = [];
   readonly cancellations: CancelLegRequest[] = [];
   constructor(private readonly script: (command: Command, request: Request) => AsyncIterable<WorkerLegEvent> | readonly WorkerLegEvent[]) {}
   start(request: LegExecutionRequest) { this.starts.push(request); return this.async(this.script("start", request)); }
   resumeAfterManualAuth(request: LegExecutionRequest) { this.resumes.push(request); return this.async(this.script("resume", request)); }
-  continueWithObservedOdds(request: ContinueOddsRequest) { this.continuations.push(request); return this.async(this.script("continue", request)); }
   retry(request: LegExecutionRequest) { this.retries.push(request); return this.async(this.script("retry", request)); }
   reopen(request: LegExecutionRequest) { this.reopens.push(request); return this.async(this.script("reopen", request)); }
   async cancel(request: CancelLegRequest) { this.cancellations.push(request); }
@@ -124,26 +122,24 @@ test("manual auth pauses only one leg and resume creates a fresh evidence epoch"
   assert.equal(state.status, "READY_FOR_USER");
 });
 
-test("odds change remains explicit and continuation requires exact observed value", async () => {
+test("changed price is informational telemetry and never creates an acknowledgement state", async () => {
   const worker = new FakeAutomation((command, request) => request.target.bookmaker === "sisal" && command === "start"
     ? [
         event(request, "OPENING"), event(request, "WAITING_FOR_PAGE"), event(request, "MATCHING_EVENT"),
         event(request, "MATCHING_MARKET"), event(request, "MATCHING_LINE"), event(request, "MATCHING_OUTCOME"),
-        event(request, "VERIFYING_ODDS"),
-        event(request, "ODDS_CHANGED", { odds: { expected: request.target.expectedOdds, observed: "3.00", comparison: "HIGHER" } }),
+        event(request, "ACTIVATING_SELECTION", { odds: { expected: request.target.expectedOdds, observed: "3.00", comparison: "HIGHER" } }),
+        event(request, "VERIFYING_SELECTION"), event(request, "SELECTION_PREPARED"), event(request, "READY_FOR_USER"),
       ]
     : ready(request));
   const orchestrator = app(worker);
   await orchestrator.receiveNotification(canonical);
-  let state = await orchestrator.waitForIdle();
+  const state = await orchestrator.waitForIdle();
   const leg = state.legs?.[0];
   assert.ok(leg);
+  assert.equal(leg.state, "READY_FOR_USER");
   assert.deepEqual(leg.observedOdds, { expected: "2.9", observed: "3.00", comparison: "HIGHER" });
-  await assert.rejects(() => orchestrator.continueWithObservedOdds(leg.legId, "2.99"), ApplicationCommandError);
-  assert.equal(worker.continuations.length, 0);
-  state = await orchestrator.continueWithObservedOdds(leg.legId, "3.00");
-  assert.equal(worker.continuations[0]?.acknowledgedObservedOdds, "3.00");
   assert.equal(state.status, "READY_FOR_USER");
+  assert.equal("continueWithObservedOdds" in orchestrator, false);
 });
 
 test("retry uses a new attempt and late old-attempt events are ignored", async () => {

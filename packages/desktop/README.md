@@ -22,7 +22,7 @@ The Electron renderer is sandboxed, uses context isolation, has Node integration
 
 Submitting notification input enters the existing automatic path immediately: recommendation index `0` is resolved, preflight runs, and both legs are dispatched without a preview acknowledgement, pair selector, plan confirmation, or Start button. Renderer updates are out-of-band and never gate browser startup.
 
-The renderer shows the exact normalized two-leg target, independent leg state, expected/observed odds, safe failures, and only state-valid recovery controls. Stale leg/attempt commands are rejected in the trusted controller. `READY_FOR_USER` is a manual handoff: authentication, stake entry, review, and final submission remain user actions in the separate bookmaker windows.
+The renderer shows the exact normalized two-leg target, independent leg state, optional notified/observed odds as informational telemetry, safe failures, and only state-valid recovery controls. Price never creates an acknowledgement or action-required state. Stale leg/attempt commands are rejected in the trusted controller. `READY_FOR_USER` is a manual handoff: authentication, stake entry, review, and final submission remain user actions in the separate bookmaker windows.
 
 Browser E2E tests continue to use synthetic in-memory HTTPS fixture routing and never contact live bookmaker infrastructure.
 
@@ -78,7 +78,7 @@ Example request body:
 
 Send it with `Content-Type: application/json` and `Authorization: Bearer <local-ingress-token>`. The endpoint has a 64 KiB body ceiling, rejects browser-origin/CORS requests, enforces notification freshness plus durable bounded idempotency, and returns only sanitized execution metadata. A same-process exact duplicate returns the existing execution reference without a second start. After NotifyHandler restarts, a still-retained exact replay is rejected with `IDEMPOTENCY_REPLAY_BLOCKED` and zero worker starts because prior browser execution state is not restored. Reusing the same id with different normalized content returns `IDEMPOTENCY_CONFLICT`.
 
-A valid new request persists its pending tombstone before entering the existing automatic two-leg preflight/start path; no renderer confirmation is involved. Corrupt durable idempotency state prevents the listener from starting, and expired tombstones are evicted. A direct link is only navigation input and never replaces event, market, exact-line, outcome, or odds verification.
+A valid new request persists its pending tombstone before entering the existing automatic two-leg preflight/start path; no renderer confirmation is involved. Corrupt durable idempotency state prevents the listener from starting, and expired tombstones are evicted. A direct link is only navigation input and never replaces event, market, exact-line, or outcome verification. Odds are informational and non-authorizing.
 
 
 ### Relay-aware v2 payloads

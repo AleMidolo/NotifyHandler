@@ -13,7 +13,7 @@ The orchestrator owns:
 - independent per-leg runtime state, attempt ids, and evidence epochs;
 - automatic concurrent start dispatch for both valid legs;
 - `AUTH_REQUIRED` pause/resume with fresh evidence;
-- explicit `ODDS_CHANGED` expected/observed values and exact-value acknowledgement;
+- optional expected/observed odds telemetry that never creates an action-required state;
 - retry and reopen with fresh attempts;
 - leg and plan cancellation with stale-event rejection;
 - restart of the same automatically resolved immutable plan;

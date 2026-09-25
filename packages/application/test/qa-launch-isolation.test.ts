@@ -4,7 +4,6 @@ import { AutomaticExecutionOrchestrator } from "../src/orchestrator.ts";
 import type {
   BookmakerAutomationPort,
   CancelLegRequest,
-  ContinueOddsRequest,
   ExecutionPreflightPort,
   LegExecutionRequest,
   WorkerLegEvent,
@@ -43,11 +42,11 @@ function ready(request: LegExecutionRequest): AsyncIterable<WorkerLegEvent> {
     event(request, "MATCHING_LINE"),
     event(request, "MATCHING_OUTCOME"),
     {
-      ...event(request, "VERIFYING_ODDS"),
+      ...event(request, "ACTIVATING_SELECTION"),
       odds: {
-        expected: request.target.expectedOdds,
-        observed: request.target.expectedOdds,
-        comparison: "EQUAL",
+        ...(request.target.expectedOdds === undefined ? {} : { expected: request.target.expectedOdds }),
+        ...(request.target.expectedOdds === undefined ? {} : { observed: request.target.expectedOdds }),
+        comparison: request.target.expectedOdds === undefined ? "UNAVAILABLE" : "EQUAL",
       },
     },
     event(request, "ACTIVATING_SELECTION"),
@@ -74,7 +73,6 @@ class ThrowingStartAutomation implements BookmakerAutomationPort {
   }
 
   resumeAfterManualAuth(request: LegExecutionRequest) { return ready(request); }
-  continueWithObservedOdds(request: ContinueOddsRequest) { return ready(request); }
   retry(request: LegExecutionRequest) { return ready(request); }
   reopen(request: LegExecutionRequest) { return ready(request); }
   async cancel(_request: CancelLegRequest) {}

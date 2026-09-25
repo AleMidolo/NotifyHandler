@@ -1,7 +1,6 @@
 export function legActions(leg) {
   const actions = [];
   if (leg.state === "AUTH_REQUIRED") actions.push("RESUME_AUTH", "REOPEN", "CANCEL");
-  else if (leg.state === "ODDS_CHANGED") actions.push("ACKNOWLEDGE_ODDS", "REOPEN", "CANCEL");
   else if (leg.state === "FAILED_SAFE") {
     if (leg.failure?.recoverability === "RETRY") actions.push("RETRY");
     if (leg.failure?.recoverability === "REOPEN") actions.push("REOPEN");
@@ -28,7 +27,7 @@ export function toRendererModel(snapshot) {
     market: leg.target.market.sourceLabel,
     line: leg.target.market.line,
     outcome: leg.target.outcome.side,
-    expectedOdds: leg.target.expectedOdds,
+    expectedOdds: leg.target.expectedOdds ?? null,
   })) ?? [];
 
   return {

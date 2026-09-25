@@ -35,7 +35,7 @@ textarea:focus { outline: 2px solid #6ca9ff; outline-offset: 1px; }
 .handoff { padding: 10px; border-radius: 8px; background: #183227; color: #b9efd0; }
 .state-ready_for_user { border-color: #3f7958; color: #b9efd0; }
 .state-failed_safe { border-color: #7d4750; color: #ffb2b7; }
-.state-auth_required, .state-odds_changed { border-color: #806f3c; color: #ffe39c; }
+.state-auth_required { border-color: #806f3c; color: #ffe39c; }
 footer { padding: 20px 4px 0; font-size: 12px; text-align: center; }
 
 @media (max-width: 760px) {

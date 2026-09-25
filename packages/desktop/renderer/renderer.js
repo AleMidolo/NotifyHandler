@@ -69,7 +69,7 @@ function renderPlan(model) {
     card.appendChild(text("p", target.event));
     card.appendChild(text("p", `${target.competition} · ${target.scheduledAt}`, "muted"));
     card.appendChild(text("p", `${target.market} · ${target.outcome.toUpperCase()} ${target.line}`));
-    card.appendChild(text("p", `Expected odds: ${target.expectedOdds}`, "odds"));
+    card.appendChild(text("p", target.expectedOdds === null ? "Notified odds: —" : `Notified odds: ${target.expectedOdds}`, "odds"));
     planBox.appendChild(card);
   }
 }
@@ -78,8 +78,6 @@ function invokeLegAction(action, leg) {
   switch (action) {
     case "RESUME_AUTH":
       return run(api.resumeAfterManualAuth(leg.legId, leg.attemptId));
-    case "ACKNOWLEDGE_ODDS":
-      return run(api.acknowledgeObservedOdds(leg.legId, leg.attemptId, leg.observedOdds.observed));
     case "RETRY":
       return run(api.retry(leg.legId, leg.attemptId));
     case "REOPEN":
@@ -109,9 +107,14 @@ function renderLegs(model) {
     if (leg.state === "AUTH_REQUIRED") {
       card.appendChild(text("p", "Authenticate manually in the bookmaker window, then resume this leg."));
     }
-    if (leg.state === "ODDS_CHANGED" && leg.observedOdds?.observed) {
-      card.appendChild(text("p", `Odds changed: expected ${leg.observedOdds.expected}, observed ${leg.observedOdds.observed}.`));
-      card.appendChild(text("p", "Acknowledgement re-runs full validation before any selection activation.", "muted"));
+    if (leg.observedOdds) {
+      const expected = leg.observedOdds.expected ?? "—";
+      const observed = leg.observedOdds.observed ?? "unavailable";
+      card.appendChild(text(
+        "p",
+        `Odds (informational): notified ${expected} · observed ${observed} · ${leg.observedOdds.comparison.toLowerCase()}`,
+        "odds",
+      ));
     }
     if (leg.failure) {
       card.appendChild(text("p", `${leg.failure.code}: ${leg.failure.message}`, "failure"));
@@ -124,7 +127,6 @@ function renderLegs(model) {
     actions.className = "actions";
     for (const action of leg.actions) {
       if (action === "RESUME_AUTH") addAction(actions, "Resume after manual login", () => invokeLegAction(action, leg), "primary");
-      else if (action === "ACKNOWLEDGE_ODDS") addAction(actions, `Acknowledge ${leg.observedOdds?.observed ?? "observed odds"} & revalidate`, () => invokeLegAction(action, leg), "primary");
       else if (action === "RETRY") addAction(actions, "Retry", () => invokeLegAction(action, leg));
       else if (action === "REOPEN") addAction(actions, "Reopen bookmaker", () => invokeLegAction(action, leg));
       else if (action === "CANCEL") addAction(actions, "Cancel leg", () => invokeLegAction(action, leg), "danger");
