@@ -101,3 +101,48 @@ test("pinned Chromium invalid first socket fails closed and a later safe socket 
     await browser.close();
   }
 });
+
+
+test("pinned Chromium popup WebSocket cannot become the source-page hostname observation", async () => {
+  const observer = createBook030FirstSocketObserver(async () => ["93.184.216.34"]);
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext();
+
+  try {
+    const page = await context.newPage();
+    await page.routeWebSocket("**/*", async (socket) => {
+      await observer.handle(socket);
+    });
+    context.on("page", (openedPage) => {
+      if (openedPage !== page) void openedPage.close().catch(() => undefined);
+    });
+
+    await page.setContent(`
+      <!doctype html>
+      <html>
+        <body>
+          <script>
+            const popup = window.open("about:blank", "_blank");
+            if (popup) {
+              popup.document.write(
+                '<script>const rogue = new WebSocket("wss://popup.bet365.test/feed"); rogue.onerror = () => {};<\\/script>'
+              );
+              popup.document.close();
+            }
+            setTimeout(() => {
+              const sourceSocket = new WebSocket("wss://source.bet365.test/feed");
+              sourceSocket.onerror = () => {};
+            }, 25);
+          </script>
+        </body>
+      </html>
+    `);
+
+    await waitForObservation(observer);
+    assert.equal(observer.failedClosed(), false);
+    assert.equal(observer.observation()?.candidateHostname, "source.bet365.test");
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+});
