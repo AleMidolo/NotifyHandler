@@ -306,7 +306,7 @@ Bounded bookmaker-scoped public `wss://` page transport is accepted behind versi
 
 SelectionTarget/structured-v2 price is optional informational metadata and frozen structured-v1 compatibility is preserved.
 
-**#209 BOOK-029 — IMPLEMENTED in PR #215**
+**#209 BOOK-029 — COMPLETE via PR #219**
 
 The browser gateway now has default-deny bookmaker-scoped WSS policy plus passive-provenance.v2. The live SISAL/BET365 rule registry remains empty, relay WSS remains blocked, and no live bookmaker run or guessed hostname is included.
 
@@ -318,13 +318,21 @@ Changed-price state/UI and acknowledgement commands are removed.
 
 Price gating is removed from adapters/SelectionActivationGate while exact identity and selected-state verification remain mandatory.
 
-**#211 SEC-009 — NEXT after PR #219 -> #212 QA-008**
+**#211 SEC-009 + #212 QA-008 — COMPLETE via PR #220**
 
-Review/certify the exact implementation before live reuse.
+The integrated non-gating-odds and bounded-WSS implementation is security-hardened and QA-certified.
 
-**#210 BOOK-030 — SECURITY-GATED**
+**#221 BOOK-031 — IMPLEMENTATION IN PR #225**
 
-Establish the narrowest evidence-backed BET365 WSS host rule only through an approved controlled hostname-evidence procedure.
+Implement the approved source-locked BET365 first-WSS hostname observer without a live bookmaker run.
+
+**#222 SEC-010 -> #223 QA-009 -> #224 DEVOPS-018 — CONTROLLED OBSERVATION GATES**
+
+Review and certify the exact observer head, then permit at most one qualifying non-CI hostname observation.
+
+**#210 BOOK-030 — EVIDENCE/RULE INTERPRETATION**
+
+If DEVOPS-018 yields a valid sanitized artifact, record the canonical hostname and propose the narrowest exact-host rule. A single observation cannot justify suffix expansion, and no BET365 render re-test occurs before separate Security/QA rule approval.
 
 **#197 PRODUCT-030 — PARALLEL EXTERNAL EVIDENCE**
 
