@@ -117,7 +117,7 @@ test("reviewed suffix cannot escape the bookmaker namespace or expand to a publi
     ),
     /public-suffix expansion is forbidden/,
   );
-  assert.doesNotThrow(
+  assert.throws(
     () => new BookmakerNetworkPolicy(
       {
         bookmaker: "sisal",
@@ -129,6 +129,7 @@ test("reviewed suffix cannot escape the bookmaker namespace or expand to a publi
       },
       PUBLIC,
     ),
+    /source-reviewed bookmaker namespace/,
   );
 });
 
