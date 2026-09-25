@@ -302,17 +302,21 @@ The product no longer wants unconditional WebSocket denial.
 
 Bounded bookmaker-scoped public `wss://` page transport is accepted behind version-controlled host policy, public-DNS/private-network checks, payload opacity, and default-deny behavior.
 
-**#206 DOMAIN-003 — READY NOW**
+**#206 DOMAIN-003 — COMPLETE via PR #214**
 
-Implement optional informational price metadata and v1/v2 compatibility.
+SelectionTarget/structured-v2 price is optional informational metadata and frozen structured-v1 compatibility is preserved.
 
-**#209 BOOK-029 — READY NOW IN PARALLEL**
+**#209 BOOK-029 — IMPLEMENTED in PR #215**
 
-Implement the default-deny WSS gateway framework and passive-provenance.v2 without adding a guessed live bookmaker host.
+The browser gateway now has default-deny bookmaker-scoped WSS policy plus passive-provenance.v2. The live SISAL/BET365 rule registry remains empty, relay WSS remains blocked, and no live bookmaker run or guessed hostname is included.
 
-**#207 APP-008 / #208 BOOK-028 — AFTER #206**
+**#207 APP-008 — READY NOW**
 
-Remove changed-price state/UI and adapter/activation price gates.
+Remove changed-price state/UI and acknowledgement commands.
+
+**#208 BOOK-028 — READY NOW**
+
+Remove price gating from adapters/SelectionActivationGate while keeping exact identity and selected-state verification.
 
 **#211 SEC-009 -> #212 QA-008**
 
