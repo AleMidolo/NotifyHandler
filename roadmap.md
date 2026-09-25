@@ -322,17 +322,19 @@ Price gating is removed from adapters/SelectionActivationGate while exact identi
 
 The integrated non-gating-odds and bounded-WSS implementation is security-hardened and QA-certified.
 
-**#221 BOOK-031 — IMPLEMENTATION IN PR #225**
+**#221 BOOK-031 + #222 SEC-010 + #223 QA-009 + #224 DEVOPS-018 — COMPLETE**
 
-Implement the approved source-locked BET365 first-WSS hostname observer without a live bookmaker run.
+The approved source-locked no-connect observer retained one canonical public hostname: `premws-pt1.it.365lpodds.com`. The observation did not authorize policy and did not connect the socket.
 
-**#222 SEC-010 -> #223 QA-009 -> #224 DEVOPS-018 — CONTROLLED OBSERVATION GATES**
+**#210 BOOK-030 — EXACT-HOST RULE IN PR #226**
 
-Review and certify the exact observer head, then permit at most one qualifying non-CI hostname observation.
+Propose only `premws-pt1.it.365lpodds.com` in BET365 `exactHosts`. Keep `reviewedHostSuffixes` empty; a single observation cannot justify sibling/suffix expansion.
 
-**#210 BOOK-030 — EVIDENCE/RULE INTERPRETATION**
+**#227 SEC-011 -> #228 QA-010 — RULE REVIEW GATES**
 
-If DEVOPS-018 yields a valid sanitized artifact, record the canonical hostname and propose the narrowest exact-host rule. A single observation cannot justify suffix expansion, and no BET365 render re-test occurs before separate Security/QA rule approval.
+Security reviews the evidence/provenance and exact source boundary. QA then certifies exact-host/suffix-confusion, DNS/public-target, cancellation/stale-attempt, relay-WSS, privacy, matching-isolation, and transaction regressions. No live bookmaker run occurs during either review.
+
+A separately scoped BET365 render re-test may be authorized only after both gates approve the merged exact-host rule.
 
 **#197 PRODUCT-030 — PARALLEL EXTERNAL EVIDENCE**
 
