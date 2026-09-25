@@ -1,4 +1,4 @@
-import type { ElementHandle, Page, Route } from "playwright-core";
+import type { ElementHandle, Page, Route, WebSocketRoute } from "playwright-core";
 import type {
   BookmakerPagePort,
   BookmakerReadQuery,
@@ -204,7 +204,9 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   private blockingOperation = false;
   private cancelled = false;
   private crashed = false;
+  private attemptGeneration = 0;
   private webSocketFailure: BookmakerWssFailureCode | undefined;
+  private readonly allowedWebSockets = new Set<WebSocketRoute>();
   private lastSafeLocation: SafeLocation | undefined;
 
   constructor(
@@ -236,11 +238,20 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
         return;
       }
 
+      const socketAttemptGeneration = this.attemptGeneration;
       const decision = await this.networkPolicy.evaluateWebSocket(
         socket.url(),
         this.page.url(),
         this.cancelled,
       );
+      if (
+        this.cancelled
+        || socketAttemptGeneration !== this.attemptGeneration
+      ) {
+        await socket.close({ code: 1008, reason: "Bookmaker attempt no longer current" })
+          .catch(() => undefined);
+        return;
+      }
       if (!decision.allowed) {
         this.webSocketFailure ??= decision.code;
         this.invalidateReferences();
@@ -249,19 +260,26 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       }
 
       socket.connectToServer();
+      this.allowedWebSockets.add(socket);
     });
     this.page.on("framenavigated", (frame) => {
       if (frame === this.page.mainFrame()) this.invalidateReferences();
     });
     this.page.on("crash", () => {
       this.crashed = true;
+      this.allowedWebSockets.clear();
       this.invalidateReferences();
     });
-    this.page.on("close", () => this.invalidateReferences());
+    this.page.on("close", () => {
+      this.allowedWebSockets.clear();
+      this.invalidateReferences();
+    });
   }
 
   beginAttempt(): void {
     if (this.page.isClosed() || this.crashed) throw new Error("Browser page is not available for a new attempt.");
+    this.revokeAllowedWebSockets("Bookmaker attempt superseded");
+    this.attemptGeneration += 1;
     this.invalidateReferences();
     this.cancelled = false;
     this.webSocketFailure = undefined;
@@ -269,6 +287,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   cancelInFlight(): void {
     this.cancelled = true;
+    this.revokeAllowedWebSockets("Bookmaker attempt cancelled");
     if (this.blockingOperation && !this.page.isClosed()) {
       void this.page.close({ runBeforeUnload: false }).catch(() => undefined);
     }
@@ -482,6 +501,14 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   currentNetworkFailure(): BookmakerWssFailureCode | undefined {
     return this.webSocketFailure;
+  }
+
+  private revokeAllowedWebSockets(reason: string): void {
+    const sockets = [...this.allowedWebSockets];
+    this.allowedWebSockets.clear();
+    for (const socket of sockets) {
+      void socket.close({ code: 1008, reason }).catch(() => undefined);
+    }
   }
 
   private async handleRoute(route: Route): Promise<void> {
