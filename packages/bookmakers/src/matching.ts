@@ -60,19 +60,38 @@ function compareDecimal(left: DecimalString, right: DecimalString): number | und
   return aScaled === bScaled ? 0 : aScaled > bScaled ? 1 : -1;
 }
 
-export function compareOdds(expectedRaw: string | undefined, observedRaw: string | null): ObservedOdds | undefined {
-  if (expectedRaw === undefined) return undefined;
-  const expected = canonicalDecimal(expectedRaw);
-  if (!expected) return undefined;
-  if (observedRaw === null) return { expected, comparison: "UNAVAILABLE" };
+export function compareOdds(expectedRaw: string | undefined, observedRaw: string | null): ObservedOdds {
+  const expected = expectedRaw === undefined ? undefined : canonicalDecimal(expectedRaw);
+  if (expectedRaw !== undefined && expected === undefined) {
+    return { status: "INVALID" };
+  }
+  if (observedRaw === null) {
+    return {
+      ...(expected === undefined ? {} : { expected }),
+      status: "UNAVAILABLE",
+    };
+  }
+
   const observed = canonicalDecimal(observedRaw);
-  if (!observed) return undefined;
+  if (observed === undefined) {
+    return {
+      ...(expected === undefined ? {} : { expected }),
+      status: "INVALID",
+    };
+  }
+  if (expected === undefined) {
+    return { observed, status: "OBSERVED" };
+  }
+
   const comparison = compareDecimal(observed, expected);
-  if (comparison === undefined) return undefined;
+  if (comparison === undefined) {
+    return { expected, observed, status: "INVALID" };
+  }
   return {
     expected,
     observed,
     comparison: comparison === 0 ? "EQUAL" : comparison > 0 ? "HIGHER" : "LOWER",
+    status: "OBSERVED",
   };
 }
 
