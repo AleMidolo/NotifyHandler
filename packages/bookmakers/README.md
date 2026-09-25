@@ -15,8 +15,8 @@ Validated scope:
 - pre-match football selection targets represented by the shared domain contract;
 - full-match total-corners markets with an exact decimal line;
 - `over` / `under` outcomes;
-- event participant, competition/time context, market/context, line, side, and displayed-odds verification;
-- `AUTH_REQUIRED`, `ODDS_CHANGED`, safe-failure, cancellation, selection activation-gate, and post-activation selected-state behavior;
+- event participant, competition/time context, market/context, exact line, and side verification, with displayed odds retained only as optional informational telemetry;
+- `AUTH_REQUIRED`, identity safe-failure, cancellation, price-independent selection activation-gate, and post-activation selected-state behavior;
 - deterministic in-memory sanitized fixture tests only.
 
 The future Playwright worker must map real SISAL DOM state into the semantic port and pass the same contract suite before this integration can be labeled live `Supported`. No undocumented/private API access is used.
@@ -35,8 +35,8 @@ Validated scope:
 - full-match total-corners markets with an exact decimal line;
 - `over` / `under` outcomes;
 - deterministic event participant plus available competition/time-context matching;
-- independent market/context, exact-line, side, and displayed-odds verification;
-- `AUTH_REQUIRED`, `ODDS_CHANGED`, safe-failure, cancellation, activation-gate, and post-activation selected-state behavior;
+- independent market/context, exact-line, and side verification, with displayed odds retained only as optional informational telemetry;
+- `AUTH_REQUIRED`, identity safe-failure, cancellation, price-independent activation-gate, and post-activation selected-state behavior;
 - cancellation racing an already-started final activation preserves `ATTEMPTED_NOT_VERIFIED`/manual-review semantics;
 - deterministic in-memory sanitized fixture tests only.
 
