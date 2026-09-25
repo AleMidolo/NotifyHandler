@@ -262,13 +262,19 @@ async function installOrdinaryPublicNetworkBoundary(
       return;
     }
 
+    const topLevel =
+      request.isNavigationRequest() && request.frame().parentFrame() === null;
+
     if (["data:", "blob:", "about:"].includes(parsed.protocol)) {
+      if (topLevel) {
+        markUnsafe();
+        await route.abort("blockedbyclient");
+        return;
+      }
       await route.continue();
       return;
     }
 
-    const topLevel =
-      request.isNavigationRequest() && request.frame().parentFrame() === null;
     if (parsed.protocol !== "https:") {
       markUnsafe();
       await route.abort("blockedbyclient");
