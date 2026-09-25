@@ -228,7 +228,11 @@ export class BookmakerNetworkPolicy {
       const addresses = await this.resolveHostname(hostname);
       if (
         addresses.length === 0
-        || addresses.some((address) => isInternalHostname(address))
+        || addresses.some(
+          (address) =>
+            isIP(address.replace(/^\[|\]$/gu, "")) === 0
+            || isInternalHostname(address),
+        )
       ) {
         return { allowed: false, code: "BOOKMAKER_WSS_NETWORK_TARGET_BLOCKED" };
       }
