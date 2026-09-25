@@ -138,6 +138,7 @@ Required controls:
 - allowed sockets are revoked on attempt cancellation or supersession, and stale async WSS policy decisions may not connect after the attempt generation changes;
 - WebSocket objects/messages/payloads are not exposed to adapter/core/renderer/matching/activation APIs;
 - payloads are not retained or used as evidence;
+- any hostname-only WSS evidence observer must bind interception to the single source-locked page and exact locked route at observation time; popup/extra-page sockets and off-target first sockets cannot supply hostname provenance;
 - relay-origin WebSockets remain blocked;
 - unsafe/unapproved socket attempts fail safely and never expand the allowlist.
 
