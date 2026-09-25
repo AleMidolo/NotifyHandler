@@ -69,9 +69,9 @@ Current Milestone 6 sequence:
 4. PRODUCT-032/#202 corrects the browser-network boundary: normal bookmaker rendering may use narrowly reviewed public `wss://`.
 5. **ARCH-011/#203** defines bookmaker-scoped WSS policy: `wss://` port 443 only, public DNS/private-network validation, version-controlled exact/suffix host rules, no runtime learning, and no socket payload/API exposure.
 6. **#206 DOMAIN-003 — complete via PR #214:** expected odds are optional informational metadata while v1 compatibility remains frozen.
-7. **#209 BOOK-029 — implemented in PR #215:** default-deny bookmaker WSS gateway + passive-provenance.v2; live SISAL/BET365 WSS rules remain empty and no live host was guessed.
-8. **#207 APP-008** and **#208 BOOK-028** are now ready to remove changed-price state/UI and adapter/activation price gates.
-9. **#211 SEC-009 -> #212 QA-008** review and certify the combined migration after those implementation heads integrate.
+7. **#209 BOOK-029 — implementation rebased in PR #219:** default-deny bookmaker WSS gateway + passive-provenance.v2; live SISAL/BET365 WSS rules remain empty and no live host was guessed.
+8. **#207 APP-008** is complete via PR #216 and **#208 BOOK-028** is complete via PR #218; changed-price state/UI and adapter/activation price gates are removed.
+9. **#211 SEC-009 — NEXT after PR #219 -> #212 QA-008** review and certify the combined migration after those implementation heads integrate.
 10. **#210 BOOK-030** may establish a BET365 WSS rule only through a Security-approved hostname-evidence procedure; the default remains deny until then.
 11. **#197 PRODUCT-030** continues in parallel to source a fresh current/future full-match total-corners direct-link second-bookmaker target. Stable odds are not required.
 12. No new BET365 live run is authorized until implementation, Security/QA, and an evidence-backed WSS rule are approved.
