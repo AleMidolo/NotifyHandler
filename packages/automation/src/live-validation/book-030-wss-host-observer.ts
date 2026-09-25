@@ -298,7 +298,7 @@ export async function runBook030WssHostObserver(): Promise<Book030WssHostObserva
   const page = await context.newPage();
   let unsafeOrdinaryNetworkObserved = false;
 
-  await context.routeWebSocket("**/*", async (socket) => {
+  await page.routeWebSocket("**/*", async (socket) => {
     await socketObserver.handle(socket);
   });
   await installOrdinaryPublicNetworkBoundary(
