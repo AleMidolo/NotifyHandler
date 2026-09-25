@@ -43,11 +43,14 @@ function ready(request: LegExecutionRequest): AsyncIterable<WorkerLegEvent> {
     event(request, "MATCHING_OUTCOME"),
     {
       ...event(request, "ACTIVATING_SELECTION"),
-      odds: {
-        ...(request.target.expectedOdds === undefined ? {} : { expected: request.target.expectedOdds }),
-        ...(request.target.expectedOdds === undefined ? {} : { observed: request.target.expectedOdds }),
-        comparison: request.target.expectedOdds === undefined ? "UNAVAILABLE" : "EQUAL",
-      },
+      odds: request.target.expectedOdds === undefined
+        ? { status: "NOT_OBSERVED" }
+        : {
+            expected: request.target.expectedOdds,
+            observed: request.target.expectedOdds,
+            comparison: "EQUAL",
+            status: "OBSERVED",
+          },
     },
     event(request, "ACTIVATING_SELECTION"),
     event(request, "VERIFYING_SELECTION"),
