@@ -30,12 +30,14 @@ export interface MatchingEvidenceSnapshot {
   readonly outcome: EvidenceDimension;
 }
 
-export type OddsComparison = "EQUAL" | "HIGHER" | "LOWER" | "UNAVAILABLE";
+export type OddsComparison = "EQUAL" | "HIGHER" | "LOWER";
+export type OddsObservationStatus = "NOT_OBSERVED" | "OBSERVED" | "UNAVAILABLE" | "INVALID";
 
 export interface ObservedOdds {
-  readonly expected: DecimalString;
+  readonly expected?: DecimalString;
   readonly observed?: DecimalString;
-  readonly comparison: OddsComparison;
+  readonly comparison?: OddsComparison;
+  readonly status: OddsObservationStatus;
 }
 
 export type FailureStage =
@@ -46,7 +48,6 @@ export type FailureStage =
   | "MARKET"
   | "LINE"
   | "OUTCOME"
-  | "ODDS"
   | "SELECTION_ACTIVATION"
   | "SELECTION_VERIFICATION"
   | "BROWSER_RUNTIME"
@@ -76,8 +77,6 @@ export type FailureCode =
   | "OUTCOME_MISMATCH"
   | "OUTCOME_AMBIGUOUS"
   | "OUTCOME_UNAVAILABLE"
-  | "ODDS_UNAVAILABLE"
-  | "ODDS_INVALID"
   | "SELECTION_ACTIVATION_REJECTED"
   | "SELECTION_ACTIVATION_FAILED"
   | "SELECTION_VERIFICATION_FAILED";
@@ -151,8 +150,6 @@ export interface SelectionActivationGate {
     target: SelectionTarget;
     candidate: ElementRef;
     evidence: MatchingEvidenceSnapshot;
-    odds: ObservedOdds;
-    acknowledgedObservedOdds?: DecimalString;
   }>): Promise<SelectionActivationResult>;
 }
 
@@ -166,18 +163,16 @@ export interface AdapterExecutionContext {
   readonly evidenceEpoch: number;
   readonly browser: BookmakerPagePort;
   readonly selectionGate: SelectionActivationGate;
-  readonly acknowledgedObservedOdds?: DecimalString;
 }
 
 export type AdapterTerminalResult =
   | {
       readonly kind: "READY_FOR_USER";
       readonly evidence: MatchingEvidenceSnapshot;
-      readonly odds: ObservedOdds;
+      readonly odds?: ObservedOdds;
       readonly selection: VerifiedPreparedSelection;
     }
   | { readonly kind: "AUTH_REQUIRED"; readonly safeLocation: SafeLocation }
-  | { readonly kind: "ODDS_CHANGED"; readonly evidence: MatchingEvidenceSnapshot; readonly odds: ObservedOdds }
   | { readonly kind: "FAILED_SAFE"; readonly failure: SafeFailure; readonly evidence?: MatchingEvidenceSnapshot; readonly odds?: ObservedOdds }
   | { readonly kind: "CANCELLED" };
 
