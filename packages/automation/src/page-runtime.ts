@@ -417,8 +417,10 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
     if (action.purpose === "DISCLOSE_MARKET" && entry.role !== "market") return { ok: false };
     try {
       await entry.handle.click({ timeout: 3_000 });
+      this.throwIfNetworkFailed();
       return { ok: true };
     } catch {
+      this.throwIfNetworkFailed();
       return { ok: false };
     }
   }
@@ -514,8 +516,10 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
     if (!entry || entry.role !== "outcome") return false;
     try {
       await entry.handle.click({ timeout: 3_000 });
+      this.throwIfNetworkFailed();
       return true;
     } catch {
+      this.throwIfNetworkFailed();
       return false;
     }
   }
