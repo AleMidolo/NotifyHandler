@@ -192,8 +192,8 @@ test("BOOK-031 source remains source-locked, bounded, non-interactive, and unabl
   assert.match(source, /headless: false/);
   assert.match(source, /acceptDownloads: false/);
   assert.match(source, /serviceWorkers: "block"/);
-  assert.match(source, /page\.routeWebSocket\("\*\*\/\*"/);
-  assert.doesNotMatch(source, /context\.routeWebSocket\("\*\*\/\*"/);
+  assert.match(source, /page\.routeWebSocket\(\/\.\*\/u/);
+  assert.doesNotMatch(source, /context\.routeWebSocket\(/);
   assert.match(source, /page\.url\(\) !== lockedTarget\.href/);
   assert.match(source, /rejectWithoutInspection\(socket\)/);
   assert.match(source, /parsed\.href !== lockedTopLevelRequestHref/);
