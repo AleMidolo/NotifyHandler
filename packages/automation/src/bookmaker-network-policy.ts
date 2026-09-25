@@ -40,6 +40,13 @@ export const BOOKMAKER_WEBSOCKET_RULES: Readonly<
   }),
 });
 
+const BOOKMAKER_REVIEWED_SUFFIX_NAMESPACES: Readonly<
+  Record<WorkerBookmaker, readonly string[]>
+> = Object.freeze({
+  sisal: Object.freeze(["sisal.it"]),
+  bet365: Object.freeze(["bet365.it"]),
+});
+
 function canonicalHostname(raw: string): string | undefined {
   const value = raw.trim().toLowerCase().replace(/\.$/u, "");
   if (
@@ -114,9 +121,10 @@ function validateRules(
     if (suffix === undefined || suffix !== raw.trim().toLowerCase().replace(/\.$/u, "")) {
       throw new Error("Bookmaker WSS reviewed suffix must be a canonical DNS namespace.");
     }
-    if (!suffix.split(".").includes(bookmaker)) {
+    const reviewedNamespaces = BOOKMAKER_REVIEWED_SUFFIX_NAMESPACES[bookmaker];
+    if (!reviewedNamespaces.some((namespace) => suffixMatches(suffix, namespace))) {
       throw new Error(
-        "Bookmaker WSS reviewed suffix must include the selected bookmaker namespace label; public-suffix expansion is forbidden.",
+        "Bookmaker WSS reviewed suffix is outside the source-reviewed bookmaker namespace; public-suffix expansion is forbidden.",
       );
     }
 
