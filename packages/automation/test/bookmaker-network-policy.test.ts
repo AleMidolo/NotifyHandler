@@ -97,7 +97,7 @@ test("reviewed bookmaker namespace suffix allows exact namespace and subdomains 
 test("reviewed suffix cannot escape the bookmaker namespace or expand to a public suffix", () => {
   assert.throws(
     () => policy({ reviewedHostSuffixes: ["example.com"] }),
-    /bookmaker namespace label|approved bookmaker origin namespace/,
+    /source-reviewed bookmaker namespace|approved bookmaker origin namespace/,
   );
   assert.throws(
     () => policy({ reviewedHostSuffixes: ["com"] }),
