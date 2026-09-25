@@ -92,6 +92,7 @@ function suffixMatches(hostname: string, suffix: string): boolean {
 }
 
 function validateRules(
+  bookmaker: WorkerBookmaker,
   origins: readonly URL[],
   rules: BookmakerWebSocketRules,
 ): Readonly<{
@@ -112,6 +113,11 @@ function validateRules(
     const suffix = canonicalHostname(raw);
     if (suffix === undefined || suffix !== raw.trim().toLowerCase().replace(/\.$/u, "")) {
       throw new Error("Bookmaker WSS reviewed suffix must be a canonical DNS namespace.");
+    }
+    if (!suffix.split(".").includes(bookmaker)) {
+      throw new Error(
+        "Bookmaker WSS reviewed suffix must include the selected bookmaker namespace label; public-suffix expansion is forbidden.",
+      );
     }
 
     // BOOK-029 deliberately keeps suffix authorization narrower than arbitrary
@@ -151,7 +157,7 @@ export class BookmakerNetworkPolicy {
     }
     this.bookmaker = definition.bookmaker;
     this.topLevelOrigins = new Set(origins.map((origin) => origin.origin));
-    const validated = validateRules(origins, definition.websocket);
+    const validated = validateRules(definition.bookmaker, origins, definition.websocket);
     this.websocketExactHosts = validated.exactHosts;
     this.websocketSuffixes = validated.reviewedHostSuffixes;
     this.resolveHostname = resolveHostname;
