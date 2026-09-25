@@ -79,8 +79,9 @@ Even for the exact reviewed hostname, the browser gateway still requires:
 6. DNS hostname, not an IP literal;
 7. exact reviewed-host match;
 8. non-empty DNS resolution;
-9. every DNS answer public/non-private/non-loopback/non-link-local;
-10. current attempt still live and not cancelled/superseded.
+9. every resolver result is a syntactically valid IP address;
+10. every DNS answer public/non-private/non-loopback/non-link-local;
+11. current attempt still live and not cancelled/superseded.
 
 The gateway exposes no socket destination or payload to adapter/core/renderer matching logic.
 
