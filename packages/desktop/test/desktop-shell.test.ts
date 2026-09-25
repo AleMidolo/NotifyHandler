@@ -41,7 +41,9 @@ function ready(request: LegExecutionRequest): readonly WorkerLegEvent[] {
     event(request, "MATCHING_MARKET"),
     event(request, "MATCHING_LINE"),
     event(request, "MATCHING_OUTCOME"),
-    event(request, "ACTIVATING_SELECTION", { odds: { ...(request.target.expectedOdds === undefined ? {} : { expected: request.target.expectedOdds }), ...(request.target.expectedOdds === undefined ? {} : { observed: request.target.expectedOdds }), comparison: request.target.expectedOdds === undefined ? "UNAVAILABLE" : "EQUAL" } }),
+    event(request, "ACTIVATING_SELECTION", { odds: request.target.expectedOdds === undefined
+      ? { status: "NOT_OBSERVED" }
+      : { expected: request.target.expectedOdds, observed: request.target.expectedOdds, comparison: "EQUAL", status: "OBSERVED" } }),
     event(request, "VERIFYING_SELECTION"),
     event(request, "SELECTION_PREPARED"),
     event(request, "READY_FOR_USER"),
