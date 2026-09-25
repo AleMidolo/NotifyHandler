@@ -6,7 +6,6 @@ import type {
   BookmakerPagePort,
   ElementRef,
   MatchingEvidenceSnapshot,
-  ObservedOdds,
   SelectionActivationGate,
   SelectionActivationResult,
   SisalReadQuery,
@@ -57,8 +56,6 @@ class NeverActivateGate implements SelectionActivationGate {
     target: SelectionTarget;
     candidate: ElementRef;
     evidence: MatchingEvidenceSnapshot;
-    odds: ObservedOdds;
-    acknowledgedObservedOdds?: string;
   }): Promise<SelectionActivationResult> {
     this.calls += 1;
     throw new Error("selection activation must not be reachable for rejected navigation");
