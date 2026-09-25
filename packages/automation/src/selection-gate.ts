@@ -2,7 +2,6 @@ import type {
   SelectionActivationGate,
   SelectionActivationResult,
 } from "../../bookmakers/src/contracts.ts";
-import { sameDecimal } from "../../bookmakers/src/matching.ts";
 import type { WorkerBookmaker } from "./dom-mapping.ts";
 import type { WorkerPageRuntime } from "./page-runtime.ts";
 
@@ -31,22 +30,6 @@ export function createSelectionGate(
       if (!allRequiredEvidenceMatched(request)) return { kind: "REJECTED", reasonCode: "INCOMPLETE_MATCH_EVIDENCE" };
       if (!request.evidence.outcome.normalizedObserved?.includes(request.candidate.id)) {
         return { kind: "REJECTED", reasonCode: "CANDIDATE_NOT_TIED_TO_OUTCOME_EVIDENCE" };
-      }
-      if (!sameDecimal(request.odds.expected, request.target.expectedOdds)) {
-        return { kind: "REJECTED", reasonCode: "EXPECTED_ODDS_MISMATCH" };
-      }
-      if (request.odds.comparison === "UNAVAILABLE" || request.odds.observed === undefined) {
-        return { kind: "REJECTED", reasonCode: "OBSERVED_ODDS_UNAVAILABLE" };
-      }
-      if (request.odds.comparison === "EQUAL") {
-        if (!sameDecimal(request.odds.observed, request.target.expectedOdds)) {
-          return { kind: "REJECTED", reasonCode: "EQUAL_ODDS_INCONSISTENT" };
-        }
-      } else if (
-        request.acknowledgedObservedOdds === undefined ||
-        !sameDecimal(request.acknowledgedObservedOdds, request.odds.observed)
-      ) {
-        return { kind: "REJECTED", reasonCode: "ODDS_CHANGE_NOT_ACKNOWLEDGED" };
       }
       if (!isCurrentAttempt()) return { kind: "REJECTED", reasonCode: "ATTEMPT_SUPERSEDED" };
       if (!runtime.isCurrentLocationAllowed()) return { kind: "REJECTED", reasonCode: "CURRENT_LOCATION_NOT_ALLOWED" };
