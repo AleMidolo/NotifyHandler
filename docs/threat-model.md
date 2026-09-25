@@ -148,7 +148,7 @@ Mitigations:
 - no payload/message retention or protected/private API reverse engineering;
 - isolated browser context plus explicit cancellation/supersession revocation bounds socket lifetime; allowed sockets from an older attempt are actively closed before the replacement attempt proceeds;
 - async DNS decisions are generation-bound so an old attempt cannot connect a socket after cancellation/supersession;
-- reviewed suffixes must retain the selected bookmaker namespace label as well as remain within the approved-origin namespace, preventing multi-label public-suffix expansion;
+- reviewed suffixes must remain inside a source-controlled bookmaker namespace as well as the approved-origin namespace, preventing multi-label public-suffix expansion;
 - unapproved/unsafe socket attempts fail the attempt safely rather than broadening policy.
 
 ### Compromised bookmaker content
