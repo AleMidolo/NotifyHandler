@@ -5,6 +5,7 @@ import type {
   ElementRef,
   SafeLocation,
 } from "../../bookmakers/src/contracts.ts";
+import type { BookmakerNetworkPolicy, BookmakerWssFailureCode } from "./bookmaker-network-policy.ts";
 import type { SemanticDomMapping, SemanticElementRole } from "./dom-mapping.ts";
 import { NavigationPolicy } from "./navigation-policy.ts";
 
@@ -124,6 +125,7 @@ export interface WorkerPageRuntime {
   resolveRelay(options: RelayResolutionOptions): Promise<RelayResolutionResult>;
   activateSelection(ref: ElementRef): Promise<boolean>;
   isCurrentLocationAllowed(): boolean;
+  currentNetworkFailure(): BookmakerWssFailureCode | undefined;
 }
 
 interface ActiveRelayResolution {
@@ -192,6 +194,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   private readonly refs = new Map<string, RegisteredElement>();
   private readonly fixtureRouter: FixtureRouter | undefined;
   private readonly page: Page;
+  private readonly networkPolicy: BookmakerNetworkPolicy;
   private policy: NavigationPolicy;
   private relayResolution: ActiveRelayResolution | undefined;
   private readonly mapping: SemanticDomMapping;
@@ -201,17 +204,20 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   private blockingOperation = false;
   private cancelled = false;
   private crashed = false;
+  private webSocketFailure: BookmakerWssFailureCode | undefined;
   private lastSafeLocation: SafeLocation | undefined;
 
   constructor(
     page: Page,
     policy: NavigationPolicy,
+    networkPolicy: BookmakerNetworkPolicy,
     mapping: SemanticDomMapping,
     fixtureDocuments: FixtureDocuments | undefined,
     navigationTimeoutMs: number,
   ) {
     this.page = page;
     this.policy = policy;
+    this.networkPolicy = networkPolicy;
     this.mapping = mapping;
     this.navigationTimeoutMs = navigationTimeoutMs;
     this.fixtureRouter = fixtureDocuments === undefined ? undefined : new FixtureRouter(fixtureDocuments);
@@ -219,16 +225,29 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   async initialize(): Promise<void> {
     await this.page.route("**/*", async (route) => this.handleRoute(route));
-    await this.page.routeWebSocket("**/*", (socket) => {
+    await this.page.routeWebSocket("**/*", async (socket) => {
       if (this.relayResolution !== undefined) {
         this.relayResolution.failure = {
           kind: "FAILED",
           code: "RELAY_NETWORK_TARGET_BLOCKED",
           message: "Relay page attempted a WebSocket connection during restricted resolution.",
         };
-        void socket.close({ code: 1008, reason: "Relay WebSocket blocked" });
+        await socket.close({ code: 1008, reason: "Relay WebSocket blocked" }).catch(() => undefined);
         return;
       }
+
+      const decision = await this.networkPolicy.evaluateWebSocket(
+        socket.url(),
+        this.page.url(),
+        this.cancelled,
+      );
+      if (!decision.allowed) {
+        this.webSocketFailure ??= decision.code;
+        this.invalidateReferences();
+        await socket.close({ code: 1008, reason: "Bookmaker WebSocket blocked" }).catch(() => undefined);
+        return;
+      }
+
       socket.connectToServer();
     });
     this.page.on("framenavigated", (frame) => {
@@ -245,6 +264,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
     if (this.page.isClosed() || this.crashed) throw new Error("Browser page is not available for a new attempt.");
     this.invalidateReferences();
     this.cancelled = false;
+    this.webSocketFailure = undefined;
   }
 
   cancelInFlight(): void {
@@ -256,13 +276,14 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   async openAllowed(url: string): Promise<{ readonly ok: boolean }> {
     if (this.cancelled) return { ok: true };
-    if (this.page.isClosed() || this.crashed || !(await this.isAllowedNetworkTarget(url))) return { ok: false };
+    if (this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined || !(await this.isAllowedNetworkTarget(url))) return { ok: false };
 
     this.blockingOperation = true;
     this.invalidateReferences();
     try {
       await this.page.goto(url, { waitUntil: "domcontentloaded", timeout: this.navigationTimeoutMs });
       if (this.cancelled) return { ok: true };
+      if (this.webSocketFailure !== undefined) return { ok: false };
       const current = this.locationFromHref(this.page.url());
       if (current === undefined || !this.policy.isAllowed(current.href)) return { ok: false };
       this.lastSafeLocation = current;
@@ -284,11 +305,11 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   async waitForPageReady(options?: { readonly timeoutMs?: number }): Promise<{ readonly ready: boolean }> {
     if (this.cancelled) return { ready: true };
-    if (this.page.isClosed() || this.crashed) return { ready: false };
+    if (this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined) return { ready: false };
     this.blockingOperation = true;
     try {
       await this.page.waitForLoadState("domcontentloaded", { timeout: options?.timeoutMs ?? this.navigationTimeoutMs });
-      return { ready: true };
+      return { ready: this.webSocketFailure === undefined };
     } catch {
       return { ready: this.cancelled };
     } finally {
@@ -297,7 +318,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   }
 
   async query(query: BookmakerReadQuery): Promise<readonly ElementRef[]> {
-    if (this.page.isClosed() || this.crashed) return [];
+    if (this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined) return [];
     try {
       if (query.kind === "auth-wall") return this.registerMany(await this.page.$$(this.mapping.authWall), "auth");
       if (query.kind === "event-candidate") return this.registerMany(await this.page.$$(this.mapping.eventCandidate), "event");
@@ -313,6 +334,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   }
 
   async readText(ref: ElementRef): Promise<string> {
+    if (this.webSocketFailure !== undefined) return "";
     const entry = await this.liveEntry(ref);
     if (!entry) return "";
     try {
@@ -323,7 +345,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   }
 
   async readAttribute(ref: ElementRef, name: string): Promise<string | null> {
-    if (!SAFE_ATTRIBUTES.has(name)) return null;
+    if (!SAFE_ATTRIBUTES.has(name) || this.webSocketFailure !== undefined) return null;
     const entry = await this.liveEntry(ref);
     if (!entry) return null;
     try {
@@ -334,6 +356,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   }
 
   async isVisible(ref: ElementRef): Promise<boolean> {
+    if (this.webSocketFailure !== undefined) return false;
     const entry = await this.liveEntry(ref);
     if (!entry) return false;
     try {
@@ -344,7 +367,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   }
 
   async activateNavigationControl(action: Readonly<{ ref: ElementRef; purpose: "DISCLOSE_EVENT" | "DISCLOSE_MARKET" }>): Promise<{ readonly ok: boolean }> {
-    if (this.cancelled || this.page.isClosed() || this.crashed || !this.isCurrentLocationAllowed()) return { ok: false };
+    if (this.cancelled || this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined || !this.isCurrentLocationAllowed()) return { ok: false };
     const entry = await this.liveEntry(action.ref);
     if (!entry) return { ok: false };
     if (action.purpose === "DISCLOSE_EVENT" && entry.role !== "event") return { ok: false };
@@ -441,7 +464,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   }
 
   async activateSelection(ref: ElementRef): Promise<boolean> {
-    if (this.cancelled || this.page.isClosed() || this.crashed || !this.isCurrentLocationAllowed()) return false;
+    if (this.cancelled || this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined || !this.isCurrentLocationAllowed()) return false;
     const entry = await this.liveEntry(ref);
     if (!entry || entry.role !== "outcome") return false;
     try {
@@ -453,8 +476,12 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   }
 
   isCurrentLocationAllowed(): boolean {
-    if (this.page.isClosed() || this.crashed) return false;
+    if (this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined) return false;
     return this.policy.isAllowed(this.page.url());
+  }
+
+  currentNetworkFailure(): BookmakerWssFailureCode | undefined {
+    return this.webSocketFailure;
   }
 
   private async handleRoute(route: Route): Promise<void> {
@@ -800,6 +827,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 export async function createWorkerPageRuntime(options: Readonly<{
   page: Page;
   policy: NavigationPolicy;
+  networkPolicy: BookmakerNetworkPolicy;
   mapping: SemanticDomMapping;
   fixtureDocuments?: FixtureDocuments;
   navigationTimeoutMs?: number;
@@ -807,6 +835,7 @@ export async function createWorkerPageRuntime(options: Readonly<{
   const runtime = new PlaywrightPageRuntime(
     options.page,
     options.policy,
+    options.networkPolicy,
     options.mapping,
     options.fixtureDocuments,
     options.navigationTimeoutMs ?? 15_000,
