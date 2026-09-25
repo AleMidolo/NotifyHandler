@@ -9,7 +9,7 @@ import {
   AutomaticExecutionOrchestrator,
   type BookmakerAutomationPort,
   type CancelLegRequest,
-  type type LegExecutionRequest,
+  type LegExecutionRequest,
   type WorkerLegEvent,
 } from "../../application/src/index.ts";
 import { createWorkerExecutionPreflight } from "../../automation/src/index.ts";
