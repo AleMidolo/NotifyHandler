@@ -46,7 +46,7 @@ No observed hostname is added to policy automatically.
 
 ### Reviewed suffix boundary
 
-BOOK-029 intentionally constrains reviewed suffix rules to a namespace containing the bookmaker's approved top-level origin. This prevents a source-reviewed suffix from becoming an arbitrary public-suffix/third-party wildcard.
+BOOK-029 intentionally constrains reviewed suffix rules to a namespace containing the bookmaker's approved top-level origin. SEC-009 additionally requires the reviewed suffix to remain inside an additional source-controlled bookmaker namespace (`sisal.it` or `bet365.it`), so a multi-label public suffix such as `co.uk` cannot become an allowlisted wildcard even when the approved page origin happens to end in it.
 
 A third-party WSS host can still be represented by an explicit reviewed exact-host rule. Any need for a changing third-party suffix requires an explicit architecture/security amendment rather than runtime discovery.
 
@@ -67,7 +67,7 @@ A blocked production WSS marks the browser attempt network-unsafe. Matching/navi
 
 Relay resolution remains stricter: any relay-phase WebSocket is blocked exactly as before.
 
-Cancellation/context close remains the transport lifetime boundary.
+Cancellation, attempt supersession, and context close are transport lifetime boundaries. The runtime tracks allowed routed sockets and actively closes them when an attempt is cancelled or replaced; a WSS DNS decision that began in an older attempt cannot connect after the attempt generation changes.
 
 ## Passive provenance v2
 

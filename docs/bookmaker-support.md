@@ -121,10 +121,10 @@ The current SISAL adapter:
 - rejects credential-bearing URLs and notification redirect/intermediary domains such as `bet-up.it` as direct trusted targets;
 - requires deterministic participant identity and the shared competition/time context policy;
 - independently matches market family/context, exact decimal line, and outcome side;
-- captures displayed decimal odds and interrupts on any valid price change;
+- may capture displayed decimal odds as informational telemetry only; changed, missing, or unreadable price does not authorize or block an otherwise exact selection;
 - delegates the final outcome activation to `SelectionActivationGate` and verifies selected state afterwards;
 - reports a visible authentication wall as `AUTH_REQUIRED` without reading or entering credentials;
-- fails safely on ambiguity, neighboring lines, wrong event/market/outcome, unavailable odds, blocked redirects, cancellation, and failed post-activation verification.
+- fails safely on ambiguity, neighboring lines, wrong event/market/period/outcome, blocked redirects, unsafe network state, cancellation, and failed post-activation verification.
 
 The adapter remains **Testable** through the real Playwright worker against controlled local/in-memory browser fixtures.
 

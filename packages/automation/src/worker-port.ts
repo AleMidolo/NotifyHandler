@@ -18,6 +18,7 @@ import {
   type BookmakerLegSession,
   type LaunchBookmakerLegSessionOptions,
 } from "./session.ts";
+import { BookmakerNetworkPolicyViolation } from "./page-runtime.ts";
 
 export type WorkerLegState =
   | "PENDING"
@@ -224,10 +225,14 @@ function runtimeFailure(
   error: unknown,
   code = "BROWSER_RUNTIME_FAILURE",
 ): WorkerPortFailure {
+  const networkPolicyFailure = error instanceof BookmakerNetworkPolicyViolation
+    ? error
+    : undefined;
   return {
-    code,
+    code: networkPolicyFailure?.code ?? code,
     stage: "BROWSER_RUNTIME",
-    message: error instanceof Error ? error.message : "Unknown browser automation runtime failure.",
+    message: networkPolicyFailure?.message
+      ?? (error instanceof Error ? error.message : "Unknown browser automation runtime failure."),
     recoverability: "REOPEN",
     activation: "NOT_ATTEMPTED",
     evidenceEpoch: request.evidenceEpoch,

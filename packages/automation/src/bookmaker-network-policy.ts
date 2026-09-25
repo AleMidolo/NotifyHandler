@@ -40,6 +40,13 @@ export const BOOKMAKER_WEBSOCKET_RULES: Readonly<
   }),
 });
 
+const BOOKMAKER_REVIEWED_SUFFIX_NAMESPACES: Readonly<
+  Record<WorkerBookmaker, readonly string[]>
+> = Object.freeze({
+  sisal: Object.freeze(["sisal.it"]),
+  bet365: Object.freeze(["bet365.it"]),
+});
+
 function canonicalHostname(raw: string): string | undefined {
   const value = raw.trim().toLowerCase().replace(/\.$/u, "");
   if (
@@ -92,6 +99,7 @@ function suffixMatches(hostname: string, suffix: string): boolean {
 }
 
 function validateRules(
+  bookmaker: WorkerBookmaker,
   origins: readonly URL[],
   rules: BookmakerWebSocketRules,
 ): Readonly<{
@@ -112,6 +120,12 @@ function validateRules(
     const suffix = canonicalHostname(raw);
     if (suffix === undefined || suffix !== raw.trim().toLowerCase().replace(/\.$/u, "")) {
       throw new Error("Bookmaker WSS reviewed suffix must be a canonical DNS namespace.");
+    }
+    const reviewedNamespaces = BOOKMAKER_REVIEWED_SUFFIX_NAMESPACES[bookmaker];
+    if (!reviewedNamespaces.some((namespace) => suffixMatches(suffix, namespace))) {
+      throw new Error(
+        "Bookmaker WSS reviewed suffix is outside the source-reviewed bookmaker namespace; public-suffix expansion is forbidden.",
+      );
     }
 
     // BOOK-029 deliberately keeps suffix authorization narrower than arbitrary
@@ -151,7 +165,7 @@ export class BookmakerNetworkPolicy {
     }
     this.bookmaker = definition.bookmaker;
     this.topLevelOrigins = new Set(origins.map((origin) => origin.origin));
-    const validated = validateRules(origins, definition.websocket);
+    const validated = validateRules(definition.bookmaker, origins, definition.websocket);
     this.websocketExactHosts = validated.exactHosts;
     this.websocketSuffixes = validated.reviewedHostSuffixes;
     this.resolveHostname = resolveHostname;

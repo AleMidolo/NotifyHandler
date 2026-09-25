@@ -134,7 +134,8 @@ Required controls:
 - no URL credentials or IP-literal destinations;
 - every destination must pass fail-closed public DNS/private-network checks;
 - host authorization comes from version-controlled bookmaker policy, never notification/page/user/runtime discovery;
-- exact hosts are preferred; reviewed suffix rules are explicit and must not be public suffixes;
+- exact hosts are preferred; reviewed suffix rules are explicit, must remain inside both the approved-origin namespace and the source-controlled bookmaker namespace, and must not be public suffixes;
+- allowed sockets are revoked on attempt cancellation or supersession, and stale async WSS policy decisions may not connect after the attempt generation changes;
 - WebSocket objects/messages/payloads are not exposed to adapter/core/renderer/matching/activation APIs;
 - payloads are not retained or used as evidence;
 - relay-origin WebSockets remain blocked;

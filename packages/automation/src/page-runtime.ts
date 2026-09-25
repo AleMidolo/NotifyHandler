@@ -1,4 +1,4 @@
-import type { ElementHandle, Page, Route } from "playwright-core";
+import type { ElementHandle, Page, Route, WebSocketRoute } from "playwright-core";
 import type {
   BookmakerPagePort,
   BookmakerReadQuery,
@@ -109,6 +109,16 @@ export type RelayResolutionResult =
       readonly message: string;
     };
 
+export class BookmakerNetworkPolicyViolation extends Error {
+  readonly code: BookmakerWssFailureCode;
+
+  constructor(code: BookmakerWssFailureCode) {
+    super("Bookmaker WebSocket transport violated the reviewed network policy.");
+    this.name = "BookmakerNetworkPolicyViolation";
+    this.code = code;
+  }
+}
+
 export interface RelayResolutionOptions {
   readonly relayUrl: string;
   readonly relayPolicy: NavigationPolicy;
@@ -204,7 +214,9 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   private blockingOperation = false;
   private cancelled = false;
   private crashed = false;
+  private attemptGeneration = 0;
   private webSocketFailure: BookmakerWssFailureCode | undefined;
+  private readonly allowedWebSockets = new Set<WebSocketRoute>();
   private lastSafeLocation: SafeLocation | undefined;
 
   constructor(
@@ -236,11 +248,20 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
         return;
       }
 
+      const socketAttemptGeneration = this.attemptGeneration;
       const decision = await this.networkPolicy.evaluateWebSocket(
         socket.url(),
         this.page.url(),
         this.cancelled,
       );
+      if (
+        this.cancelled
+        || socketAttemptGeneration !== this.attemptGeneration
+      ) {
+        await socket.close({ code: 1008, reason: "Bookmaker attempt no longer current" })
+          .catch(() => undefined);
+        return;
+      }
       if (!decision.allowed) {
         this.webSocketFailure ??= decision.code;
         this.invalidateReferences();
@@ -249,19 +270,26 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       }
 
       socket.connectToServer();
+      this.allowedWebSockets.add(socket);
     });
     this.page.on("framenavigated", (frame) => {
       if (frame === this.page.mainFrame()) this.invalidateReferences();
     });
     this.page.on("crash", () => {
       this.crashed = true;
+      this.allowedWebSockets.clear();
       this.invalidateReferences();
     });
-    this.page.on("close", () => this.invalidateReferences());
+    this.page.on("close", () => {
+      this.allowedWebSockets.clear();
+      this.invalidateReferences();
+    });
   }
 
   beginAttempt(): void {
     if (this.page.isClosed() || this.crashed) throw new Error("Browser page is not available for a new attempt.");
+    this.revokeAllowedWebSockets("Bookmaker attempt superseded");
+    this.attemptGeneration += 1;
     this.invalidateReferences();
     this.cancelled = false;
     this.webSocketFailure = undefined;
@@ -269,6 +297,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   cancelInFlight(): void {
     this.cancelled = true;
+    this.revokeAllowedWebSockets("Bookmaker attempt cancelled");
     if (this.blockingOperation && !this.page.isClosed()) {
       void this.page.close({ runBeforeUnload: false }).catch(() => undefined);
     }
@@ -276,19 +305,21 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   async openAllowed(url: string): Promise<{ readonly ok: boolean }> {
     if (this.cancelled) return { ok: true };
-    if (this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined || !(await this.isAllowedNetworkTarget(url))) return { ok: false };
+    this.throwIfNetworkFailed();
+    if (this.page.isClosed() || this.crashed || !(await this.isAllowedNetworkTarget(url))) return { ok: false };
 
     this.blockingOperation = true;
     this.invalidateReferences();
     try {
       await this.page.goto(url, { waitUntil: "domcontentloaded", timeout: this.navigationTimeoutMs });
       if (this.cancelled) return { ok: true };
-      if (this.webSocketFailure !== undefined) return { ok: false };
+      this.throwIfNetworkFailed();
       const current = this.locationFromHref(this.page.url());
       if (current === undefined || !this.policy.isAllowed(current.href)) return { ok: false };
       this.lastSafeLocation = current;
       return { ok: true };
     } catch {
+      this.throwIfNetworkFailed();
       return { ok: this.cancelled };
     } finally {
       this.blockingOperation = false;
@@ -296,6 +327,7 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   }
 
   async currentLocation(): Promise<SafeLocation> {
+    this.throwIfNetworkFailed();
     if (this.page.isClosed()) return this.lastSafeLocation ?? BLOCKED_LOCATION;
     const current = this.locationFromHref(this.page.url());
     if (current === undefined) return BLOCKED_LOCATION;
@@ -305,12 +337,15 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
 
   async waitForPageReady(options?: { readonly timeoutMs?: number }): Promise<{ readonly ready: boolean }> {
     if (this.cancelled) return { ready: true };
-    if (this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined) return { ready: false };
+    this.throwIfNetworkFailed();
+    if (this.page.isClosed() || this.crashed) return { ready: false };
     this.blockingOperation = true;
     try {
       await this.page.waitForLoadState("domcontentloaded", { timeout: options?.timeoutMs ?? this.navigationTimeoutMs });
-      return { ready: this.webSocketFailure === undefined };
+      this.throwIfNetworkFailed();
+      return { ready: true };
     } catch {
+      this.throwIfNetworkFailed();
       return { ready: this.cancelled };
     } finally {
       this.blockingOperation = false;
@@ -318,7 +353,8 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   }
 
   async query(query: BookmakerReadQuery): Promise<readonly ElementRef[]> {
-    if (this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined) return [];
+    this.throwIfNetworkFailed();
+    if (this.page.isClosed() || this.crashed) return [];
     try {
       if (query.kind === "auth-wall") return this.registerMany(await this.page.$$(this.mapping.authWall), "auth");
       if (query.kind === "event-candidate") return this.registerMany(await this.page.$$(this.mapping.eventCandidate), "event");
@@ -329,53 +365,62 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
       const role: SemanticElementRole = query.kind === "market-candidate" ? "market" : "outcome";
       return this.registerMany(await parent.handle.$$(selector), role);
     } catch {
+      this.throwIfNetworkFailed();
       return [];
     }
   }
 
   async readText(ref: ElementRef): Promise<string> {
-    if (this.webSocketFailure !== undefined) return "";
+    this.throwIfNetworkFailed();
     const entry = await this.liveEntry(ref);
     if (!entry) return "";
     try {
       return (await entry.handle.textContent()) ?? "";
     } catch {
+      this.throwIfNetworkFailed();
       return "";
     }
   }
 
   async readAttribute(ref: ElementRef, name: string): Promise<string | null> {
-    if (!SAFE_ATTRIBUTES.has(name) || this.webSocketFailure !== undefined) return null;
+    this.throwIfNetworkFailed();
+    if (!SAFE_ATTRIBUTES.has(name)) return null;
     const entry = await this.liveEntry(ref);
     if (!entry) return null;
     try {
       return await entry.handle.getAttribute(name);
     } catch {
+      this.throwIfNetworkFailed();
       return null;
     }
   }
 
   async isVisible(ref: ElementRef): Promise<boolean> {
-    if (this.webSocketFailure !== undefined) return false;
+    this.throwIfNetworkFailed();
     const entry = await this.liveEntry(ref);
     if (!entry) return false;
     try {
       return await entry.handle.isVisible();
     } catch {
+      this.throwIfNetworkFailed();
       return false;
     }
   }
 
   async activateNavigationControl(action: Readonly<{ ref: ElementRef; purpose: "DISCLOSE_EVENT" | "DISCLOSE_MARKET" }>): Promise<{ readonly ok: boolean }> {
-    if (this.cancelled || this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined || !this.isCurrentLocationAllowed()) return { ok: false };
+    if (this.cancelled) return { ok: false };
+    this.throwIfNetworkFailed();
+    if (this.page.isClosed() || this.crashed || !this.isCurrentLocationAllowed()) return { ok: false };
     const entry = await this.liveEntry(action.ref);
     if (!entry) return { ok: false };
     if (action.purpose === "DISCLOSE_EVENT" && entry.role !== "event") return { ok: false };
     if (action.purpose === "DISCLOSE_MARKET" && entry.role !== "market") return { ok: false };
     try {
       await entry.handle.click({ timeout: 3_000 });
+      this.throwIfNetworkFailed();
       return { ok: true };
     } catch {
+      this.throwIfNetworkFailed();
       return { ok: false };
     }
   }
@@ -464,24 +509,43 @@ class PlaywrightPageRuntime implements WorkerPageRuntime, BookmakerPagePort {
   }
 
   async activateSelection(ref: ElementRef): Promise<boolean> {
-    if (this.cancelled || this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined || !this.isCurrentLocationAllowed()) return false;
+    if (this.cancelled) return false;
+    this.throwIfNetworkFailed();
+    if (this.page.isClosed() || this.crashed || !this.isCurrentLocationAllowed()) return false;
     const entry = await this.liveEntry(ref);
     if (!entry || entry.role !== "outcome") return false;
     try {
       await entry.handle.click({ timeout: 3_000 });
+      this.throwIfNetworkFailed();
       return true;
     } catch {
+      this.throwIfNetworkFailed();
       return false;
     }
   }
 
   isCurrentLocationAllowed(): boolean {
-    if (this.page.isClosed() || this.crashed || this.webSocketFailure !== undefined) return false;
+    this.throwIfNetworkFailed();
+    if (this.page.isClosed() || this.crashed) return false;
     return this.policy.isAllowed(this.page.url());
   }
 
   currentNetworkFailure(): BookmakerWssFailureCode | undefined {
     return this.webSocketFailure;
+  }
+
+  private throwIfNetworkFailed(): void {
+    if (this.webSocketFailure !== undefined) {
+      throw new BookmakerNetworkPolicyViolation(this.webSocketFailure);
+    }
+  }
+
+  private revokeAllowedWebSockets(reason: string): void {
+    const sockets = [...this.allowedWebSockets];
+    this.allowedWebSockets.clear();
+    for (const socket of sockets) {
+      void socket.close({ code: 1008, reason }).catch(() => undefined);
+    }
   }
 
   private async handleRoute(route: Route): Promise<void> {

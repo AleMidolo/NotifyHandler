@@ -146,7 +146,9 @@ Mitigations:
 - relay-origin sockets remain blocked;
 - socket objects/messages are never exposed to adapters/core/renderer/matching/activation code;
 - no payload/message retention or protected/private API reverse engineering;
-- isolated browser context/cancellation cleanup bounds socket lifetime;
+- isolated browser context plus explicit cancellation/supersession revocation bounds socket lifetime; allowed sockets from an older attempt are actively closed before the replacement attempt proceeds;
+- async DNS decisions are generation-bound so an old attempt cannot connect a socket after cancellation/supersession;
+- reviewed suffixes must remain inside a source-controlled bookmaker namespace as well as the approved-origin namespace, preventing multi-label public-suffix expansion;
 - unapproved/unsafe socket attempts fail the attempt safely rather than broadening policy.
 
 ### Compromised bookmaker content
