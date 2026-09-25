@@ -12,7 +12,6 @@ export {
   type BookmakerWorkerPort,
   type SessionLauncher,
   type WorkerCancelRequest,
-  type WorkerContinueOddsRequest,
   type WorkerExecutionPreflightPort,
   type WorkerExecutionRequest,
   type WorkerPortEvent,
