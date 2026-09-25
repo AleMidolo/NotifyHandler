@@ -14,6 +14,16 @@ Browser CI uses `launchFixtureLegSession` and `createFixtureAutomationWorker`, t
 
 Production sessions default to headed Chromium. CI fixture sessions default to headless Chromium. Profiles are ephemeral; persistent authenticated profiles, CAPTCHA/MFA automation, anti-bot/geo/rate-limit bypass, stake entry, funding, cash-out, and wager submission are outside this package by design.
 
+## Bookmaker WebSocket policy
+
+ARCH-011/BOOK-029 adds a shared bookmaker-scoped browser WebSocket gateway. Normal page transport may use reviewed `wss://` only when the current top-level page is already on the same approved bookmaker, the destination is a credential-free DNS hostname on the default TLS port, the hostname matches a version-controlled exact/suffix rule, and every DNS answer passes the existing public-network check.
+
+The live SISAL and BET365 WebSocket rule registry is currently **empty/default-deny**. BOOK-029 intentionally does not guess a live hostname. Relay-origin WebSockets remain blocked.
+
+Allowed sockets stay inside Chromium. No socket object, destination, payload/message API, handshake metadata, or socket-derived matching evidence is exposed through `BookmakerPagePort`, the adapters, core, or renderer. A blocked production socket makes the current browser attempt network-unsafe and prevents matching/activation from proceeding.
+
+New passive diagnostics use `passive-provenance.v2`, which can distinguish no socket, reviewed allowed WSS, and finite redacted blocked-WSS categories without retaining a destination or payload. Historical `passive-provenance.v1` artifacts remain unchanged.
+
 ## Non-CI live-validation tooling
 
 The `src/live-validation/` tools are diagnostic-only and are not part of the production worker API. Passive bookmaker probes remain available for sanitized structural checks.
