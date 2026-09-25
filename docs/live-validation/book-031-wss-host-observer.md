@@ -47,6 +47,8 @@ No screenshot, trace, HAR, video, cookie, storage, or authenticated-profile capt
 
 ## First-WebSocket-only behavior
 
+The WebSocket route is installed on the single source-locked page, not on the browser context, so a popup/extra page cannot supply the retained first-socket provenance. Extra pages are still closed fail-closed.
+
 The diagnostic handler receives only the route capabilities needed to:
 
 - read the attempted URL transiently;
