@@ -57,7 +57,7 @@ A bookmaker WebSocket may be established only when **all** conditions pass:
 4. destination uses default TLS WebSocket port 443 (explicit `:443` is equivalent);
 5. destination hostname is a DNS name, not an IP literal;
 6. hostname matches the selected bookmaker's reviewed WebSocket host policy;
-7. current DNS resolution succeeds and every accepted answer is public/non-loopback/non-link-local/non-private/non-internal under the shared resolved-target policy;
+7. current DNS resolution succeeds, every resolver result is a syntactically valid IP address, and every accepted answer is public/non-loopback/non-link-local/non-private/non-internal under the shared resolved-target policy;
 8. the browser session/attempt is current and not cancelled.
 
 `ws://` is never permitted.
