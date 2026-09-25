@@ -310,15 +310,15 @@ SelectionTarget/structured-v2 price is optional informational metadata and froze
 
 The browser gateway now has default-deny bookmaker-scoped WSS policy plus passive-provenance.v2. The live SISAL/BET365 rule registry remains empty, relay WSS remains blocked, and no live bookmaker run or guessed hostname is included.
 
-**#207 APP-008 — READY NOW**
+**#207 APP-008 — COMPLETE via PR #216**
 
-Remove changed-price state/UI and acknowledgement commands.
+Changed-price state/UI and acknowledgement commands are removed.
 
-**#208 BOOK-028 — READY NOW**
+**#208 BOOK-028 — COMPLETE via PR #218**
 
-Remove price gating from adapters/SelectionActivationGate while keeping exact identity and selected-state verification.
+Price gating is removed from adapters/SelectionActivationGate while exact identity and selected-state verification remain mandatory.
 
-**#211 SEC-009 -> #212 QA-008**
+**#211 SEC-009 — NEXT after PR #219 -> #212 QA-008**
 
 Review/certify the exact implementation before live reuse.
 
