@@ -34,7 +34,9 @@ function ready(request: LegExecutionRequest): readonly WorkerLegEvent[] {
   return [
     event(request, "OPENING"), event(request, "WAITING_FOR_PAGE"), event(request, "MATCHING_EVENT"),
     event(request, "MATCHING_MARKET"), event(request, "MATCHING_LINE"), event(request, "MATCHING_OUTCOME"),
-    event(request, "ACTIVATING_SELECTION", { odds: { ...(request.target.expectedOdds === undefined ? {} : { expected: request.target.expectedOdds }), ...(request.target.expectedOdds === undefined ? {} : { observed: request.target.expectedOdds }), comparison: request.target.expectedOdds === undefined ? "UNAVAILABLE" : "EQUAL" } }),
+    event(request, "ACTIVATING_SELECTION", { odds: request.target.expectedOdds === undefined
+      ? { status: "NOT_OBSERVED" }
+      : { expected: request.target.expectedOdds, observed: request.target.expectedOdds, comparison: "EQUAL", status: "OBSERVED" } }),
     event(request, "VERIFYING_SELECTION"), event(request, "SELECTION_PREPARED"), event(request, "READY_FOR_USER"),
   ];
 }
@@ -127,7 +129,7 @@ test("changed price is informational telemetry and never creates an acknowledgem
     ? [
         event(request, "OPENING"), event(request, "WAITING_FOR_PAGE"), event(request, "MATCHING_EVENT"),
         event(request, "MATCHING_MARKET"), event(request, "MATCHING_LINE"), event(request, "MATCHING_OUTCOME"),
-        event(request, "ACTIVATING_SELECTION", { odds: { expected: request.target.expectedOdds, observed: "3.00", comparison: "HIGHER" } }),
+        event(request, "ACTIVATING_SELECTION", { odds: { ...(request.target.expectedOdds === undefined ? {} : { expected: request.target.expectedOdds }), observed: "3.00", comparison: "HIGHER", status: "OBSERVED" } }),
         event(request, "VERIFYING_SELECTION"), event(request, "SELECTION_PREPARED"), event(request, "READY_FOR_USER"),
       ]
     : ready(request));
@@ -137,7 +139,7 @@ test("changed price is informational telemetry and never creates an acknowledgem
   const leg = state.legs?.[0];
   assert.ok(leg);
   assert.equal(leg.state, "READY_FOR_USER");
-  assert.deepEqual(leg.observedOdds, { expected: "2.9", observed: "3.00", comparison: "HIGHER" });
+  assert.deepEqual(leg.observedOdds, { expected: "2.9", observed: "3.00", comparison: "HIGHER", status: "OBSERVED" });
   assert.equal(state.status, "READY_FOR_USER");
   assert.equal("continueWithObservedOdds" in orchestrator, false);
 });
