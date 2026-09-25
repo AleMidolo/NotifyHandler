@@ -4,6 +4,7 @@ import type {
   SafeLocation,
   SelectionActivationGate,
 } from "../../bookmakers/src/contracts.ts";
+import { createBookmakerNetworkPolicy } from "./bookmaker-network-policy.ts";
 import { domMappingFor, type WorkerBookmaker } from "./dom-mapping.ts";
 import { NavigationPolicy, type HostResolver } from "./navigation-policy.ts";
 import {
@@ -58,6 +59,11 @@ function createAttemptBrowser(browser: BookmakerPagePort, isCurrentGeneration: (
 export async function launchSession(options: InternalLaunchOptions): Promise<BookmakerLegSession> {
   const origins = supportedOriginsFor(options.bookmaker);
   const policy = new NavigationPolicy(origins, options.resolveHostname);
+  const networkPolicy = createBookmakerNetworkPolicy(
+    options.bookmaker,
+    origins,
+    options.resolveHostname,
+  );
   const relayPolicy = new NavigationPolicy(["https://www.bet-up.it"], options.resolveHostname);
   const fixturePolicy = new NavigationPolicy([...origins, "https://www.bet-up.it"], options.resolveHostname);
   if (options.fixtureDocuments !== undefined) {
@@ -68,7 +74,7 @@ export async function launchSession(options: InternalLaunchOptions): Promise<Boo
   const browser = await chromium.launch({ headless: options.headless ?? false });
   const context = await browser.newContext({ acceptDownloads: false, serviceWorkers: "block" });
   const page = await context.newPage();
-  const runtime = await createWorkerPageRuntime({ page, policy, mapping: domMappingFor(options.bookmaker), ...(options.fixtureDocuments === undefined ? {} : { fixtureDocuments: options.fixtureDocuments }), ...(options.navigationTimeoutMs === undefined ? {} : { navigationTimeoutMs: options.navigationTimeoutMs }) });
+  const runtime = await createWorkerPageRuntime({ page, policy, networkPolicy, mapping: domMappingFor(options.bookmaker), ...(options.fixtureDocuments === undefined ? {} : { fixtureDocuments: options.fixtureDocuments }), ...(options.navigationTimeoutMs === undefined ? {} : { navigationTimeoutMs: options.navigationTimeoutMs }) });
 
   const sessionId = `browser-session-${++nextSessionId}`;
   let closed = false;

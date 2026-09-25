@@ -20,27 +20,25 @@ DEVOPS-008/#88 is also complete. It published SISAL diagnostic prerelease **`boo
 
 ## Ready now
 
-### P0 — DOMAIN-003 / #206: Make SelectionTarget odds optional informational metadata
-Owner: Notification & Domain Engineer
-Depends on: ARCH-010/#200
+### P0 — APP-008 / #207: COMPLETE via PR #216
+Application state/UI no longer contains changed-price acknowledgement or a price-driven action-required path.
 
-This is the root of the price-state migration. Preserve structured-v1 wire compatibility, make v2/SelectionTarget price optional, and remove price from target identity/preflight.
+### P0 — BOOK-028 / #208: COMPLETE via PR #218
+Adapter/activation authorization no longer depends on price; deterministic identity and selected-state verification remain mandatory.
 
-### P0 parallel — BOOK-029 / #209: Implement default-deny bookmaker WSS gateway policy
+### P0 — BOOK-029 / #209: clean integrated implementation in PR #219
 Owner: Bookmaker Automation Engineer
-Depends on: ARCH-011/#203
+Depends on: ARCH-011/#203 — complete
 
-Implement the shared wss:// port-443 public-DNS/version-controlled host-policy framework and passive-provenance.v2. Merge safely with no guessed BET365/SISAL host rule.
+PR #219 contains the clean integrated default-deny bookmaker WSS gateway and passive-provenance.v2. The live SISAL/BET365 WSS registry is intentionally empty; no runtime/page/notification value can create a rule and no live run occurred. Security/QA remain downstream of the full implementation set.
 
 ### P0 external evidence — PRODUCT-030 / #197
 Owner: Product Coordinator / upstream surebet integration
 
 Fresh direct-link targets may be supplied when available. Stable odds are not required; identity + direct URL are the relevant inputs.
 
-### Then
-- APP-008/#207 after DOMAIN-003 removes changed-price acknowledgement/state/UI.
-- BOOK-028/#208 after DOMAIN-003 removes price gating from adapters/activation.
-- SEC-009/#211 reviews the combined exact implementation heads.
+### Next after PR #219
+- SEC-009/#211 reviews the combined integrated odds/WSS implementation.
 - QA-008/#212 certifies non-gating price + bounded WSS migration.
 - BOOK-030/#210 may establish a BET365 WSS allowlist rule only through the Security-approved hostname-evidence procedure.
 
@@ -112,6 +110,7 @@ The unsigned alpha channel and diagnostic validation bundle are not substitutes 
 - #184 / ARCH-008 — finite redacted passive transport/render-state diagnostic provenance: complete via PR #187.
 - #200 / ARCH-010 — odds made informational/non-gating: complete via PR #205.
 - #203 / ARCH-011 — bounded bookmaker WSS page-transport policy: complete via PR #205.
+- #206 / DOMAIN-003 — optional informational expected-odds domain migration: complete via PR #214.
 - #105 / APP-005 — authenticated loopback structured direct-pair ingress: complete via PR #112.
 - #106 / SEC-002 — loopback ingress and direct-link DNS/token hardening: complete via PR #114.
 - #113 / SEC-003 — restart-safe structured-ingress idempotency: complete via PR #115.

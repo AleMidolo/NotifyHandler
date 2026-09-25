@@ -20,6 +20,15 @@ import {
   validatePassiveDiagnosticSummary,
   webSocketTransportProvenance,
 } from "../src/live-validation/passive-diagnostic-provenance.ts";
+import {
+  PASSIVE_DIAGNOSTIC_SCHEMA_VERSION_V2,
+  allowedReviewedWebSocketObserved,
+  blockedWebSocketTransportProvenanceV2,
+  initialTransportProvenanceV2,
+  ordinaryTransportProvenanceV2,
+  retainTransportProvenanceV2,
+  validatePassiveDiagnosticSummaryV2,
+} from "../src/live-validation/passive-diagnostic-provenance-v2.ts";
 
 test("BOOK-024 source-locks authoritative direct targets and preserves BET365 fragment input", () => {
   assert.equal(
@@ -147,14 +156,17 @@ test("BOOK-024 probe source is passive, non-authorizing, bounded, and retains no
   assert.match(source, /serviceWorkers: "block"/);
   assert.match(source, /parsed\.href !== lockedUrl/);
   assert.match(source, /isResolvedPublicHttpsTarget\(parsed\.href\)/);
-  assert.match(source, /ordinaryTransportProvenance\(\s*parsed\.protocol/);
+  assert.match(source, /ordinaryTransportProvenanceV2\(\s*parsed\.protocol/);
   assert.match(source, /context\.routeWebSocket\("\*\*\/\*"/);
 
   const provenanceSource = await readFile(
-    new URL("../src/live-validation/passive-diagnostic-provenance.ts", import.meta.url),
+    new URL("../src/live-validation/passive-diagnostic-provenance-v2.ts", import.meta.url),
     "utf8",
   );
   assert.match(provenanceSource, /\["data:", "blob:", "about:"\]\.includes\(protocol\)/);
+  assert.match(source, /createBookmakerNetworkPolicy/);
+  assert.match(source, /evaluateWebSocket\(/);
+  assert.match(source, /socket\.connectToServer\(\)/);
   assert.doesNotMatch(source, /error instanceof Error \? error\.message/);
   assert.match(source, /failed safely before a sanitized summary could be produced/);
   assert.doesNotMatch(source, /url\?: string/);
@@ -300,13 +312,14 @@ test("passive-provenance.v1 transport categories are finite and redact destinati
   }
 });
 
-test("passive-provenance.v1 preserves top-level transport provenance when navigation aborts before load", () => {
+test("passive-provenance.v2 preserves top-level transport provenance when navigation aborts before load", () => {
   const publicTargetRejected = summarizePreLoadNavigationBlock(
     "bet365",
-    ordinaryTransportProvenance("https:", true, false),
+    ordinaryTransportProvenanceV2("https:", true, false),
     "PRIVATE_OR_INTERNAL_DESTINATION",
   );
   assert.ok(publicTargetRejected);
+  assert.equal(publicTargetRejected.diagnosticSchemaVersion, "passive-provenance.v2");
   assert.equal(publicTargetRejected.status, "BLOCKED");
   assert.equal(publicTargetRejected.blockReason, "PRIVATE_OR_INTERNAL_DESTINATION");
   assert.deepEqual(
@@ -321,7 +334,7 @@ test("passive-provenance.v1 preserves top-level transport provenance when naviga
 
   const disallowedProtocol = summarizePreLoadNavigationBlock(
     "sisal",
-    ordinaryTransportProvenance("http:", true, undefined),
+    ordinaryTransportProvenanceV2("http:", true, undefined),
     "PRIVATE_OR_INTERNAL_DESTINATION",
   );
   assert.ok(disallowedProtocol);
@@ -332,15 +345,22 @@ test("passive-provenance.v1 preserves top-level transport provenance when naviga
 
   const unapprovedRedirect = summarizePreLoadNavigationBlock(
     "sisal",
-    { state: "CLEAR" },
+    initialTransportProvenanceV2(),
     "UNAPPROVED_NAVIGATION",
   );
   assert.ok(unapprovedRedirect);
   assert.equal(unapprovedRedirect.blockReason, "UNAPPROVED_NAVIGATION");
-  assert.deepEqual(unapprovedRedirect.transportProvenance, { state: "CLEAR" });
+  assert.deepEqual(
+    unapprovedRedirect.transportProvenance,
+    { state: "CLEAR", websocket: "NONE_OBSERVED" },
+  );
 
   assert.equal(
-    summarizePreLoadNavigationBlock("sisal", { state: "CLEAR" }, undefined),
+    summarizePreLoadNavigationBlock(
+      "sisal",
+      initialTransportProvenanceV2(),
+      undefined,
+    ),
     undefined,
   );
 });
@@ -513,4 +533,108 @@ test("BOOK-026 source keeps timing/action boundaries while adding versioned non-
   assert.match(source, /authorizesProductionMapping: false/);
   assert.match(source, /"\[unapproved-route\]"/);
   assert.doesNotMatch(source, /finalPath:\s*finalUrl\.pathname/);
+});
+
+
+test("passive-provenance.v2 records reviewed WSS as non-blocking finite transport state", () => {
+  const initial = initialTransportProvenanceV2();
+  const allowed = allowedReviewedWebSocketObserved(initial);
+  assert.deepEqual(
+    allowed,
+    { state: "CLEAR", websocket: "ALLOWED_REVIEWED_WSS_OBSERVED" },
+  );
+  assert.deepEqual(
+    retainTransportProvenanceV2(
+      allowed,
+      ordinaryTransportProvenanceV2("https:", false, true),
+    ),
+    allowed,
+  );
+});
+
+test("passive-provenance.v2 maps finite WSS failure categories and retains first blocked trigger", () => {
+  const insecure = blockedWebSocketTransportProvenanceV2("BOOKMAKER_WSS_INSECURE");
+  const unapproved = blockedWebSocketTransportProvenanceV2("BOOKMAKER_WSS_UNAPPROVED");
+  const network = blockedWebSocketTransportProvenanceV2(
+    "BOOKMAKER_WSS_NETWORK_TARGET_BLOCKED",
+  );
+  assert.deepEqual(insecure, {
+    state: "BLOCKED",
+    trigger: "INSECURE_WEBSOCKET",
+    scope: "SOCKET",
+  });
+  assert.deepEqual(unapproved, {
+    state: "BLOCKED",
+    trigger: "UNAPPROVED_WEBSOCKET",
+    scope: "SOCKET",
+  });
+  assert.deepEqual(network, {
+    state: "BLOCKED",
+    trigger: "WEBSOCKET_PUBLIC_TARGET_REJECTED",
+    scope: "SOCKET",
+  });
+  assert.deepEqual(
+    retainTransportProvenanceV2(unapproved, network),
+    unapproved,
+  );
+
+  const serialized = JSON.stringify([insecure, unapproved, network]);
+  for (const forbidden of [
+    "socket.example.com",
+    "127.0.0.1",
+    "/feed",
+    "wss://",
+    "payload",
+  ]) {
+    assert.equal(serialized.includes(forbidden), false);
+  }
+});
+
+test("passive-provenance.v2 validator preserves v1 render privacy while accepting reviewed WSS observation", () => {
+  const value = completeSummary();
+  const v2 = {
+    ...value,
+    diagnosticSchemaVersion: PASSIVE_DIAGNOSTIC_SCHEMA_VERSION_V2,
+    transportProvenance: {
+      state: "CLEAR",
+      websocket: "ALLOWED_REVIEWED_WSS_OBSERVED",
+    },
+  };
+  assert.doesNotThrow(() => validatePassiveDiagnosticSummaryV2(v2));
+  assert.throws(
+    () => validatePassiveDiagnosticSummaryV2({
+      ...v2,
+      transportProvenance: {
+        state: "CLEAR",
+        websocket: "ALLOWED_REVIEWED_WSS_OBSERVED",
+        destinationHost: "socket.example.com",
+      },
+    }),
+    /unknown field/,
+  );
+});
+
+test("passive-provenance.v2 validator accepts finite blocked WSS and rejects unknown categories", () => {
+  const value = blockedSummary(webSocketTransportProvenance());
+  const v2 = {
+    ...value,
+    diagnosticSchemaVersion: PASSIVE_DIAGNOSTIC_SCHEMA_VERSION_V2,
+    transportProvenance: {
+      state: "BLOCKED",
+      trigger: "UNAPPROVED_WEBSOCKET",
+      scope: "SOCKET",
+    },
+  };
+  assert.doesNotThrow(() => validatePassiveDiagnosticSummaryV2(v2));
+  assert.throws(
+    () => validatePassiveDiagnosticSummaryV2({
+      ...v2,
+      transportProvenance: {
+        state: "BLOCKED",
+        trigger: "RUNTIME_DISCOVERED_SOCKET",
+        scope: "SOCKET",
+      },
+    }),
+    /unknown enum value/,
+  );
 });
