@@ -29,7 +29,8 @@
     "live:sisal:bundle:verify": "node scripts/verify-sisal-live-validation-bundle.mjs",
     "live:bet365:bundle:build": "node scripts/build-bet365-live-validation-bundle.mjs",
     "live:bet365:bundle:verify": "node scripts/verify-bet365-live-validation-bundle.mjs",
-    "live:book023:local": "node scripts/run-book-023-direct-validation.mjs"
+    "live:book023:local": "node scripts/run-book-023-direct-validation.mjs",
+    "live:book030:local": "npm run live:observe:book030 --workspace @notify-handler/automation"
   },
   "devDependencies": {
     "electron": "44.3.0",
