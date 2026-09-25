@@ -8,7 +8,11 @@ import type {
 } from "../../bookmakers/src/contracts.ts";
 import { Bet365Adapter } from "../../bookmakers/src/bet365.ts";
 import { SisalAdapter } from "../../bookmakers/src/sisal.ts";
-import { launchFixtureLegSession, type FixtureDocuments } from "../src/test-support.ts";
+import {
+  createFixtureAutomationWorker,
+  launchFixtureLegSession,
+  type FixtureDocuments,
+} from "../src/test-support.ts";
 
 const SISAL_URL = "https://www.sisal.it/__notifyhandler_fixture/event";
 const BET365_URL = "https://www.bet365.it/__notifyhandler_fixture/event";
@@ -250,6 +254,47 @@ for (const item of [
     }
   });
 }
+
+test("blocked bookmaker WSS surfaces the explicit finite worker failure code", async () => {
+  const worker = createFixtureAutomationWorker({
+    fixtures: {
+      sisal: {
+        [SISAL_URL]: {
+          kind: "html",
+          body: fixtureHtml("sisal").replace(
+            "</body>",
+            '<script>new WebSocket("wss://socket.example.com/feed")</script></body>',
+          ),
+        },
+      },
+    },
+    navigationTimeoutMs: 2_000,
+  });
+
+  const seen = [];
+  try {
+    for await (const event of worker.start({
+      legId: "leg-sisal",
+      attemptId: "attempt-wss-policy",
+      evidenceEpoch: 1,
+      target: target("sisal", SISAL_URL),
+    })) {
+      seen.push(event);
+    }
+    const terminal = seen.at(-1);
+    assert.ok(terminal);
+    assert.equal(terminal.state, "FAILED_SAFE");
+    assert.equal(terminal.failure?.code, "BOOKMAKER_WSS_UNAPPROVED");
+    assert.equal(terminal.failure?.stage, "BROWSER_RUNTIME");
+    assert.equal(terminal.failure?.activation, "NOT_ATTEMPTED");
+    assert.equal(
+      terminal.failure?.message,
+      "Bookmaker WebSocket transport violated the reviewed network policy.",
+    );
+  } finally {
+    await worker.closeAll();
+  }
+});
 
 test("manual-auth resume performs a fresh browser validation pass", async () => {
   const session = await launchFixtureLegSession({
