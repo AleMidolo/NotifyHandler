@@ -5,7 +5,6 @@ import { AutomaticExecutionOrchestrator } from "../../application/src/orchestrat
 import type {
   BookmakerAutomationPort,
   CancelLegRequest,
-  ContinueOddsRequest,
   ExecutionPreflightPort,
   LegExecutionRequest,
   RuntimeFailure,
@@ -27,8 +26,8 @@ const notification = `📊 **SEGNALE SUREBET (ROI: 3.53%)**
 💡 **Opzioni consigliate**:
 • SISAL OVER 11.5 + BET365 UNDER 11.5`;
 
-type CommandName = "start" | "resume" | "continue" | "retry" | "reopen";
-type Request = LegExecutionRequest | ContinueOddsRequest;
+type CommandName = "start" | "resume" | "retry" | "reopen";
+type Request = LegExecutionRequest;
 
 function event(request: LegExecutionRequest, state: WorkerLegEvent["state"], extra: Partial<WorkerLegEvent> = {}): WorkerLegEvent {
   return { legId: request.legId, attemptId: request.attemptId, evidenceEpoch: request.evidenceEpoch, state, ...extra };
@@ -42,8 +41,7 @@ function ready(request: LegExecutionRequest): readonly WorkerLegEvent[] {
     event(request, "MATCHING_MARKET"),
     event(request, "MATCHING_LINE"),
     event(request, "MATCHING_OUTCOME"),
-    event(request, "VERIFYING_ODDS", { odds: { expected: request.target.expectedOdds, observed: request.target.expectedOdds, comparison: "EQUAL" } }),
-    event(request, "ACTIVATING_SELECTION"),
+    event(request, "ACTIVATING_SELECTION", { odds: { ...(request.target.expectedOdds === undefined ? {} : { expected: request.target.expectedOdds }), ...(request.target.expectedOdds === undefined ? {} : { observed: request.target.expectedOdds }), comparison: request.target.expectedOdds === undefined ? "UNAVAILABLE" : "EQUAL" } }),
     event(request, "VERIFYING_SELECTION"),
     event(request, "SELECTION_PREPARED"),
     event(request, "READY_FOR_USER"),
@@ -72,7 +70,6 @@ class FakeAutomation implements BookmakerAutomationPort {
 
   start(request: LegExecutionRequest) { this.starts.push(request); return this.stream(this.script("start", request)); }
   resumeAfterManualAuth(request: LegExecutionRequest) { this.resumes.push(request); return this.stream(this.script("resume", request)); }
-  continueWithObservedOdds(request: ContinueOddsRequest) { return this.stream(this.script("continue", request)); }
   retry(request: LegExecutionRequest) { this.retries.push(request); return this.stream(this.script("retry", request)); }
   reopen(request: LegExecutionRequest) { this.reopens.push(request); return this.stream(this.script("reopen", request)); }
   async cancel(request: CancelLegRequest) { this.cancellations.push(request); }
@@ -154,6 +151,7 @@ test("recovery commands fail closed when an attempt id is stale and target only 
 
 test("typed IPC parser rejects generic, unknown, and extra-field command shapes", () => {
   assert.throws(() => parseDesktopRecoveryCommand({ type: "START", legId: "x", attemptId: "y" }));
+  assert.throws(() => parseDesktopRecoveryCommand({ type: "ACKNOWLEDGE_ODDS", legId: "x", attemptId: "y", observedOdds: "2.10" }));
   assert.throws(() => parseDesktopRecoveryCommand({ type: "RETRY", legId: "x", attemptId: "y", url: "https://example.invalid" }));
   assert.deepEqual(
     parseDesktopRecoveryCommand({ type: "RESTART_PLAN", planId: "plan-1" }),
@@ -174,6 +172,7 @@ test("Electron renderer is sandboxed and preload exposes only the narrow typed b
   assert.match(preload, /contextBridge\.exposeInMainWorld\("notifyHandler", bridge\)/);
   assert.equal(/ipcRenderer\.(?:send|sendSync|postMessage)\s*\(/.test(preload), false);
   assert.equal(/(?:credential|password|mfa|otp|captcha|stake|placeBet|submitBet|confirmBet|deposit|withdraw|cashout)/iu.test(preload), false);
+  assert.equal(/ACKNOWLEDGE_ODDS|acknowledgeObservedOdds/u.test(preload), false);
   assert.equal(html.includes("<webview"), false);
   assert.match(html, /Content-Security-Policy/);
 });

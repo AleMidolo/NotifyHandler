@@ -4,8 +4,10 @@ import type { BookmakerId, DomainError, ExecutionPlan, SelectionTarget } from ".
 export type LegState =
   | "PENDING" | "OPENING" | "WAITING_FOR_PAGE" | "AUTH_REQUIRED"
   | "MATCHING_EVENT" | "MATCHING_MARKET" | "MATCHING_LINE" | "MATCHING_OUTCOME"
-  | "VERIFYING_ODDS" | "ODDS_CHANGED" | "ACTIVATING_SELECTION" | "VERIFYING_SELECTION"
+  | "ACTIVATING_SELECTION" | "VERIFYING_SELECTION"
   | "SELECTION_PREPARED" | "READY_FOR_USER" | "FAILED_SAFE" | "CANCELLED";
+
+export type WorkerReportedLegState = LegState | "VERIFYING_ODDS" | "ODDS_CHANGED";
 
 export type PlanRuntimeStatus =
   | "AWAITING_NOTIFICATION" | "PREFLIGHT_FAILED" | "STARTING" | "IN_PROGRESS"
@@ -27,7 +29,7 @@ export interface RuntimeFailure {
   readonly evidenceEpoch: number;
 }
 export interface RuntimeOdds {
-  readonly expected: string;
+  readonly expected?: string;
   readonly observed?: string;
   readonly comparison: OddsComparison;
 }
@@ -43,7 +45,7 @@ export interface WorkerLegEvent {
   readonly legId: string;
   readonly attemptId: string;
   readonly evidenceEpoch: number;
-  readonly state: LegState;
+  readonly state: WorkerReportedLegState;
   readonly odds?: RuntimeOdds;
   readonly failure?: RuntimeFailure;
 }
@@ -53,12 +55,10 @@ export interface LegExecutionRequest {
   readonly evidenceEpoch: number;
   readonly target: SelectionTarget;
 }
-export interface ContinueOddsRequest extends LegExecutionRequest { readonly acknowledgedObservedOdds: string; }
 export interface CancelLegRequest { readonly legId: string; readonly attemptId: string; }
 export interface BookmakerAutomationPort {
   start(request: LegExecutionRequest): AsyncIterable<WorkerLegEvent>;
   resumeAfterManualAuth(request: LegExecutionRequest): AsyncIterable<WorkerLegEvent>;
-  continueWithObservedOdds(request: ContinueOddsRequest): AsyncIterable<WorkerLegEvent>;
   retry(request: LegExecutionRequest): AsyncIterable<WorkerLegEvent>;
   reopen(request: LegExecutionRequest): AsyncIterable<WorkerLegEvent>;
   cancel(request: CancelLegRequest): Promise<void>;
@@ -95,7 +95,7 @@ export class ApplicationCommandError extends Error {
 
 const ACTIVE = new Set<LegState>([
   "PENDING", "OPENING", "WAITING_FOR_PAGE", "MATCHING_EVENT", "MATCHING_MARKET", "MATCHING_LINE",
-  "MATCHING_OUTCOME", "VERIFYING_ODDS", "ACTIVATING_SELECTION", "VERIFYING_SELECTION", "SELECTION_PREPARED",
+  "MATCHING_OUTCOME", "ACTIVATING_SELECTION", "VERIFYING_SELECTION", "SELECTION_PREPARED",
 ]);
 const transitions = (values: readonly LegState[]) => new Set<LegState>(values);
 const TRANSITIONS: Readonly<Record<LegState, ReadonlySet<LegState>>> = {
@@ -106,9 +106,7 @@ const TRANSITIONS: Readonly<Record<LegState, ReadonlySet<LegState>>> = {
   MATCHING_EVENT: transitions(["MATCHING_MARKET", "FAILED_SAFE", "CANCELLED"]),
   MATCHING_MARKET: transitions(["MATCHING_LINE", "MATCHING_OUTCOME", "FAILED_SAFE", "CANCELLED"]),
   MATCHING_LINE: transitions(["MATCHING_OUTCOME", "FAILED_SAFE", "CANCELLED"]),
-  MATCHING_OUTCOME: transitions(["VERIFYING_ODDS", "FAILED_SAFE", "CANCELLED"]),
-  VERIFYING_ODDS: transitions(["ODDS_CHANGED", "ACTIVATING_SELECTION", "FAILED_SAFE", "CANCELLED"]),
-  ODDS_CHANGED: transitions(["WAITING_FOR_PAGE", "CANCELLED"]),
+  MATCHING_OUTCOME: transitions(["ACTIVATING_SELECTION", "FAILED_SAFE", "CANCELLED"]),
   ACTIVATING_SELECTION: transitions(["VERIFYING_SELECTION", "FAILED_SAFE", "CANCELLED"]),
   VERIFYING_SELECTION: transitions(["SELECTION_PREPARED", "FAILED_SAFE", "CANCELLED"]),
   SELECTION_PREPARED: transitions(["READY_FOR_USER", "FAILED_SAFE", "CANCELLED"]),
@@ -125,7 +123,7 @@ function statusOf(legs: readonly [LegRuntimeState, LegRuntimeState]): PlanRuntim
   if (states.every((state) => state === "READY_FOR_USER")) return "READY_FOR_USER";
   if (states.every((state) => state === "CANCELLED")) return "CANCELLED";
   const ready = states.includes("READY_FOR_USER");
-  const action = states.some((state) => state === "AUTH_REQUIRED" || state === "ODDS_CHANGED");
+  const action = states.some((state) => state === "AUTH_REQUIRED");
   const stopped = states.some((state) => state === "FAILED_SAFE" || state === "CANCELLED");
   if (ready && (action || stopped)) return "PARTIAL";
   if (action) return "ACTION_REQUIRED";
@@ -280,16 +278,6 @@ export class AutomaticExecutionOrchestrator {
     return this.state;
   }
 
-  async continueWithObservedOdds(legId: string, acknowledgedObservedOdds: string): Promise<AutomaticExecutionState> {
-    const current = this.requireLeg(legId, "ODDS_CHANGED");
-    if (current.observedOdds?.observed !== acknowledgedObservedOdds) {
-      throw new ApplicationCommandError("The acknowledged odds must exactly match the currently observed odds.");
-    }
-    this.replaceLeg({ ...current, state: "WAITING_FOR_PAGE", evidenceEpoch: current.evidenceEpoch + 1 });
-    await this.consume(this.generation, legId, this.automation.continueWithObservedOdds({ ...this.requestFor(legId), acknowledgedObservedOdds }));
-    return this.state;
-  }
-
   async retry(legId: string): Promise<AutomaticExecutionState> {
     const current = this.requireLeg(legId, "FAILED_SAFE");
     if (current.failure?.recoverability !== "RETRY") throw new ApplicationCommandError(`Leg ${legId} is not retryable.`);
@@ -391,13 +379,21 @@ export class AutomaticExecutionOrchestrator {
   }
 
   private async consume(generation: number, legId: string, events: AsyncIterable<WorkerLegEvent>): Promise<void> {
+    let legacyPriceTerminal = false;
     try {
       for await (const event of events) {
         if (generation !== this.generation) return;
+        legacyPriceTerminal =
+          event.state === "ODDS_CHANGED"
+          || (event.state === "FAILED_SAFE" && event.failure?.stage === "ODDS");
         this.applyEvent(event);
       }
       if (generation !== this.generation) return;
       const current = this.findLeg(legId);
+      // Temporary migration tolerance while BOOK-028 removes adapter-level price gates.
+      // Price-only legacy terminals are telemetry, never user-action or FAILED_SAFE
+      // application states. This branch disappears once the worker emits ADR-0007 flow.
+      if (legacyPriceTerminal) return;
       if (ACTIVE.has(current.state)) {
         this.replaceLeg({ ...current, state: "FAILED_SAFE", failure: {
           code: "CONTRACT_VIOLATION", stage: "CONTRACT",
@@ -414,6 +410,23 @@ export class AutomaticExecutionOrchestrator {
     const current = this.findLeg(event.legId);
     if (event.attemptId !== current.attemptId || event.evidenceEpoch < current.evidenceEpoch) return;
     if (current.state === "CANCELLED" || current.state === "READY_FOR_USER") return;
+
+    // ADR-0007: legacy worker price states/failures are telemetry only at the
+    // application boundary. They never become authoritative leg states.
+    if (
+      event.state === "VERIFYING_ODDS"
+      || event.state === "ODDS_CHANGED"
+      || (event.state === "FAILED_SAFE" && event.failure?.stage === "ODDS")
+    ) {
+      this.replaceLeg({
+        ...current,
+        evidenceEpoch: event.evidenceEpoch,
+        observedOdds: event.odds ?? current.observedOdds,
+        failure: null,
+      });
+      return;
+    }
+
     if (event.state !== current.state && !TRANSITIONS[current.state].has(event.state)) return;
     this.replaceLeg({
       ...current, state: event.state, evidenceEpoch: event.evidenceEpoch,

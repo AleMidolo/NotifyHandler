@@ -11,7 +11,6 @@ test("concrete automation worker is structurally compatible with application por
   const preflight: ExecutionPreflightPort = createWorkerExecutionPreflight();
   assert.equal(typeof automation.start, "function");
   assert.equal(typeof automation.resumeAfterManualAuth, "function");
-  assert.equal(typeof automation.continueWithObservedOdds, "function");
   assert.equal(typeof automation.retry, "function");
   assert.equal(typeof automation.reopen, "function");
   assert.equal(typeof automation.cancel, "function");

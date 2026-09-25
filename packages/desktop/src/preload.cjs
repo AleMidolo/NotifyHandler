@@ -17,7 +17,6 @@ const bridge = Object.freeze({
   getSnapshot: () => ipcRenderer.invoke(channels.getSnapshot),
   submitNotification: (text) => ipcRenderer.invoke(channels.submitNotification, text),
   resumeAfterManualAuth: (legId, attemptId) => recovery({ type: "RESUME_AUTH", legId, attemptId }),
-  acknowledgeObservedOdds: (legId, attemptId, observedOdds) => recovery({ type: "ACKNOWLEDGE_ODDS", legId, attemptId, observedOdds }),
   retry: (legId, attemptId) => recovery({ type: "RETRY", legId, attemptId }),
   reopen: (legId, attemptId) => recovery({ type: "REOPEN", legId, attemptId }),
   cancel: (legId, attemptId) => recovery({ type: "CANCEL", legId, attemptId }),

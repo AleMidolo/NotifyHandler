@@ -85,19 +85,17 @@ test("manual-auth pause/resume is isolated to the affected browser leg", async (
   } finally { await runtime.close(); }
 });
 
-test("changed odds require exact acknowledgement and fresh validation", async () => {
-  const worker = createFixtureAutomationWorker({ fixtures: { sisal: { [SISAL_URL]: [{ kind: "html", body: fixtureHtml("sisal", "over", "2.10") }, { kind: "html", body: fixtureHtml("sisal", "over", "2.10") }] }, bet365: docs("bet365", "under", "1.95") }, navigationTimeoutMs: 2_000 });
+test("browser E2E carries price as informational telemetry without an acknowledgement action", async () => {
+  const worker = createFixtureAutomationWorker({ fixtures: { sisal: docs("sisal", "over", "2.08"), bet365: docs("bet365", "under", "1.95") }, navigationTimeoutMs: 2_000 });
   const runtime = appRuntime(worker);
   try {
     await runtime.orchestrator.receiveNotification(canonicalNotification());
-    let state = await runtime.orchestrator.waitForIdle();
-    const sisalId = legId(runtime, "sisal");
-    assert.equal(state.legs?.find((leg) => leg.bookmaker === "sisal")?.state, "ODDS_CHANGED");
-    assert.equal(state.legs?.find((leg) => leg.bookmaker === "sisal")?.observedOdds?.observed, "2.1");
-    await assert.rejects(runtime.orchestrator.continueWithObservedOdds(sisalId, "2.09"), /exactly match/iu);
-    state = await runtime.orchestrator.continueWithObservedOdds(sisalId, "2.1");
+    const state = await runtime.orchestrator.waitForIdle();
+    const sisal = state.legs?.find((leg) => leg.bookmaker === "sisal");
+    assert.equal(sisal?.state, "READY_FOR_USER");
+    assert.equal(sisal?.observedOdds?.observed, "2.08");
     assert.equal(state.status, "READY_FOR_USER");
-    assert.equal(state.legs?.find((leg) => leg.bookmaker === "sisal")?.evidenceEpoch, 1);
+    assert.equal("continueWithObservedOdds" in runtime.orchestrator, false);
   } finally { await runtime.close(); }
 });
 
