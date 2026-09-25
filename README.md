@@ -69,14 +69,16 @@ Current Milestone 6 sequence:
 4. PRODUCT-032/#202 corrects the browser-network boundary: normal bookmaker rendering may use narrowly reviewed public `wss://`.
 5. **ARCH-011/#203** defines bookmaker-scoped WSS policy: `wss://` port 443 only, public DNS/private-network validation, version-controlled exact/suffix host rules, no runtime learning, and no socket payload/API exposure.
 6. **#206 DOMAIN-003 — complete via PR #214:** expected odds are optional informational metadata while v1 compatibility remains frozen.
-7. **#209 BOOK-029 — implementation rebased in PR #219:** default-deny bookmaker WSS gateway + passive-provenance.v2; live SISAL/BET365 WSS rules remain empty and no live host was guessed.
+7. **#209 BOOK-029 — complete via PR #219:** default-deny bookmaker WSS gateway + passive-provenance.v2; live SISAL/BET365 WSS rules remain empty and no live host was guessed.
 8. **#207 APP-008** is complete via PR #216 and **#208 BOOK-028** is complete via PR #218; changed-price state/UI and adapter/activation price gates are removed.
-9. **#211 SEC-009 — NEXT after PR #219 -> #212 QA-008** review and certify the combined migration after those implementation heads integrate.
-10. **#210 BOOK-030** may establish a BET365 WSS rule only through a Security-approved hostname-evidence procedure; the default remains deny until then.
-11. **#197 PRODUCT-030** continues in parallel to source a fresh current/future full-match total-corners direct-link second-bookmaker target. Stable odds are not required.
-12. No new BET365 live run is authorized until implementation, Security/QA, and an evidence-backed WSS rule are approved.
-13. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
-14. **#46 DEVOPS-003** remains blocked until #45 passes.
+9. **#211 SEC-009 + #212 QA-008 — complete via PR #220:** the integrated odds/WSS migration is security-hardened and QA-certified.
+10. **#221 BOOK-031 — implementation in PR #225:** source-locked BET365 hostname-only WSS observer; implementation and CI perform no live bookmaker run.
+11. **#222 SEC-010 -> #223 QA-009 -> #224 DEVOPS-018:** review/certify the observer, then permit at most one qualifying non-CI hostname observation.
+12. **#210 BOOK-030** interprets only the sanitized hostname artifact and may propose an exact-host rule; the live registry remains default-deny until Security/QA approve that source change.
+13. **#197 PRODUCT-030** continues in parallel to source a fresh current/future full-match total-corners direct-link second-bookmaker target. Stable odds are not required.
+14. No BET365 live render re-test is authorized until an evidence-backed WSS rule passes its separate Security/QA gates.
+15. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
+16. **#46 DEVOPS-003** remains blocked until #45 passes.
 
 PRODUCT-029/#194 is complete with this hybrid plan. The full-match total-corners product target remains unchanged.
 PRODUCT-028/#175 is complete. The product target remains pre-match football full-match total-corners O/U. The replan distinguishes target content that exists on the authoritative page but was not retained by the generic explorer from target content that is genuinely unavailable, without adding outcome activation or broader navigation capability.
