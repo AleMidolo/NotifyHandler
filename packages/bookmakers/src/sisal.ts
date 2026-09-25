@@ -21,8 +21,13 @@ function cancellationDuringActivation(
     evidenceEpoch: ctx.evidenceEpoch,
   };
 
-  if (result.kind === "READY_FOR_USER" || result.kind === "ODDS_CHANGED") {
-    return { kind: "FAILED_SAFE", failure, evidence: result.evidence, odds: result.odds };
+  if (result.kind === "READY_FOR_USER") {
+    return {
+      kind: "FAILED_SAFE",
+      failure,
+      evidence: result.evidence,
+      ...(result.odds === undefined ? {} : { odds: result.odds }),
+    };
   }
   if (result.kind === "FAILED_SAFE") {
     return {
