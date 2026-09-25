@@ -18,7 +18,7 @@ Production sessions default to headed Chromium. CI fixture sessions default to h
 
 ARCH-011/BOOK-029 adds a shared bookmaker-scoped browser WebSocket gateway. Normal page transport may use reviewed `wss://` only when the current top-level page is already on the same approved bookmaker, the destination is a credential-free DNS hostname on the default TLS port, the hostname matches a version-controlled exact/suffix rule, and every DNS answer passes the existing public-network check.
 
-The live SISAL and BET365 WebSocket rule registry is currently **empty/default-deny**. BOOK-029 intentionally does not guess a live hostname. Relay-origin WebSockets remain blocked.
+The live SISAL WebSocket rule registry remains **empty/default-deny**. BOOK-030 proposes one evidence-backed BET365 exact host, `premws-pt1.it.365lpodds.com`, from the single QA-authorized BOOK-031/DEVOPS-018 hostname observation. No BET365 suffix rule is configured: siblings, child subdomains, lookalikes, and other hosts remain denied. Relay-origin WebSockets remain blocked. The exact-host source change still requires Security + QA approval before any BET365 live render re-test.
 
 Allowed sockets stay inside Chromium. No socket object, destination, payload/message API, handshake metadata, or socket-derived matching evidence is exposed through `BookmakerPagePort`, the adapters, core, or renderer. A blocked production socket makes the current browser attempt network-unsafe and prevents matching/activation from proceeding.
 
