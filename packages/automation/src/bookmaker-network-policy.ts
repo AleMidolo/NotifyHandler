@@ -35,7 +35,7 @@ export const BOOKMAKER_WEBSOCKET_RULES: Readonly<
     reviewedHostSuffixes: Object.freeze([]),
   }),
   bet365: Object.freeze({
-    exactHosts: Object.freeze([]),
+    exactHosts: Object.freeze(["premws-pt1.it.365lpodds.com"]),
     reviewedHostSuffixes: Object.freeze([]),
   }),
 });
