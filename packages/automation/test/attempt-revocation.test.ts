@@ -5,7 +5,6 @@ import type {
   AdapterExecutionContext,
   ElementRef,
   MatchingEvidenceSnapshot,
-  ObservedOdds,
 } from "../../bookmakers/src/contracts.ts";
 import { SisalAdapter } from "../../bookmakers/src/sisal.ts";
 import { launchFixtureLegSession } from "../src/test-support.ts";
@@ -68,7 +67,6 @@ function evidence(epoch: number, candidate: ElementRef): MatchingEvidenceSnapsho
   };
 }
 
-const odds: ObservedOdds = { expected: "2.08", observed: "2.08", comparison: "EQUAL" };
 
 async function outcomeRef(browser: AdapterExecutionContext["browser"]): Promise<ElementRef> {
   const events = await browser.query({ kind: "event-candidate" });
@@ -97,7 +95,6 @@ test("superseded attempt gate is rejected and cannot mutate selected state", asy
       target: target(),
       candidate: oldOutcome,
       evidence: evidence(1, oldOutcome),
-      odds,
     });
     assert.deepEqual(activation, { kind: "REJECTED", reasonCode: "ATTEMPT_SUPERSEDED" });
 
@@ -162,7 +159,6 @@ test("cancelled attempt cannot activate after a replacement attempt starts", asy
       target: target(),
       candidate: oldOutcome,
       evidence: evidence(7, oldOutcome),
-      odds,
     });
     assert.deepEqual(activation, { kind: "REJECTED", reasonCode: "ATTEMPT_SUPERSEDED" });
 
