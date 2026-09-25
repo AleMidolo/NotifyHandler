@@ -7,7 +7,6 @@ import type {
   BookmakerReadQuery,
   ElementRef,
   MatchingEvidenceSnapshot,
-  ObservedOdds,
   SelectionActivationGate,
   SelectionActivationResult,
 } from "../src/contracts.ts";
@@ -96,8 +95,6 @@ class FixtureGate implements SelectionActivationGate {
     target: SelectionTarget;
     candidate: ElementRef;
     evidence: MatchingEvidenceSnapshot;
-    odds: ObservedOdds;
-    acknowledgedObservedOdds?: string;
   }): Promise<SelectionActivationResult> {
     this.calls += 1;
     this.page.setAttribute(request.candidate.id, "aria-pressed", "true");
@@ -156,24 +153,22 @@ function target(): SelectionTarget {
   };
 }
 
-function context(page: FixturePage, gate: FixtureGate, acknowledgedObservedOdds?: string): AdapterExecutionContext {
+function context(page: FixturePage, gate: FixtureGate): AdapterExecutionContext {
   return {
     legId: "leg-bet365",
     attemptId: "attempt-1",
     evidenceEpoch: 3,
     browser: page,
     selectionGate: gate,
-    ...(acknowledgedObservedOdds === undefined ? {} : { acknowledgedObservedOdds }),
   };
 }
 
 async function prepare(
   page: FixturePage,
   gate = new FixtureGate(page),
-  acknowledgedObservedOdds?: string,
   signal = new AbortController().signal,
 ) {
-  return new Bet365Adapter().prepare(context(page, gate, acknowledgedObservedOdds), target(), {}, signal);
+  return new Bet365Adapter().prepare(context(page, gate), target(), {}, signal);
 }
 
 test("BET365 rejects contradictory competition context before activation", async () => {
@@ -217,24 +212,19 @@ test("BET365 rejects duplicate exact-line candidates as ambiguous", async () => 
   if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "LINE_AMBIGUOUS");
 });
 
-test("BET365 missing displayed odds fails safely", async () => {
-  const page = new FixturePage();
-  page.setAttribute("outcome-over", "data-odds", undefined);
-  const gate = new FixtureGate(page);
-  const result = await prepare(page, gate);
-  assert.equal(result.kind, "FAILED_SAFE");
-  assert.equal(gate.calls, 0);
-  if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "ODDS_UNAVAILABLE");
-});
-
-test("BET365 second price change after acknowledgement interrupts again", async () => {
-  const page = new FixturePage();
-  page.setAttribute("outcome-over", "data-odds", "2.12");
-  const gate = new FixtureGate(page);
-  const result = await prepare(page, gate, "2.10");
-  assert.equal(result.kind, "ODDS_CHANGED");
-  assert.equal(gate.calls, 0);
-  if (result.kind === "ODDS_CHANGED") assert.equal(result.odds.observed, "2.12");
+test("BET365 missing and changed displayed odds remain non-blocking", async () => {
+  for (const raw of [undefined, "2.12"] as const) {
+    const page = new FixturePage();
+    page.setAttribute("outcome-over", "data-odds", raw);
+    const gate = new FixtureGate(page);
+    const result = await prepare(page, gate);
+    assert.equal(result.kind, "READY_FOR_USER");
+    assert.equal(gate.calls, 1);
+    if (result.kind === "READY_FOR_USER") {
+      assert.equal(result.odds?.status, raw === undefined ? "UNAVAILABLE" : "OBSERVED");
+      if (raw !== undefined) assert.equal(result.odds?.comparison, "HIGHER");
+    }
+  }
 });
 
 test("BET365 resumes after auth with fresh full matching rather than stale evidence", async () => {
@@ -263,7 +253,7 @@ test("BET365 cancellation observed during matching prevents activation", async (
     if (ref.id === "market-1" && name === "data-market-line") controller.abort();
   };
 
-  const result = await prepare(page, gate, undefined, controller.signal);
+  const result = await prepare(page, gate, controller.signal);
   assert.equal(result.kind, "CANCELLED");
   assert.equal(gate.calls, 0);
 });

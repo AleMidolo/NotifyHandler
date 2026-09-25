@@ -28,8 +28,6 @@ export type WorkerLegState =
   | "MATCHING_MARKET"
   | "MATCHING_LINE"
   | "MATCHING_OUTCOME"
-  | "VERIFYING_ODDS"
-  | "ODDS_CHANGED"
   | "ACTIVATING_SELECTION"
   | "VERIFYING_SELECTION"
   | "SELECTION_PREPARED"
@@ -47,7 +45,6 @@ export interface WorkerPortFailure {
     | "MARKET"
     | "LINE"
     | "OUTCOME"
-    | "ODDS"
     | "SELECTION_ACTIVATION"
     | "SELECTION_VERIFICATION"
     | "BROWSER_RUNTIME"
@@ -59,9 +56,10 @@ export interface WorkerPortFailure {
 }
 
 export interface WorkerPortOdds {
-  readonly expected: string;
+  readonly expected?: string;
   readonly observed?: string;
-  readonly comparison: "EQUAL" | "HIGHER" | "LOWER" | "UNAVAILABLE";
+  readonly comparison?: "EQUAL" | "HIGHER" | "LOWER";
+  readonly status: "NOT_OBSERVED" | "OBSERVED" | "UNAVAILABLE" | "INVALID";
 }
 
 export interface WorkerPortEvent {
@@ -78,10 +76,6 @@ export interface WorkerExecutionRequest {
   readonly attemptId: string;
   readonly evidenceEpoch: number;
   readonly target: SelectionTarget;
-}
-
-export interface WorkerContinueOddsRequest extends WorkerExecutionRequest {
-  readonly acknowledgedObservedOdds: string;
 }
 
 export interface WorkerCancelRequest {
@@ -110,7 +104,6 @@ export interface WorkerExecutionPreflightPort {
 export interface BookmakerWorkerPort {
   start(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent>;
   resumeAfterManualAuth(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent>;
-  continueWithObservedOdds(request: WorkerContinueOddsRequest): AsyncIterable<WorkerPortEvent>;
   retry(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent>;
   reopen(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent>;
   cancel(request: WorkerCancelRequest): Promise<void>;
@@ -145,7 +138,6 @@ interface RunOptions {
   readonly replaceSession: boolean;
   readonly openingState: boolean;
   readonly resolveRelay: boolean;
-  readonly acknowledgedObservedOdds?: string;
   readonly requireExistingSession?: boolean;
 }
 
@@ -329,24 +321,23 @@ function matchingProgress(request: WorkerExecutionRequest): readonly WorkerPortE
     workerEvent(request, "MATCHING_MARKET"),
     workerEvent(request, "MATCHING_LINE"),
     workerEvent(request, "MATCHING_OUTCOME"),
-    workerEvent(request, "VERIFYING_ODDS"),
   ];
 }
 
-function readyProgress(request: WorkerExecutionRequest, odds: ObservedOdds): readonly WorkerPortEvent[] {
+function readyProgress(request: WorkerExecutionRequest, odds?: ObservedOdds): readonly WorkerPortEvent[] {
+  const options = odds === undefined ? {} : { odds };
   return [
     ...matchingProgress(request),
-    workerEvent(request, "ACTIVATING_SELECTION", { odds }),
-    workerEvent(request, "VERIFYING_SELECTION", { odds }),
-    workerEvent(request, "SELECTION_PREPARED", { odds }),
-    workerEvent(request, "READY_FOR_USER", { odds }),
+    workerEvent(request, "ACTIVATING_SELECTION", options),
+    workerEvent(request, "VERIFYING_SELECTION", options),
+    workerEvent(request, "SELECTION_PREPARED", options),
+    workerEvent(request, "READY_FOR_USER", options),
   ];
 }
 
 function terminalEvents(request: WorkerExecutionRequest, result: AdapterTerminalResult): readonly WorkerPortEvent[] {
   switch (result.kind) {
     case "AUTH_REQUIRED": return [workerEvent(request, "AUTH_REQUIRED")];
-    case "ODDS_CHANGED": return [...matchingProgress(request), workerEvent(request, "ODDS_CHANGED", { odds: result.odds })];
     case "READY_FOR_USER": return readyProgress(request, result.odds);
     case "FAILED_SAFE": return [workerEvent(request, "FAILED_SAFE", { ...(result.odds === undefined ? {} : { odds: result.odds }), failure: result.failure })];
     case "CANCELLED": return [workerEvent(request, "CANCELLED")];
@@ -375,9 +366,6 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
   }
   resumeAfterManualAuth(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent> {
     return this.beginRun(request, { replaceSession: false, openingState: false, resolveRelay: false, requireExistingSession: true });
-  }
-  continueWithObservedOdds(request: WorkerContinueOddsRequest): AsyncIterable<WorkerPortEvent> {
-    return this.beginRun(request, { replaceSession: false, openingState: false, resolveRelay: false, acknowledgedObservedOdds: request.acknowledgedObservedOdds, requireExistingSession: true });
   }
   retry(request: WorkerExecutionRequest): AsyncIterable<WorkerPortEvent> {
     return this.beginRun(request, { replaceSession: false, openingState: true, resolveRelay: true });
@@ -534,7 +522,6 @@ export class PlaywrightBookmakerAutomationWorker implements BookmakerWorkerPort 
         evidenceEpoch: request.evidenceEpoch,
         browser: capabilities.browser,
         selectionGate: capabilities.selectionGate,
-        ...(options.acknowledgedObservedOdds === undefined ? {} : { acknowledgedObservedOdds: options.acknowledgedObservedOdds }),
       };
       result = await adapterFor(bookmaker).prepare(context, adapterTarget(request.target, resolvedRelayUrl), {}, controller.signal);
     } catch (error) {

@@ -6,7 +6,6 @@ import type {
   BookmakerPagePort,
   ElementRef,
   MatchingEvidenceSnapshot,
-  ObservedOdds,
   SelectionActivationGate,
   SelectionActivationResult,
   SisalReadQuery,
@@ -96,8 +95,6 @@ class FixtureGate implements SelectionActivationGate {
     target: SelectionTarget;
     candidate: ElementRef;
     evidence: MatchingEvidenceSnapshot;
-    odds: ObservedOdds;
-    acknowledgedObservedOdds?: string;
   }): Promise<SelectionActivationResult> {
     this.calls += 1;
     assert.equal(request.evidence.origin.status, "MATCHED");
@@ -168,19 +165,18 @@ function exactNodes(): NodeState[] {
   ];
 }
 
-function context(page: FixturePage, gate: FixtureGate, acknowledgedObservedOdds?: string): AdapterExecutionContext {
+function context(page: FixturePage, gate: FixtureGate): AdapterExecutionContext {
   return {
     legId: "leg-1",
     attemptId: "attempt-1",
     evidenceEpoch: 1,
     browser: page,
     selectionGate: gate,
-    ...(acknowledgedObservedOdds === undefined ? {} : { acknowledgedObservedOdds }),
   };
 }
 
-async function prepare(page: FixturePage, gate = new FixtureGate(page), t = target(), acknowledged?: string, signal?: AbortSignal) {
-  return new SisalAdapter().prepare(context(page, gate, acknowledged), t, {}, signal ?? new AbortController().signal);
+async function prepare(page: FixturePage, gate = new FixtureGate(page), t = target(), signal?: AbortSignal) {
+  return new SisalAdapter().prepare(context(page, gate), t, {}, signal ?? new AbortController().signal);
 }
 
 test("prepares an exact SISAL corners selection through the activation gate", async () => {
@@ -250,18 +246,51 @@ test("SISAL fails safely when market period evidence is unavailable", async () =
   if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "MARKET_CONTEXT_UNAVAILABLE");
 });
 
-test("changed odds interrupt before activation and accepted odds are rechecked", async () => {
+test("changed odds remain telemetry and do not interrupt exact activation", async () => {
   const nodes = exactNodes();
   nodes.find((node) => node.id === "outcome-over")!.attrs["data-odds"] = "2.10";
   const page = new FixturePage(nodes);
   const gate = new FixtureGate(page);
-  const changed = await prepare(page, gate);
-  assert.equal(changed.kind, "ODDS_CHANGED");
-  assert.equal(gate.calls, 0);
-
-  const continued = await prepare(page, gate, target(), "2.10");
-  assert.equal(continued.kind, "READY_FOR_USER");
+  const result = await prepare(page, gate);
+  assert.equal(result.kind, "READY_FOR_USER");
   assert.equal(gate.calls, 1);
+  if (result.kind === "READY_FOR_USER") {
+    assert.equal(result.odds?.status, "OBSERVED");
+    assert.equal(result.odds?.comparison, "HIGHER");
+    assert.equal(result.odds?.observed, "2.1");
+  }
+});
+
+test("missing or unreadable SISAL odds never block an exact target", async () => {
+  for (const raw of [undefined, "not-a-price"] as const) {
+    const nodes = exactNodes();
+    const outcome = nodes.find((node) => node.id === "outcome-over")!;
+    if (raw === undefined) delete outcome.attrs["data-odds"];
+    else outcome.attrs["data-odds"] = raw;
+    const page = new FixturePage(nodes);
+    const gate = new FixtureGate(page);
+    const result = await prepare(page, gate);
+    assert.equal(result.kind, "READY_FOR_USER");
+    assert.equal(gate.calls, 1);
+    if (result.kind === "READY_FOR_USER") {
+      assert.equal(result.odds?.status, raw === undefined ? "UNAVAILABLE" : "INVALID");
+    }
+  }
+});
+
+test("SISAL can prepare an exact target when notified odds are absent", async () => {
+  const { expectedOdds: _ignored, ...withoutExpectedOdds } = target();
+  const page = new FixturePage(exactNodes());
+  const gate = new FixtureGate(page);
+  const result = await prepare(page, gate, withoutExpectedOdds);
+  assert.equal(result.kind, "READY_FOR_USER");
+  assert.equal(gate.calls, 1);
+  if (result.kind === "READY_FOR_USER") {
+    assert.equal(result.odds?.status, "OBSERVED");
+    assert.equal(result.odds?.expected, undefined);
+    assert.equal(result.odds?.observed, "2.08");
+    assert.equal(result.odds?.comparison, undefined);
+  }
 });
 
 test("reports manual authentication without activating", async () => {
@@ -287,7 +316,7 @@ test("cancellation prevents selection activation", async () => {
   const gate = new FixtureGate(page);
   const controller = new AbortController();
   controller.abort();
-  const result = await prepare(page, gate, target(), undefined, controller.signal);
+  const result = await prepare(page, gate, target(), controller.signal);
   assert.equal(result.kind, "CANCELLED");
   assert.equal(gate.calls, 0);
 });

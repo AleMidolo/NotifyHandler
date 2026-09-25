@@ -5,7 +5,6 @@ import type {
   AdapterExecutionContext,
   BookmakerAdapter,
   MatchingEvidenceSnapshot,
-  ObservedOdds,
 } from "../../bookmakers/src/contracts.ts";
 import { Bet365Adapter } from "../../bookmakers/src/bet365.ts";
 import { SisalAdapter } from "../../bookmakers/src/sisal.ts";
@@ -105,7 +104,6 @@ function adapter(bookmaker: Bookmaker): BookmakerAdapter {
 async function prepare(bookmaker: Bookmaker, fixtures: FixtureDocuments, options: Readonly<{
   epoch?: number;
   signal?: AbortSignal;
-  acknowledgedObservedOdds?: string;
 }> = {}) {
   const session = await launchFixtureLegSession({ bookmaker, fixtures, navigationTimeoutMs: 2_000 });
   const controller = options.signal === undefined ? new AbortController() : undefined;
@@ -118,7 +116,6 @@ async function prepare(bookmaker: Bookmaker, fixtures: FixtureDocuments, options
     evidenceEpoch: epoch,
     browser: capabilities.browser,
     selectionGate: capabilities.selectionGate,
-    ...(options.acknowledgedObservedOdds === undefined ? {} : { acknowledgedObservedOdds: options.acknowledgedObservedOdds }),
   };
 
   try {
@@ -222,13 +219,17 @@ for (const item of [
     }
   });
 
-  test(`${item.bookmaker}: changed odds pause before selection activation`, async () => {
+  test(`${item.bookmaker}: changed odds remain telemetry while exact selection prepares`, async () => {
     const { result, session } = await prepare(item.bookmaker, {
       [item.url]: { kind: "html", body: fixtureHtml(item.bookmaker, { odds: "2.10" }) },
     });
     try {
-      assert.equal(result.kind, "ODDS_CHANGED");
-      if (result.kind === "ODDS_CHANGED") assert.equal(result.odds.observed, "2.1");
+      assert.equal(result.kind, "READY_FOR_USER");
+      if (result.kind === "READY_FOR_USER") {
+        assert.equal(result.odds?.status, "OBSERVED");
+        assert.equal(result.odds?.comparison, "HIGHER");
+        assert.equal(result.odds?.observed, "2.1");
+      }
     } finally {
       await session.close();
     }
@@ -370,12 +371,10 @@ test("stale element reference cannot be activated after fixture DOM replacement"
       line: { status: "MATCHED", reasonCode: "TEST" },
       outcome: { status: "MATCHED", reasonCode: "TEST", normalizedObserved: [staleOutcome.id] },
     };
-    const odds: ObservedOdds = { expected: "2.08", observed: "2.08", comparison: "EQUAL" };
     const activation = await caps.selectionGate.activate({
       target: target("bet365", BET365_URL),
       candidate: staleOutcome,
       evidence,
-      odds,
     });
     assert.equal(activation.kind, "FAILED");
   } finally {

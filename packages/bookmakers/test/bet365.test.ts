@@ -7,7 +7,6 @@ import type {
   BookmakerReadQuery,
   ElementRef,
   MatchingEvidenceSnapshot,
-  ObservedOdds,
   SelectionActivationGate,
   SelectionActivationResult,
 } from "../src/contracts.ts";
@@ -96,8 +95,6 @@ class FixtureGate implements SelectionActivationGate {
     target: SelectionTarget;
     candidate: ElementRef;
     evidence: MatchingEvidenceSnapshot;
-    odds: ObservedOdds;
-    acknowledgedObservedOdds?: string;
   }): Promise<SelectionActivationResult> {
     this.calls += 1;
     assert.equal(request.evidence.origin.status, "MATCHED");
@@ -168,19 +165,18 @@ function exactNodes(): NodeState[] {
   ];
 }
 
-function context(page: FixturePage, gate: FixtureGate, acknowledgedObservedOdds?: string): AdapterExecutionContext {
+function context(page: FixturePage, gate: FixtureGate): AdapterExecutionContext {
   return {
     legId: "leg-2",
     attemptId: "attempt-1",
     evidenceEpoch: 1,
     browser: page,
     selectionGate: gate,
-    ...(acknowledgedObservedOdds === undefined ? {} : { acknowledgedObservedOdds }),
   };
 }
 
-async function prepare(page: FixturePage, gate = new FixtureGate(page), t = target(), acknowledged?: string, signal?: AbortSignal) {
-  return new Bet365Adapter().prepare(context(page, gate, acknowledged), t, {}, signal ?? new AbortController().signal);
+async function prepare(page: FixturePage, gate = new FixtureGate(page), t = target(), signal?: AbortSignal) {
+  return new Bet365Adapter().prepare(context(page, gate), t, {}, signal ?? new AbortController().signal);
 }
 
 test("prepares an exact BET365 corners selection through the activation gate", async () => {
@@ -250,18 +246,36 @@ test("BET365 fails safely when market period evidence is unavailable", async () 
   if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "MARKET_CONTEXT_UNAVAILABLE");
 });
 
-test("BET365 changed odds interrupt before activation and accepted odds are rechecked", async () => {
+test("BET365 changed odds remain telemetry and do not interrupt exact activation", async () => {
   const nodes = exactNodes();
   nodes.find((node) => node.id === "outcome-under")!.attrs["data-odds"] = "1.82";
   const page = new FixturePage(nodes);
   const gate = new FixtureGate(page);
-  const changed = await prepare(page, gate);
-  assert.equal(changed.kind, "ODDS_CHANGED");
-  assert.equal(gate.calls, 0);
-
-  const continued = await prepare(page, gate, target(), "1.82");
-  assert.equal(continued.kind, "READY_FOR_USER");
+  const result = await prepare(page, gate);
+  assert.equal(result.kind, "READY_FOR_USER");
   assert.equal(gate.calls, 1);
+  if (result.kind === "READY_FOR_USER") {
+    assert.equal(result.odds?.status, "OBSERVED");
+    assert.equal(result.odds?.comparison, "HIGHER");
+    assert.equal(result.odds?.observed, "1.82");
+  }
+});
+
+test("BET365 missing or unreadable odds never block an exact target", async () => {
+  for (const raw of [undefined, "unreadable"] as const) {
+    const nodes = exactNodes();
+    const outcome = nodes.find((node) => node.id === "outcome-under")!;
+    if (raw === undefined) delete outcome.attrs["data-odds"];
+    else outcome.attrs["data-odds"] = raw;
+    const page = new FixturePage(nodes);
+    const gate = new FixtureGate(page);
+    const result = await prepare(page, gate);
+    assert.equal(result.kind, "READY_FOR_USER");
+    assert.equal(gate.calls, 1);
+    if (result.kind === "READY_FOR_USER") {
+      assert.equal(result.odds?.status, raw === undefined ? "UNAVAILABLE" : "INVALID");
+    }
+  }
 });
 
 test("BET365 reports manual authentication without activating", async () => {
@@ -297,7 +311,7 @@ test("BET365 cancellation before matching prevents selection activation", async 
   const gate = new FixtureGate(page);
   const controller = new AbortController();
   controller.abort();
-  const result = await prepare(page, gate, target(), undefined, controller.signal);
+  const result = await prepare(page, gate, target(), controller.signal);
   assert.equal(result.kind, "CANCELLED");
   assert.equal(gate.calls, 0);
 });

@@ -253,25 +253,12 @@ export class Bet365Adapter implements BookmakerAdapter {
     observer.onEvidence?.(snapshot);
 
     const odds = compareOdds(target.expectedOdds, await attr(ctx, outcomeRef, "data-odds"));
-    if (!odds) return { ...failure(ctx, "ODDS_INVALID", "ODDS", "BET365 displayed odds could not be parsed."), evidence: snapshot };
-    if (odds.comparison === "UNAVAILABLE") return { ...failure(ctx, "ODDS_UNAVAILABLE", "ODDS", "BET365 displayed odds are unavailable."), evidence: snapshot, odds };
-    if (odds.comparison !== "EQUAL" && ctx.acknowledgedObservedOdds === undefined) {
-      return { kind: "ODDS_CHANGED", evidence: snapshot, odds };
-    }
-    if (
-      odds.comparison !== "EQUAL" &&
-      (odds.observed === undefined || !sameDecimal(odds.observed, ctx.acknowledgedObservedOdds ?? ""))
-    ) {
-      return { kind: "ODDS_CHANGED", evidence: snapshot, odds };
-    }
     if (cancelled(signal)) return { kind: "CANCELLED" };
 
     const activation = await ctx.selectionGate.activate({
       target,
       candidate: outcomeRef,
       evidence: snapshot,
-      odds,
-      ...(ctx.acknowledgedObservedOdds === undefined ? {} : { acknowledgedObservedOdds: ctx.acknowledgedObservedOdds }),
     });
     if (activation.kind === "REJECTED") return { ...failure(ctx, "SELECTION_ACTIVATION_REJECTED", "SELECTION_ACTIVATION", `Selection gate rejected BET365 activation: ${activation.reasonCode}.`, "RETRY"), evidence: snapshot, odds };
     if (activation.kind === "FAILED") return { ...failure(ctx, "SELECTION_ACTIVATION_FAILED", "SELECTION_ACTIVATION", `BET365 selection activation failed: ${activation.reasonCode}.`, "USER_REVIEW"), evidence: snapshot, odds };

@@ -110,9 +110,12 @@ function renderLegs(model) {
     if (leg.observedOdds) {
       const expected = leg.observedOdds.expected ?? "—";
       const observed = leg.observedOdds.observed ?? "unavailable";
+      const priceState = leg.observedOdds.comparison?.toLowerCase()
+        ?? leg.observedOdds.status?.toLowerCase()
+        ?? "not observed";
       card.appendChild(text(
         "p",
-        `Odds (informational): notified ${expected} · observed ${observed} · ${leg.observedOdds.comparison.toLowerCase()}`,
+        `Odds (informational): notified ${expected} · observed ${observed} · ${priceState}`,
         "odds",
       ));
     }

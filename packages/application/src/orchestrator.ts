@@ -7,7 +7,7 @@ export type LegState =
   | "ACTIVATING_SELECTION" | "VERIFYING_SELECTION"
   | "SELECTION_PREPARED" | "READY_FOR_USER" | "FAILED_SAFE" | "CANCELLED";
 
-export type WorkerReportedLegState = LegState | "VERIFYING_ODDS" | "ODDS_CHANGED";
+export type WorkerReportedLegState = LegState;
 
 export type PlanRuntimeStatus =
   | "AWAITING_NOTIFICATION" | "PREFLIGHT_FAILED" | "STARTING" | "IN_PROGRESS"
@@ -15,10 +15,10 @@ export type PlanRuntimeStatus =
 
 export type FailureStage =
   | "PLAN" | "NAVIGATION" | "PAGE_READY" | "EVENT" | "MARKET" | "LINE" | "OUTCOME"
-  | "ODDS" | "SELECTION_ACTIVATION" | "SELECTION_VERIFICATION" | "BROWSER_RUNTIME" | "CONTRACT";
+  | "SELECTION_ACTIVATION" | "SELECTION_VERIFICATION" | "BROWSER_RUNTIME" | "CONTRACT";
 export type Recoverability = "NONE" | "RETRY" | "REOPEN" | "USER_REVIEW" | "RESTART_PLAN";
 export type ActivationDisposition = "NOT_ATTEMPTED" | "ATTEMPTED_NOT_VERIFIED";
-export type OddsComparison = "EQUAL" | "HIGHER" | "LOWER" | "UNAVAILABLE";
+export type OddsComparison = "EQUAL" | "HIGHER" | "LOWER";
 
 export interface RuntimeFailure {
   readonly code: string;
@@ -31,7 +31,8 @@ export interface RuntimeFailure {
 export interface RuntimeOdds {
   readonly expected?: string;
   readonly observed?: string;
-  readonly comparison: OddsComparison;
+  readonly comparison?: OddsComparison;
+  readonly status?: "NOT_OBSERVED" | "OBSERVED" | "UNAVAILABLE" | "INVALID";
 }
 export interface PreflightFailure {
   readonly code: "INVALID_SELECTION_TARGET" | "UNSUPPORTED_BOOKMAKER" | "UNSAFE_OR_UNSUPPORTED_URL" | "CONTRACT_VIOLATION";
@@ -379,21 +380,13 @@ export class AutomaticExecutionOrchestrator {
   }
 
   private async consume(generation: number, legId: string, events: AsyncIterable<WorkerLegEvent>): Promise<void> {
-    let legacyPriceTerminal = false;
     try {
       for await (const event of events) {
         if (generation !== this.generation) return;
-        legacyPriceTerminal =
-          event.state === "ODDS_CHANGED"
-          || (event.state === "FAILED_SAFE" && event.failure?.stage === "ODDS");
         this.applyEvent(event);
       }
       if (generation !== this.generation) return;
       const current = this.findLeg(legId);
-      // Temporary migration tolerance while BOOK-028 removes adapter-level price gates.
-      // Price-only legacy terminals are telemetry, never user-action or FAILED_SAFE
-      // application states. This branch disappears once the worker emits ADR-0007 flow.
-      if (legacyPriceTerminal) return;
       if (ACTIVE.has(current.state)) {
         this.replaceLeg({ ...current, state: "FAILED_SAFE", failure: {
           code: "CONTRACT_VIOLATION", stage: "CONTRACT",
@@ -410,22 +403,6 @@ export class AutomaticExecutionOrchestrator {
     const current = this.findLeg(event.legId);
     if (event.attemptId !== current.attemptId || event.evidenceEpoch < current.evidenceEpoch) return;
     if (current.state === "CANCELLED" || current.state === "READY_FOR_USER") return;
-
-    // ADR-0007: legacy worker price states/failures are telemetry only at the
-    // application boundary. They never become authoritative leg states.
-    if (
-      event.state === "VERIFYING_ODDS"
-      || event.state === "ODDS_CHANGED"
-      || (event.state === "FAILED_SAFE" && event.failure?.stage === "ODDS")
-    ) {
-      this.replaceLeg({
-        ...current,
-        evidenceEpoch: event.evidenceEpoch,
-        observedOdds: event.odds ?? current.observedOdds,
-        failure: null,
-      });
-      return;
-    }
 
     if (event.state !== current.state && !TRANSITIONS[current.state].has(event.state)) return;
     this.replaceLeg({

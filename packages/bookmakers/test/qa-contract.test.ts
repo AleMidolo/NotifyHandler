@@ -6,7 +6,6 @@ import type {
   BookmakerPagePort,
   ElementRef,
   MatchingEvidenceSnapshot,
-  ObservedOdds,
   SelectionActivationGate,
   SelectionActivationResult,
   SisalReadQuery,
@@ -103,8 +102,6 @@ class QaGate implements SelectionActivationGate {
     target: SelectionTarget;
     candidate: ElementRef;
     evidence: MatchingEvidenceSnapshot;
-    odds: ObservedOdds;
-    acknowledgedObservedOdds?: string;
   }): Promise<SelectionActivationResult> {
     this.calls += 1;
     this.candidates.push(request.candidate.id);
@@ -179,28 +176,22 @@ function exactNodes(): NodeState[] {
   ];
 }
 
-function makeContext(
-  page: QaFixturePage,
-  gate: QaGate,
-  acknowledgedObservedOdds?: string,
-): AdapterExecutionContext {
+function makeContext(page: QaFixturePage, gate: QaGate): AdapterExecutionContext {
   return {
     legId: "leg-qa",
     attemptId: "attempt-qa",
     evidenceEpoch: 11,
     browser: page,
     selectionGate: gate,
-    ...(acknowledgedObservedOdds === undefined ? {} : { acknowledgedObservedOdds }),
   };
 }
 
 async function prepare(
   page: QaFixturePage,
   gate = new QaGate(page),
-  acknowledgedObservedOdds?: string,
   signal = new AbortController().signal,
 ) {
-  return new SisalAdapter().prepare(makeContext(page, gate, acknowledgedObservedOdds), target(), {}, signal);
+  return new SisalAdapter().prepare(makeContext(page, gate), target(), {}, signal);
 }
 
 function find(nodes: NodeState[], id: string): NodeState {
@@ -279,52 +270,37 @@ test("duplicate exact-line market candidates are ambiguous and never activate", 
   if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "LINE_AMBIGUOUS");
 });
 
-test("higher displayed odds pause before activation", async () => {
-  const nodes = exactNodes();
-  find(nodes, "outcome-over").attrs["data-odds"] = "2.10";
-  const page = new QaFixturePage(nodes);
-  const gate = new QaGate(page);
-  const result = await prepare(page, gate);
-
-  assert.equal(result.kind, "ODDS_CHANGED");
-  assert.equal(gate.calls, 0);
-  if (result.kind === "ODDS_CHANGED") assert.equal(result.odds.comparison, "HIGHER");
+test("higher and lower displayed odds remain informational and do not interrupt activation", async () => {
+  for (const [raw, comparison] of [["2.10", "HIGHER"], ["2.00", "LOWER"]] as const) {
+    const nodes = exactNodes();
+    find(nodes, "outcome-over").attrs["data-odds"] = raw;
+    const page = new QaFixturePage(nodes);
+    const gate = new QaGate(page);
+    const result = await prepare(page, gate);
+    assert.equal(result.kind, "READY_FOR_USER");
+    assert.equal(gate.calls, 1);
+    if (result.kind === "READY_FOR_USER") {
+      assert.equal(result.odds?.status, "OBSERVED");
+      assert.equal(result.odds?.comparison, comparison);
+    }
+  }
 });
 
-test("lower displayed odds pause before activation", async () => {
-  const nodes = exactNodes();
-  find(nodes, "outcome-over").attrs["data-odds"] = "2.00";
-  const page = new QaFixturePage(nodes);
-  const gate = new QaGate(page);
-  const result = await prepare(page, gate);
-
-  assert.equal(result.kind, "ODDS_CHANGED");
-  assert.equal(gate.calls, 0);
-  if (result.kind === "ODDS_CHANGED") assert.equal(result.odds.comparison, "LOWER");
-});
-
-test("a second price change after acknowledgement pauses again", async () => {
-  const nodes = exactNodes();
-  find(nodes, "outcome-over").attrs["data-odds"] = "2.12";
-  const page = new QaFixturePage(nodes);
-  const gate = new QaGate(page);
-  const result = await prepare(page, gate, "2.10");
-
-  assert.equal(result.kind, "ODDS_CHANGED");
-  assert.equal(gate.calls, 0);
-  if (result.kind === "ODDS_CHANGED") assert.equal(result.odds.observed, "2.12");
-});
-
-test("missing displayed odds fail safely without activation", async () => {
-  const nodes = exactNodes();
-  delete find(nodes, "outcome-over").attrs["data-odds"];
-  const page = new QaFixturePage(nodes);
-  const gate = new QaGate(page);
-  const result = await prepare(page, gate);
-
-  assert.equal(result.kind, "FAILED_SAFE");
-  assert.equal(gate.calls, 0);
-  if (result.kind === "FAILED_SAFE") assert.equal(result.failure.code, "ODDS_UNAVAILABLE");
+test("missing and invalid displayed odds remain non-blocking telemetry", async () => {
+  for (const raw of [undefined, "invalid"] as const) {
+    const nodes = exactNodes();
+    const outcome = find(nodes, "outcome-over");
+    if (raw === undefined) delete outcome.attrs["data-odds"];
+    else outcome.attrs["data-odds"] = raw;
+    const page = new QaFixturePage(nodes);
+    const gate = new QaGate(page);
+    const result = await prepare(page, gate);
+    assert.equal(result.kind, "READY_FOR_USER");
+    assert.equal(gate.calls, 1);
+    if (result.kind === "READY_FOR_USER") {
+      assert.equal(result.odds?.status, raw === undefined ? "UNAVAILABLE" : "INVALID");
+    }
+  }
 });
 
 test("manual-auth resume performs a fresh full validation pass", async () => {
@@ -359,7 +335,7 @@ test("cancellation observed during matching cannot lead to later activation", as
     }
   };
 
-  const result = await prepare(page, gate, undefined, controller.signal);
+  const result = await prepare(page, gate, controller.signal);
 
   assert.notEqual(result.kind, "READY_FOR_USER");
   assert.equal(gate.calls, 0);
