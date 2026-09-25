@@ -91,14 +91,41 @@ test("reviewed bookmaker namespace suffix allows exact namespace and subdomains 
   );
 });
 
-test("reviewed suffix cannot escape the bookmaker approved-origin namespace", () => {
+test("reviewed suffix cannot escape the bookmaker namespace or expand to a public suffix", () => {
   assert.throws(
     () => policy({ reviewedHostSuffixes: ["example.com"] }),
-    /approved bookmaker origin namespace/,
+    /bookmaker namespace label|approved bookmaker origin namespace/,
   );
   assert.throws(
     () => policy({ reviewedHostSuffixes: ["com"] }),
     /canonical DNS namespace/,
+  );
+  assert.throws(
+    () => new BookmakerNetworkPolicy(
+      {
+        bookmaker: "sisal",
+        topLevelOrigins: ["https://www.sisal.co.uk"],
+        websocket: {
+          exactHosts: [],
+          reviewedHostSuffixes: ["co.uk"],
+        },
+      },
+      PUBLIC,
+    ),
+    /public-suffix expansion is forbidden/,
+  );
+  assert.doesNotThrow(
+    () => new BookmakerNetworkPolicy(
+      {
+        bookmaker: "sisal",
+        topLevelOrigins: ["https://www.sisal.co.uk"],
+        websocket: {
+          exactHosts: [],
+          reviewedHostSuffixes: ["sisal.co.uk"],
+        },
+      },
+      PUBLIC,
+    ),
   );
 });
 
@@ -255,4 +282,70 @@ test("browser gateway connects reviewed public WSS without exposing socket data 
     "socket" in (runtime.port as unknown as Record<string, unknown>),
     false,
   );
+});
+
+test("allowed WSS is actively revoked when its attempt is cancelled", async () => {
+  const { handler, runtime } = await runtimeWithSocketPolicy(
+    policy({ exactHosts: ["socket.example.com"] }),
+  );
+  runtime.beginAttempt();
+  let connects = 0;
+  let closes = 0;
+  await handler({
+    url: () => "wss://socket.example.com/feed",
+    connectToServer: () => { connects += 1; },
+    close: async () => { closes += 1; },
+  });
+  assert.equal(connects, 1);
+  assert.equal(closes, 0);
+
+  runtime.cancelInFlight();
+  assert.equal(closes, 1);
+});
+
+test("superseding an attempt revokes its allowed WSS before the new attempt proceeds", async () => {
+  const { handler, runtime } = await runtimeWithSocketPolicy(
+    policy({ exactHosts: ["socket.example.com"] }),
+  );
+  runtime.beginAttempt();
+  let connects = 0;
+  let closes = 0;
+  await handler({
+    url: () => "wss://socket.example.com/feed",
+    connectToServer: () => { connects += 1; },
+    close: async () => { closes += 1; },
+  });
+  assert.equal(connects, 1);
+
+  runtime.beginAttempt();
+  assert.equal(closes, 1);
+});
+
+test("WSS DNS decision from an old attempt cannot connect after cancellation", async () => {
+  let releaseDns: ((addresses: readonly string[]) => void) | undefined;
+  const resolver = () => new Promise<readonly string[]>((resolve) => {
+    releaseDns = resolve;
+  });
+  const { handler, runtime } = await runtimeWithSocketPolicy(
+    policy({
+      exactHosts: ["socket.example.com"],
+      resolveHostname: resolver,
+    }),
+  );
+  runtime.beginAttempt();
+  let connects = 0;
+  let closes = 0;
+  const handling = Promise.resolve(handler({
+    url: () => "wss://socket.example.com/feed",
+    connectToServer: () => { connects += 1; },
+    close: async () => { closes += 1; },
+  }));
+
+  assert.ok(releaseDns);
+  runtime.cancelInFlight();
+  releaseDns(["93.184.216.34"]);
+  await handling;
+
+  assert.equal(connects, 0);
+  assert.equal(closes, 1);
 });
