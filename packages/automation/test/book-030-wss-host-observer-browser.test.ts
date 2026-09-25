@@ -113,10 +113,6 @@ test("pinned Chromium popup WebSocket cannot become the source-page hostname obs
     await page.routeWebSocket("**/*", async (socket) => {
       await observer.handle(socket);
     });
-    context.on("page", (openedPage) => {
-      if (openedPage !== page) void openedPage.close().catch(() => undefined);
-    });
-
     await page.setContent(`
       <!doctype html>
       <html>
