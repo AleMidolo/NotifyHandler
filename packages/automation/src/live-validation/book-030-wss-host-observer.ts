@@ -325,7 +325,7 @@ export async function runBook030WssHostObserver(): Promise<Book030WssHostObserva
   const page = await context.newPage();
   let unsafeOrdinaryNetworkObserved = false;
 
-  await page.routeWebSocket("**/*", async (socket) => {
+  await page.routeWebSocket(/.*/u, async (socket) => {
     if (page.url() !== lockedTarget.href) {
       await socketObserver.rejectWithoutInspection(socket);
       return;
