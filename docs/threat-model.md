@@ -143,6 +143,7 @@ Mitigations:
 - require version-controlled bookmaker exact-host/reviewed-suffix policy;
 - re-run fail-closed public DNS/private-address validation before connection;
 - no runtime auto-learning from observed socket destinations;
+- hostname-only policy-provenance observers must scope WebSocket interception to the single source-locked page, require the exact locked page URL at observation time, reject off-target first sockets without inspecting their destination, and never accept popup/extra-page sockets as provenance;
 - relay-origin sockets remain blocked;
 - socket objects/messages are never exposed to adapters/core/renderer/matching/activation code;
 - no payload/message retention or protected/private API reverse engineering;
