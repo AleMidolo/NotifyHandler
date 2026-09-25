@@ -20,7 +20,7 @@ Its only eventual live purpose is to establish provenance for the canonical host
 
 The observer imports the existing BOOK-024 BET365 target and re-validates it through the existing source-lock parser.
 
-There is no runtime URL argument or environment override.
+There is no runtime URL argument or environment override. Top-level network requests are restricted to the locked target's exact request URL (the fragment is browser-local), and a WebSocket attempt is eligible only while the page's current URL is the exact locked target including its fragment. An off-target first socket fails closed without its destination being inspected.
 
 The browser timing stays aligned with the approved passive direct-page diagnostic:
 
