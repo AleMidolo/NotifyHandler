@@ -26,24 +26,21 @@ Application state/UI no longer contains changed-price acknowledgement or a price
 ### P0 — BOOK-028 / #208: COMPLETE via PR #218
 Adapter/activation authorization no longer depends on price; deterministic identity and selected-state verification remain mandatory.
 
-### P0 — BOOK-031 / #221: source-locked BET365 WSS hostname observer
+### P0 — BOOK-030 / #210: evidence-backed BET365 exact WSS host rule
 Owner: Bookmaker Automation Engineer
-Depends on: BOOK-029/#209, SEC-009/#211 and QA-008/#212 — complete
+Depends on: BOOK-031/#221, SEC-010/#222, QA-009/#223, DEVOPS-018/#224 — complete
 
-PR #225 implements the approved hostname-only evidence observer without performing a real bookmaker run. It source-locks the BOOK-024 BET365 target, uses headed ephemeral Chromium outside CI, observes only the first WSS attempt, validates only safe public-host properties, never establishes the socket, and can retain only the strict `notifyhandler.book030-wss-host-observation.v1` artifact.
+DEVOPS-018 retained exactly one validated canonical candidate hostname, `premws-pt1.it.365lpodds.com`, under the approved no-connect observer procedure. PR #226 proposes that hostname as an **exact host only**. BET365 `reviewedHostSuffixes` stays empty; no sibling, child, parent, wildcard, or inferred numbered host is authorized.
+
+### P0 review gates — SEC-011 / #227 -> QA-010 / #228
+Security must approve the exact source rule before QA independently certifies the exact-host, suffix-confusion, DNS/public-target, cancellation/stale-attempt, relay-WSS, privacy, matching-isolation, and transaction-boundary regressions.
+
+Neither review performs a live bookmaker run. A BET365 render re-test remains prohibited until both gates approve the merged rule.
 
 ### P0 external evidence — PRODUCT-030 / #197
 Owner: Product Coordinator / upstream surebet integration
 
 Fresh direct-link targets may be supplied when available. Stable odds are not required; identity + direct URL are the relevant inputs.
-
-### After BOOK-031
-- SEC-010/#222 reviews the exact observer implementation.
-- QA-009/#223 certifies deterministic/pinned-browser/privacy boundaries and may authorize at most one live hostname observation.
-- DEVOPS-018/#224 executes exactly one qualifying non-CI observation only after QA authorization.
-- BOOK-030/#210 interprets a valid sanitized artifact and proposes the narrowest exact-host rule; one observation never justifies a suffix rule.
-
-No new BET365 live render re-test is authorized until the WSS framework, Security/QA gates, and an evidence-backed host rule are approved.
 
 ## Next in Milestone 6
 
