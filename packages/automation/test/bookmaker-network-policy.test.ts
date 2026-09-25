@@ -34,10 +34,13 @@ function policy(options: Readonly<{
   );
 }
 
-test("BOOK-029 live bookmaker WSS registry is default-deny with no guessed host", () => {
+test("BOOK-030 live registry keeps SISAL default-deny and permits only the observed BET365 exact host", () => {
   assert.deepEqual(BOOKMAKER_WEBSOCKET_RULES.sisal.exactHosts, []);
   assert.deepEqual(BOOKMAKER_WEBSOCKET_RULES.sisal.reviewedHostSuffixes, []);
-  assert.deepEqual(BOOKMAKER_WEBSOCKET_RULES.bet365.exactHosts, []);
+  assert.deepEqual(
+    BOOKMAKER_WEBSOCKET_RULES.bet365.exactHosts,
+    ["premws-pt1.it.365lpodds.com"],
+  );
   assert.deepEqual(BOOKMAKER_WEBSOCKET_RULES.bet365.reviewedHostSuffixes, []);
 
   const live = createBookmakerNetworkPolicy(
@@ -46,9 +49,18 @@ test("BOOK-029 live bookmaker WSS registry is default-deny with no guessed host"
     PUBLIC,
   );
   assert.equal(
-    live.matchesReviewedWebSocketHost("socket.bet365.it"),
-    false,
+    live.matchesReviewedWebSocketHost("premws-pt1.it.365lpodds.com"),
+    true,
   );
+  for (const hostname of [
+    "premws-pt2.it.365lpodds.com",
+    "evilpremws-pt1.it.365lpodds.com",
+    "child.premws-pt1.it.365lpodds.com",
+    "premws-pt1.it.365lpodds.com.evil.example",
+    "socket.bet365.it",
+  ]) {
+    assert.equal(live.matchesReviewedWebSocketHost(hostname), false, hostname);
+  }
 });
 
 test("reviewed exact public WSS host is allowed only from approved bookmaker top-level page", async () => {
@@ -67,6 +79,80 @@ test("reviewed exact public WSS host is allowed only from approved bookmaker top
     ),
     { allowed: false, code: "BOOKMAKER_WSS_UNAPPROVED" },
   );
+});
+
+test("BOOK-030 BET365 exact host is allowed only with public DNS and the approved BET365 top-level origin", async () => {
+  const live = createBookmakerNetworkPolicy(
+    "bet365",
+    ["https://www.bet365.it"],
+    PUBLIC,
+  );
+
+  assert.deepEqual(
+    await live.evaluateWebSocket(
+      "wss://premws-pt1.it.365lpodds.com/socket",
+      "https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/",
+    ),
+    { allowed: true },
+  );
+
+  for (const url of [
+    "wss://premws-pt2.it.365lpodds.com/socket",
+    "wss://child.premws-pt1.it.365lpodds.com/socket",
+    "wss://premws-pt1.it.365lpodds.com.evil.example/socket",
+    "wss://premws-pt1.it.365lpodds.com:8443/socket",
+    "ws://premws-pt1.it.365lpodds.com/socket",
+  ]) {
+    assert.deepEqual(
+      await live.evaluateWebSocket(
+        url,
+        "https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/",
+      ),
+      {
+        allowed: false,
+        code: url.startsWith("ws:")
+          ? "BOOKMAKER_WSS_INSECURE"
+          : "BOOKMAKER_WSS_UNAPPROVED",
+      },
+      url,
+    );
+  }
+
+  assert.deepEqual(
+    await live.evaluateWebSocket(
+      "wss://premws-pt1.it.365lpodds.com/socket",
+      "https://example.com/",
+    ),
+    { allowed: false, code: "BOOKMAKER_WSS_UNAPPROVED" },
+  );
+});
+
+test("BOOK-030 BET365 exact host still fails closed on DNS/private-network uncertainty", async () => {
+  for (const answer of [
+    [] as const,
+    ["127.0.0.1"] as const,
+    ["10.0.0.2"] as const,
+    ["169.254.10.1"] as const,
+    ["::1"] as const,
+    ["fe80::1"] as const,
+    ["93.184.216.34", "192.168.1.5"] as const,
+    ["not-an-ip-address"] as const,
+    ["93.184.216.34", "not-an-ip-address"] as const,
+  ]) {
+    const live = createBookmakerNetworkPolicy(
+      "bet365",
+      ["https://www.bet365.it"],
+      async () => answer,
+    );
+    assert.deepEqual(
+      await live.evaluateWebSocket(
+        "wss://premws-pt1.it.365lpodds.com/socket",
+        "https://www.bet365.it/#/AC/B1/C1/D8/E201149499/F3/I1/",
+      ),
+      { allowed: false, code: "BOOKMAKER_WSS_NETWORK_TARGET_BLOCKED" },
+      JSON.stringify(answer),
+    );
+  }
 });
 
 test("reviewed bookmaker namespace suffix allows exact namespace and subdomains but resists suffix confusion", async () => {
@@ -162,6 +248,8 @@ test("WSS DNS failure, empty answers, private, loopback and link-local answers f
     ["::1"] as const,
     ["fe80::1"] as const,
     ["93.184.216.34", "192.168.1.10"] as const,
+    ["not-an-ip-address"] as const,
+    ["93.184.216.34", "not-an-ip-address"] as const,
   ];
 
   for (const answer of addresses) {

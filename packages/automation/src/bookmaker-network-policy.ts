@@ -35,7 +35,7 @@ export const BOOKMAKER_WEBSOCKET_RULES: Readonly<
     reviewedHostSuffixes: Object.freeze([]),
   }),
   bet365: Object.freeze({
-    exactHosts: Object.freeze([]),
+    exactHosts: Object.freeze(["premws-pt1.it.365lpodds.com"]),
     reviewedHostSuffixes: Object.freeze([]),
   }),
 });
@@ -228,7 +228,11 @@ export class BookmakerNetworkPolicy {
       const addresses = await this.resolveHostname(hostname);
       if (
         addresses.length === 0
-        || addresses.some((address) => isInternalHostname(address))
+        || addresses.some(
+          (address) =>
+            isIP(address.replace(/^\[|\]$/gu, "")) === 0
+            || isInternalHostname(address),
+        )
       ) {
         return { allowed: false, code: "BOOKMAKER_WSS_NETWORK_TARGET_BLOCKED" };
       }

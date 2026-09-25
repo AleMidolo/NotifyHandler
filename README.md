@@ -72,11 +72,11 @@ Current Milestone 6 sequence:
 7. **#209 BOOK-029 — complete via PR #219:** default-deny bookmaker WSS gateway + passive-provenance.v2; live SISAL/BET365 WSS rules remain empty and no live host was guessed.
 8. **#207 APP-008** is complete via PR #216 and **#208 BOOK-028** is complete via PR #218; changed-price state/UI and adapter/activation price gates are removed.
 9. **#211 SEC-009 + #212 QA-008 — complete via PR #220:** the integrated odds/WSS migration is security-hardened and QA-certified.
-10. **#221 BOOK-031 — implementation in PR #225:** source-locked BET365 hostname-only WSS observer; implementation and CI perform no live bookmaker run.
-11. **#222 SEC-010 -> #223 QA-009 -> #224 DEVOPS-018:** review/certify the observer, then permit at most one qualifying non-CI hostname observation.
-12. **#210 BOOK-030** interprets only the sanitized hostname artifact and may propose an exact-host rule; the live registry remains default-deny until Security/QA approve that source change.
+10. **#221 BOOK-031 + #222 SEC-010 + #223 QA-009 + #224 DEVOPS-018 — complete:** the approved one-shot observer retained `premws-pt1.it.365lpodds.com` with public DNS validated and `socketConnected:false`.
+11. **#210 BOOK-030 — PR #226:** proposes only that canonical hostname as a BET365 exact WSS host. No suffix, sibling, child, or wildcard rule is inferred from the single observation.
+12. **#227 SEC-011 -> #228 QA-010:** review and independently certify the exact-host source rule before any BET365 render re-test.
 13. **#197 PRODUCT-030** continues in parallel to source a fresh current/future full-match total-corners direct-link second-bookmaker target. Stable odds are not required.
-14. No BET365 live render re-test is authorized until an evidence-backed WSS rule passes its separate Security/QA gates.
+14. No BET365 live render re-test is authorized until SEC-011 and QA-010 approve the evidence-backed source rule.
 15. **#45 QA-002** remains blocked until two bookmakers genuinely become narrowly scoped live `Supported`.
 16. **#46 DEVOPS-003** remains blocked until #45 passes.
 
