@@ -9,7 +9,10 @@ import {
 } from "../src/bookmaker-network-policy.ts";
 import { domMappingFor } from "../src/dom-mapping.ts";
 import { NavigationPolicy } from "../src/navigation-policy.ts";
-import { createWorkerPageRuntime } from "../src/page-runtime.ts";
+import {
+  BookmakerNetworkPolicyViolation,
+  createWorkerPageRuntime,
+} from "../src/page-runtime.ts";
 
 const PUBLIC = async () => ["93.184.216.34"] as const;
 
@@ -253,11 +256,18 @@ test("browser gateway closes unapproved socket and revokes matching capability",
   assert.equal(connects, 0);
   assert.equal(closes, 1);
   assert.equal(runtime.currentNetworkFailure(), "BOOKMAKER_WSS_UNAPPROVED");
-  assert.deepEqual(
-    await runtime.port.query({ kind: "event-candidate" }),
-    [],
+  await assert.rejects(
+    runtime.port.query({ kind: "event-candidate" }),
+    (error: unknown) =>
+      error instanceof BookmakerNetworkPolicyViolation
+      && error.code === "BOOKMAKER_WSS_UNAPPROVED",
   );
-  assert.equal(runtime.isCurrentLocationAllowed(), false);
+  assert.throws(
+    () => runtime.isCurrentLocationAllowed(),
+    (error: unknown) =>
+      error instanceof BookmakerNetworkPolicyViolation
+      && error.code === "BOOKMAKER_WSS_UNAPPROVED",
+  );
 });
 
 test("browser gateway connects reviewed public WSS without exposing socket data to matching API", async () => {
