@@ -132,7 +132,7 @@ Required controls:
 - `wss://` only; `ws://` is prohibited;
 - default TLS port 443 only;
 - no URL credentials or IP-literal destinations;
-- every destination must pass fail-closed public DNS/private-network checks;
+- every destination must pass fail-closed public DNS/private-network checks; empty, malformed/non-IP, mixed-public/private, or failed resolver results are denied;
 - host authorization comes from version-controlled bookmaker policy, never notification/page/user/runtime discovery;
 - exact hosts are preferred; reviewed suffix rules are explicit, must remain inside both the approved-origin namespace and the source-controlled bookmaker namespace, and must not be public suffixes;
 - allowed sockets are revoked on attempt cancellation or supersession, and stale async WSS policy decisions may not connect after the attempt generation changes;
